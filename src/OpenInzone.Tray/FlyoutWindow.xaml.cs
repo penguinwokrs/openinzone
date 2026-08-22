@@ -2,9 +2,11 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using OpenInzone.Control;
 using OpenInzone.Model;
+using OpenInzone.Tray.Native;
 
 namespace OpenInzone.Tray;
 
@@ -118,32 +120,56 @@ public partial class FlyoutWindow : Window
         // The height is only known once the layout has run.
         UpdateLayout();
 
-        Rect work = GetTrayMonitorWorkArea();
-        Left = work.Right - Width - 12;
-        Top = work.Bottom - ActualHeight - 12;
+        PositionNearTray();
         Activate();
+
+        // Moving the window onto a monitor with a different scale factor makes Windows send
+        // WM_DPICHANGED, which WPF answers by resizing the panel - after the line above has
+        // already anchored it against the pre-resize size. Running the placement again once
+        // that has settled corrects it. Doing this unconditionally, rather than only on a
+        // cross-monitor DPI change, keeps this free of DPI special-casing.
+        Dispatcher.BeginInvoke(new Action(PositionNearTray), DispatcherPriority.Loaded);
     }
 
     /// <summary>
-    /// SystemParameters.WorkArea is always the primary monitor, so on a multi-monitor setup with
-    /// the taskbar elsewhere the panel would open on the wrong screen. Screen.FromPoint(cursor)
-    /// finds the monitor the click actually happened on, but its WorkingArea is in physical device
-    /// pixels while Window.Left/Top are device-independent units; TransformFromDevice is the
-    /// per-monitor DPI matrix that converts one to the other correctly on a scaled display.
+    /// Under this project's default Per-Monitor-V2 DPI awareness, a window's DPI transform - and
+    /// so the meaning of Window.Left/Top - depends on which monitor it currently occupies. On
+    /// first open the window is still wherever Windows placed it (typically the primary
+    /// monitor), so converting the *target* monitor's work area with the *current* monitor's
+    /// transform and assigning the result to Left/Top uses the wrong scale factor whenever the
+    /// two monitors differ. Staying in physical pixels throughout and moving the window with
+    /// SetWindowPos avoids that conversion entirely, so there is nothing left to get wrong.
     /// </summary>
-    private Rect GetTrayMonitorWorkArea()
+    private void PositionNearTray()
     {
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            // No handle yet; fall back to the previous DIP-based placement against the primary
+            // monitor rather than throwing.
+            System.Windows.Rect work = SystemParameters.WorkArea;
+            Left = work.Right - Width - 12;
+            Top = work.Bottom - ActualHeight - 12;
+            return;
+        }
+
+        NativeMethods.GetWindowRect(hwnd, out OpenInzone.Tray.Native.Rect windowRect);
+        int width = windowRect.Right - windowRect.Left;
+        int height = windowRect.Bottom - windowRect.Top;
+
         var screenWork = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
 
-        // The source only exists once the window has a handle (i.e. after Show()); fall back to
-        // the primary work area rather than throwing if it is somehow unavailable.
-        var target = PresentationSource.FromVisual(this)?.CompositionTarget;
-        if (target is null) return SystemParameters.WorkArea;
+        // Screen.WorkingArea is in physical pixels, so the margin needs to be scaled the same
+        // way to look the same size on a scaled display. The window's own physical-to-DIP ratio
+        // gives the target monitor's scale factor directly, with no separate DPI lookup needed.
+        double scale = width / ActualWidth;
+        int margin = (int)Math.Round(12 * scale);
 
-        var transform = target.TransformFromDevice;
-        var topLeft = transform.Transform(new System.Windows.Point(screenWork.Left, screenWork.Top));
-        var bottomRight = transform.Transform(new System.Windows.Point(screenWork.Right, screenWork.Bottom));
-        return new Rect(topLeft, bottomRight);
+        int x = screenWork.Right - width - margin;
+        int y = screenWork.Bottom - height - margin;
+
+        NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
     }
 
     /// <summary>Hides the panel for the tray icon's toggle path, flushing first so a pending
