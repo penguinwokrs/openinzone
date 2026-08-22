@@ -110,7 +110,13 @@ public readonly record struct BatteryInfo(
     {
         if (param.Length >= 6)
             return new BatteryInfo(param[0], param[1], param[2], param[3], param[4], param[5], true);
-        return new BatteryInfo(param[0], param[1], Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, false);
+        if (param.Length >= 2)
+            return new BatteryInfo(param[0], param[1], Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, false);
+
+        // Shorter than any payload the device has been observed to send. Nothing here throws:
+        // notifications are folded on the HID reader thread, so a reading where nothing is
+        // reporting is the safe answer, not an exception.
+        return new BatteryInfo(Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, false);
     }
 
     public BatteryPart Left => Part(LeftStatus, LeftPercent, present: true);

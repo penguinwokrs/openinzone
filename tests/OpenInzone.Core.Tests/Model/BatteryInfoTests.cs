@@ -86,4 +86,29 @@ public class BatteryInfoTests
         Assert.Equal("76%", battery.Left.ToString());
         Assert.Equal("--", battery.Right.ToString());
     }
+
+    // The design's Testing section calls for this case explicitly: nothing here should throw,
+    // because notifications are folded on the HID reader thread.
+    [Fact]
+    public void TreatsAnEmptyPayloadAsNothingReporting()
+    {
+        var battery = BatteryInfo.Parse([]);
+
+        Assert.False(battery.HasSeparateBuds);
+        Assert.Equal(BatteryPartState.NotReporting, battery.Left.State);
+        Assert.Null(battery.Left.Percent);
+        Assert.Equal(BatteryPartState.Absent, battery.Right.State);
+        Assert.Equal(BatteryPartState.Absent, battery.Case.State);
+        Assert.Equal("--", battery.ToString());
+    }
+
+    [Fact]
+    public void TreatsAOneBytePayloadAsNothingReportingRatherThanThrowing()
+    {
+        var battery = BatteryInfo.Parse([0x01]);
+
+        Assert.False(battery.HasSeparateBuds);
+        Assert.Null(battery.Left.Percent);
+        Assert.Equal("--", battery.ToString());
+    }
 }
