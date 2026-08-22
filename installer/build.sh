@@ -72,4 +72,43 @@ fi
 # silently falls back to 0.0.0.
 WSLENV="OPENINZONE_VERSION${WSLENV:+:$WSLENV}" OPENINZONE_VERSION="$VERSION" \
   "$ISCC" "$(wslpath -w "$ROOT/installer/openinzone.iss")"
-echo "installer written to $ROOT/dist"
+
+INSTALLER="$ROOT/dist/OpenInzone-$VERSION-setup.exe"
+
+# ISCC.exe reads the payload through the \\wsl.localhost share, and that share has been observed
+# on this machine to hand Windows an incomplete view of a directory the Linux side already sees
+# in full — a run can compile "successfully" from a partial dist/tray or dist/cli and produce a
+# short installer instead of failing. dist/tray alone is ~160 MB uncompressed and a correct
+# installer compresses to ~70 MB; a partial-view build in testing came out single-digit MB. 40 MB
+# sits far below the former and far above the latter, so it separates a real build from a
+# truncated one without being so tight that ordinary size variation could trip it.
+#
+# The size must be read from the Windows side: it just wrote the file, and the Linux view of the
+# same file can lag behind for a few seconds afterward (observed directly on this machine).
+installer_size_bytes() {
+  local win_path bytes
+  win_path="$(wslpath -w "$INSTALLER")"
+  bytes="$(powershell.exe -NoProfile -Command "(Get-Item -LiteralPath '$win_path').Length" 2>/dev/null | tr -d '\r')" || true
+  if [ -n "$bytes" ] && [ "$bytes" -eq "$bytes" ] 2>/dev/null; then
+    printf '%s' "$bytes"
+    return 0
+  fi
+  # powershell.exe unavailable or errored; fall back to the (possibly stale) Linux view rather
+  # than skip the check outright.
+  stat -c%s "$INSTALLER"
+}
+
+if [ ! -f "$INSTALLER" ]; then
+  echo "Error: expected installer not found at $INSTALLER" >&2
+  exit 1
+fi
+
+MIN_INSTALLER_BYTES=$((40 * 1024 * 1024))
+size_bytes="$(installer_size_bytes)"
+if [ "$size_bytes" -lt "$MIN_INSTALLER_BYTES" ]; then
+  echo "Error: $INSTALLER is only $size_bytes bytes, which is smaller than the $MIN_INSTALLER_BYTES-byte floor for a complete build." >&2
+  echo "This is the wsl.localhost share serving ISCC.exe a partial view of dist/; re-run the build." >&2
+  exit 1
+fi
+
+echo "installer written to $INSTALLER ($size_bytes bytes)"

@@ -576,6 +576,13 @@ Sony saying so.
 
 ---
 
+`installer/build.sh` hands the published payload to the Windows-side Inno Setup compiler through
+the `\\wsl.localhost` share, and that share occasionally gives the compiler an incomplete view of
+a directory the Linux side already sees in full. When that happens the compile can abort with
+`Error on line 48 ... No files found matching "...\dist\tray\*"`; re-running the script is the
+fix. The script also checks the finished installer's size, so a run where the compiler saw only
+part of the payload cannot produce an undersized installer and still report success.
+
 ## License
 
 GPL-3.0-only. See `LICENSE`.
