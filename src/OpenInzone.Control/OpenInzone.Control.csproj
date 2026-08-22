@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Control</RootNamespace>
+    <AssemblyName>OpenInzone.Control</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+
+    <!--
+      OpenInzone.Core is marked windows-only as a whole because most of it is P/Invoke and COM.
+      This layer calls into it and is itself reached only from a Windows application, but it
+      targets plain net8.0 so its logic stays unit-testable anywhere.
+    -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenInzone.Core\OpenInzone.Core.csproj" />
+  </ItemGroup>
+</Project>
