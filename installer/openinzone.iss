@@ -79,3 +79,15 @@ begin
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
+
+{ Uninstall is when the tray is most likely to be running: autostart is a checked task and setup
+  offers to launch it. A running executable cannot be deleted, so [UninstallDelete] would leave
+  the directory behind and the tray would keep holding the hotkeys. }
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  { If the tray is not running, taskkill returns non-zero; ignore it. }
+  Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := True;
+end;

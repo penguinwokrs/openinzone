@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 penguinwokrs
+
 name: release
 
 on:
@@ -29,8 +32,9 @@ jobs:
 
       - name: Publish
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
-          VERSION="${{ steps.version.outputs.value }}"
           dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true \
             -p:Version="$VERSION" -o dist/tray
           dotnet publish src/OpenInzone.Cli -c Release -r win-x64 --self-contained true \
@@ -54,14 +58,18 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\openinzone.iss
 
+      # Through env, not interpolated into the script: a tag name may contain $, ( ) or a
+      # backtick, all of which PowerShell would expand inside a double-quoted string.
       - name: Zip the portable build
         shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
           Copy-Item dist\cli\inzone.exe dist\tray\
           Copy-Item LICENSE dist\tray\
-          Compress-Archive -Path dist\tray\* -DestinationPath "dist\OpenInzone-${{ steps.version.outputs.value }}-win-x64.zip"
+          Compress-Archive -Path dist\tray\* -DestinationPath "dist\OpenInzone-${env:VERSION}-win-x64.zip"
 
       - name: Create the release
         shell: bash
