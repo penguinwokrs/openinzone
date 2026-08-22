@@ -250,6 +250,46 @@ public class HotkeyConfigTests
     }
 
     [Fact]
+    public void Check_for_updates_at_startup_defaults_to_off()
+    {
+        var config = HotkeyConfig.Default();
+
+        Assert.False(config.CheckForUpdatesAtStartup);
+    }
+
+    [Fact]
+    public void Check_for_updates_at_startup_round_trips_through_a_file()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}.json");
+        try
+        {
+            var written = HotkeyConfig.Default();
+            written.CheckForUpdatesAtStartup = true;
+            written.Save(path);
+
+            var read = HotkeyConfig.LoadOrCreate(path);
+
+            Assert.True(read.CheckForUpdatesAtStartup);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    // A file written before this setting existed has no key for it at all; that must read back as
+    // the default (off), the same as a file that never mentions it ever will again for autostart.
+    [Fact]
+    public void A_file_written_before_the_setting_existed_defaults_it_to_off()
+    {
+        var config = HotkeyConfig.FromJson("""
+            { "bindings": { "volume-up": "Ctrl+F1" }, "autostart": true }
+            """);
+
+        Assert.False(config.CheckForUpdatesAtStartup);
+    }
+
+    [Fact]
     public void Writes_the_defaults_when_there_is_no_file_yet()
     {
         var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");

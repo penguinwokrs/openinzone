@@ -16,6 +16,10 @@ public sealed class HotkeyConfig
     public Dictionary<string, string> Bindings { get; init; } = [];
     public bool Autostart { get; set; }
 
+    // Off by default: reaching the network on every login is not something to switch on for
+    // someone without asking.
+    public bool CheckForUpdatesAtStartup { get; set; }
+
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
     public static HotkeyConfig Default() => new()
@@ -56,6 +60,7 @@ public sealed class HotkeyConfig
         {
             ["bindings"] = new JsonObject(Bindings.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
             ["autostart"] = Autostart,
+            ["checkForUpdatesAtStartup"] = CheckForUpdatesAtStartup,
         };
 
         // Write beside the file and move it into place, so a save interrupted part-way leaves the
@@ -73,6 +78,8 @@ public sealed class HotkeyConfig
             throw new InvalidDataException("The hotkey configuration is not a JSON object.");
 
         if (root["autostart"] is JsonValue autostart) config.Autostart = autostart.GetValue<bool>();
+        if (root["checkForUpdatesAtStartup"] is JsonValue checkForUpdates)
+            config.CheckForUpdatesAtStartup = checkForUpdates.GetValue<bool>();
 
         switch (root["bindings"])
         {

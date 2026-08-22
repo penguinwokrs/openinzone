@@ -12,6 +12,9 @@
     <ApplicationIcon>..\..\assets\openinzone.ico</ApplicationIcon>
     <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
     <Product>OpenInzone</Product>
+    <!-- A local build with no -p:Version would otherwise report 1.0.0.0 and believe itself newer
+         than every real release. The release workflow's -p:Version overrides this. -->
+    <Version>0.1.0</Version>
     <!-- Required to build a desktop application from a non-Windows host. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
