@@ -284,6 +284,22 @@ reached over a vendor HID collection on usage page `0xFF04` using a packet forma
 `docs/PROTOCOL.md` documents the wire format in full, including where each detail was found in
 INZONE Hub and which parts were confirmed against hardware.
 
+## Tests
+
+The protocol layer has unit tests. They are plain managed code with no device involved, so they
+run anywhere the SDK does, WSL included:
+
+```sh
+dotnet test
+```
+
+The expected packets come from the worked example in `docs/PROTOCOL.md`, captured from a real
+dongle. They pin the framing, the address nibbles, the little endian transaction id and where each
+checksum starts — the last one differing between commands and events is the detail most likely to
+be reintroduced by mistake.
+
+Discovery, report I/O and the Windows audio endpoint need the hardware and are not covered.
+
 ## Layout
 
 ```
@@ -295,6 +311,8 @@ src/OpenInzone.Core       protocol and transport
   Model/                  typed values for each setting
 src/OpenInzone.Cli        inzone.exe
 src/OpenInzone.Daemon     inzoned.exe
+tests/OpenInzone.Core.Tests
+  Protocol/               packet codec tests, checked against docs/PROTOCOL.md
 docs/PROTOCOL.md          the reverse-engineered wire format
 config/                   an example hotkey configuration
 ```
