@@ -30,6 +30,17 @@ internal static class Program
         {
             return Run(args, renderer);
         }
+        catch (TimeoutException)
+        {
+            renderer.Render(new ErrorReport("unreachable",
+                "The earbuds did not answer. They are in the case, out of range, or off."));
+            return 1;
+        }
+        catch (ArgumentException ex)
+        {
+            renderer.Render(new ErrorReport("usage", ex.Message));
+            return 2;
+        }
         catch (Exception ex)
         {
             renderer.Render(new ErrorReport("error", ex.Message));
@@ -65,7 +76,7 @@ internal static class Program
             "mic" => Mic(device, rest, renderer),
             "battery" => Show(renderer, new BatteryReport(device.GetBattery())),
             "watch" => Watch(device, rest, renderer),
-            _ => Unknown(command),
+            _ => Unknown(command, renderer),
         };
     }
 
@@ -75,10 +86,11 @@ internal static class Program
         return 0;
     }
 
-    private static int Unknown(string command)
+    private static int Unknown(string command, IReportRenderer renderer)
     {
-        Console.Error.WriteLine($"Unknown command '{command}'. Run 'inzone --help' to see what is available.");
-        return 1;
+        renderer.Render(new ErrorReport("usage",
+            $"Unknown command '{command}'. Run 'inzone --help' to see what is available."));
+        return 2;
     }
 
     private static int ListDevices(IReportRenderer renderer)
