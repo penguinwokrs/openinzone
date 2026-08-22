@@ -133,7 +133,9 @@ public partial class SettingsWindow : Window
         {
             row.Combo = row.DefaultCombo;
             row.Conflict = false;
+            row.Capturing = false;
         }
+        _capturing = null;
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
