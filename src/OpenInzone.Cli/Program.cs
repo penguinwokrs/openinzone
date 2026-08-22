@@ -13,13 +13,18 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        bool json = Take(ref args, "--json");
+        bool raw = Take(ref args, "--raw");
+
         if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
         {
             PrintUsage();
             return args.Length == 0 ? 1 : 0;
         }
 
-        IReportRenderer renderer = new TextRenderer(Console.Out, Console.Error);
+        IReportRenderer renderer = json
+            ? new JsonRenderer(Console.Out, raw)
+            : new TextRenderer(Console.Out, Console.Error, raw);
 
         try
         {
@@ -27,9 +32,20 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine(ex.Message);
+            renderer.Render(new ErrorReport("error", ex.Message));
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Removes a flag wherever it appears. Matching the whole token is what stops
+    /// `inzone volume -1` from being read as an option.
+    /// </summary>
+    private static bool Take(ref string[] args, string flag)
+    {
+        if (!args.Contains(flag)) return false;
+        args = args.Where(a => a != flag).ToArray();
+        return true;
     }
 
     private static int Run(string[] args, IReportRenderer renderer)

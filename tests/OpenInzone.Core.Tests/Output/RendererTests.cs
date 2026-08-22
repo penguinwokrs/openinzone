@@ -89,3 +89,72 @@ public class TextRendererTests
         Assert.Equal("01:20:23  GameChatMixBalance     60 (+1.0)\n", Render(report));
     }
 }
+
+public class JsonRendererTests
+{
+    private static string Render(IReport report, bool raw = false)
+    {
+        var writer = new StringWriter { NewLine = "\n" };
+        new JsonRenderer(writer, raw).Render(report);
+        return writer.ToString().Trim();
+    }
+
+    [Fact]
+    public void NullsAPartThatIsNotReportingAndKeepsTheKey()
+    {
+        var json = Render(new BatteryReport(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34])));
+
+        Assert.Contains("\"left\":76", json);
+        Assert.Contains("\"right\":null", json);
+        Assert.Contains("\"case\":34", json);
+        Assert.Contains("\"right_state\":\"not_reporting\"", json);
+        Assert.Contains("\"case_is_snapshot\":true", json);
+    }
+
+    [Fact]
+    public void OmitsTheKeysAModelDoesNotHave()
+    {
+        var json = Render(new BatteryReport(BatteryInfo.Parse([0x01, 62])));
+
+        Assert.Contains("\"left\":62", json);
+        Assert.DoesNotContain("\"right\"", json);
+        Assert.DoesNotContain("\"case\"", json);
+    }
+
+    [Fact]
+    public void AddsTheRawBytesOnlyWhenAsked()
+    {
+        var report = new BatteryReport(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34]));
+
+        Assert.DoesNotContain("\"raw\"", Render(report));
+        Assert.Contains("\"raw\":\"01 4C 00 FF 00 22\"", Render(report, raw: true));
+    }
+
+    [Fact]
+    public void StillEmitsWellFormedJsonOnTheErrorPath()
+    {
+        var json = Render(new ErrorReport("unreachable", "The earbuds did not answer."));
+
+        Assert.Contains("\"error\":\"unreachable\"", json);
+        Assert.Contains("\"message\":\"The earbuds did not answer.\"", json);
+    }
+
+    [Fact]
+    public void NestsTheSameBatteryObjectInsideStatus()
+    {
+        var status = new StatusReport(
+            default,
+            BatteryInfo.Parse([0x01, 76, 0x00, 71, 0x00, 34]),
+            new MixBalance(50),
+            new HeadphoneVolume(false, 15, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            100,
+            new SidetoneVolume(0, 0));
+
+        var json = Render(status);
+
+        Assert.Contains("\"battery\":{", json);
+        Assert.Contains("\"left\":76", json);
+        Assert.Contains("\"value\":50", json);
+    }
+}
