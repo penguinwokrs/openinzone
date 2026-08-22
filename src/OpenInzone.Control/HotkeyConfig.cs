@@ -41,13 +41,20 @@ public sealed class HotkeyConfig
 
     public void Save(string path)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string directory = Path.GetDirectoryName(path)!;
+        Directory.CreateDirectory(directory);
         var json = new JsonObject
         {
             ["bindings"] = new JsonObject(Bindings.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
             ["autostart"] = Autostart,
         };
-        File.WriteAllText(path, json.ToJsonString(Options));
+
+        // Write beside the file and move it into place, so a save interrupted part-way leaves the
+        // previous configuration intact rather than a truncated file that then refuses to load.
+        // Same directory, so the move stays on one volume and is a rename rather than a copy.
+        string temporary = Path.Combine(directory, Path.GetFileName(path) + ".tmp");
+        File.WriteAllText(temporary, json.ToJsonString(Options));
+        File.Move(temporary, path, overwrite: true);
     }
 
     public static HotkeyConfig FromJson(string json)

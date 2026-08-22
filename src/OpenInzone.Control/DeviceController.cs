@@ -57,7 +57,8 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             catch (Exception ex)
             {
                 Drop();
-                Failed?.Invoke(this, ex.Message);
+                try { Failed?.Invoke(this, ex.Message); }
+                catch { /* a misbehaving subscriber must not kill the worker */ }
                 Publish(DeviceState.Disconnected);
             }
         }
@@ -66,14 +67,16 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     private void Publish(DeviceState state)
     {
         lock (_stateLock) _state = state;
-        StateChanged?.Invoke(this, state);
+        try { StateChanged?.Invoke(this, state); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
     }
 
     private void Mutate(Func<DeviceState, DeviceState> change)
     {
         DeviceState next;
         lock (_stateLock) next = _state = change(_state);
-        StateChanged?.Invoke(this, next);
+        try { StateChanged?.Invoke(this, next); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
     }
 
     private void Drop()
@@ -121,12 +124,17 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     public void Refresh() => Post(_ =>
     {
         var device = Device();
+        // Ask the device again rather than trusting the answer taken at connect time: at logon the
+        // tray can win the race against Windows enumerating the capture endpoint, and carrying that
+        // "no microphone" forward would leave the slider reading 利用不可 for the whole session.
+        bool micLevelAvailable = device.Microphone is not null;
         Mutate(state => state with
         {
             Balance = device.GetMixBalance(),
             Volume = device.GetHeadphoneVolume(),
             Mic = device.GetMicVolume(),
-            MicLevel = state.MicLevelAvailable ? device.GetMicLevel() : 0,
+            MicLevel = micLevelAvailable ? device.GetMicLevel() : 0,
+            MicLevelAvailable = micLevelAvailable,
             Battery = device.GetBattery(),
         });
     });

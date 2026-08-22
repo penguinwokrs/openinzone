@@ -139,6 +139,51 @@ public class HotkeyConfigTests
         }
     }
 
+    // These are the shapes App.LoadConfig has to survive: a hand-edited or half-written file must
+    // cost the user a balloon, not their tray icon. Loading is what throws; the catch is in the tray.
+    [Theory]
+    [InlineData("{")]
+    [InlineData("[]")]
+    [InlineData("\"nope\"")]
+    [InlineData("{\"bindings\":{\"volume-up\":7}}")]
+    [InlineData("{\"bindings\":[{\"keys\":\"Ctrl+F9\",\"action\":\"volume\",\"delta\":\"lots\"}]}")]
+    [InlineData("{\"autostart\":\"yes\"}")]
+    public void A_malformed_file_is_reported_rather_than_quietly_accepted(string json)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, json);
+        try
+        {
+            Assert.ThrowsAny<Exception>(() => HotkeyConfig.LoadOrCreate(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Saving_over_an_existing_file_leaves_no_scratch_file_behind()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}");
+        var path = Path.Combine(directory, "hotkeys.json");
+        try
+        {
+            HotkeyConfig.Default().Save(path);
+
+            var second = HotkeyConfig.Default();
+            second.Bindings["volume-up"] = "Ctrl+F10";
+            second.Save(path);
+
+            Assert.Equal(["hotkeys.json"], Directory.GetFiles(directory).Select(Path.GetFileName));
+            Assert.Equal("Ctrl+F10", HotkeyConfig.LoadOrCreate(path).Bindings["volume-up"]);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void Writes_the_defaults_when_there_is_no_file_yet()
     {

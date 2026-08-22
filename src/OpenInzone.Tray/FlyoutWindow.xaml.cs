@@ -16,10 +16,12 @@ public partial class FlyoutWindow : Window
 
     /// <summary>
     /// A slider raises a change per pixel of travel. Sending each one would flood the HID channel,
-    /// so writes are coalesced and the last value always goes out when the timer fires.
+    /// so writes are coalesced and the last value always goes out when the timer fires. Each slider
+    /// keeps its own slot: one shared slot let a second slider moved inside the window discard the
+    /// first one's write, and the user then watched their adjustment get undone on the next update.
     /// </summary>
     private readonly DispatcherTimer _writeTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
-    private Action? _pendingWrite;
+    private readonly Dictionary<string, Action> _pendingWrites = [];
 
     /// <summary>Set while the state is being copied into the controls, so echoes are not written back.</summary>
     private bool _updating;
@@ -29,17 +31,11 @@ public partial class FlyoutWindow : Window
         InitializeComponent();
         _controller = controller;
 
-        _writeTimer.Tick += (_, _) =>
-        {
-            _writeTimer.Stop();
-            var write = _pendingWrite;
-            _pendingWrite = null;
-            write?.Invoke();
-        };
+        _writeTimer.Tick += (_, _) => Flush();
 
-        VolumeSlider.ValueChanged += (_, e) => Queue(() => _controller.SetVolume((int)e.NewValue));
-        MicSlider.ValueChanged += (_, e) => Queue(() => _controller.SetMicLevel((int)e.NewValue));
-        BalanceSlider.ValueChanged += (_, e) => Queue(() => _controller.SetBalance((int)e.NewValue));
+        VolumeSlider.ValueChanged += (_, e) => Queue("volume", () => _controller.SetVolume((int)e.NewValue));
+        MicSlider.ValueChanged += (_, e) => Queue("mic", () => _controller.SetMicLevel((int)e.NewValue));
+        BalanceSlider.ValueChanged += (_, e) => Queue("balance", () => _controller.SetBalance((int)e.NewValue));
 
         VolumeMuteButton.Click += (_, _) => _controller.ToggleVolumeMute();
         MicMuteButton.Click += (_, _) => _controller.ToggleMicMute();
@@ -50,10 +46,13 @@ public partial class FlyoutWindow : Window
         Render(_controller.State);
     }
 
-    private void Queue(Action write)
+    /// <summary>Replaces only that slider's pending write; a drag on one never cancels another's.</summary>
+    private void Queue(string slider, Action write)
     {
         if (_updating) return;
-        _pendingWrite = write;
+        _pendingWrites[slider] = write;
+        // One timer for all three: restarting it coalesces a burst of travel across sliders into a
+        // single flush, which is the point of the delay in the first place.
         _writeTimer.Stop();
         _writeTimer.Start();
     }
@@ -62,13 +61,15 @@ public partial class FlyoutWindow : Window
     private void Flush()
     {
         _writeTimer.Stop();
-        var write = _pendingWrite;
-        _pendingWrite = null;
-        write?.Invoke();
+        if (_pendingWrites.Count == 0) return;
+
+        var writes = _pendingWrites.Values.ToArray();
+        _pendingWrites.Clear();
+        foreach (var write in writes) write();
     }
 
     private void OnStateChanged(object? sender, DeviceState state)
-        => Dispatcher.Invoke(() => Render(state));
+        => Dispatcher.BeginInvoke(() => Render(state));
 
     private void Render(DeviceState state)
     {

@@ -28,10 +28,14 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _controller = new DeviceController();
+        // The tray icon comes first because it owns the balloon, which is the only way anything
+        // below can reach the user: nothing here has a window yet, and there is no console.
         _tray = new TrayIcon();
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
 
-        _controller.StateChanged += (_, state) => Dispatcher.Invoke(() => _tray.Update(state));
+        _controller = new DeviceController();
+
+        _controller.StateChanged += (_, state) => Dispatcher.BeginInvoke(() => _tray.Update(state));
         _tray.ExitRequested += (_, _) => Shutdown();
 
         _flyout = new FlyoutWindow(_controller);
@@ -43,7 +47,8 @@ public partial class App : System.Windows.Application
 
         _controller.Refresh();
 
-        _config = HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
+        _config = LoadConfig();
+        ReconcileAutostart(_config);
         _hotkeys = new HotkeyHost(_controller);
         SurfaceRejected(_hotkeys.Apply(_config));
 
@@ -67,6 +72,53 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
+    /// A hand-edited or half-written configuration must not cost the user their tray icon: the
+    /// defaults stand in and the balloon says which file to go and fix.
+    /// </summary>
+    private HotkeyConfig LoadConfig()
+    {
+        try
+        {
+            return HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowBalloon("設定ファイルを読み込めませんでした",
+                $"既定のホットキーで起動しました。{HotkeyConfig.DefaultPath} を修正してください: {ex.Message}");
+            return HotkeyConfig.Default();
+        }
+    }
+
+    /// <summary>
+    /// The Run key is what actually starts the application, so it stays the authority; the
+    /// configuration's field is the user's expressed intent, and hand-editing it has to mean
+    /// something. Whichever of the two was changed last is unknowable, so the file wins - it is
+    /// the only one a person edits directly.
+    /// </summary>
+    private void ReconcileAutostart(HotkeyConfig config)
+    {
+        try
+        {
+            if (Autostart.IsEnabled != config.Autostart) Autostart.Set(config.Autostart);
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowBalloon("自動起動を設定できませんでした", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Without this an exception on the UI thread ends the process with no icon, no balloon and no
+    /// console to print to - the user sees the tray simply vanish.
+    /// </summary>
+    private void OnDispatcherUnhandledException(object sender,
+        System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        e.Handled = true;
+        _tray?.ShowBalloon("エラーが発生しました", e.Exception.Message);
+    }
+
+    /// <summary>
     /// Warns about any command whose key could not be registered, rather than leaving it as a
     /// binding that silently never fires. Shared by startup and by re-applying after the settings
     /// window closes.
@@ -84,8 +136,11 @@ public partial class App : System.Windows.Application
     {
         _flyout?.Close();
         _hotkeys?.Dispose();
-        _tray?.Dispose();
+        // Before the tray icon: Dispose waits for the worker, and the worker reports its last
+        // state into the icon. Taking the icon away first would leave that report with nowhere
+        // to land while the UI thread is already blocked waiting for the worker to finish.
         _controller?.Dispose();
+        _tray?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);
     }
