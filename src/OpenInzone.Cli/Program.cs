@@ -64,20 +64,27 @@ internal static class Program
         string command = args[0].ToLowerInvariant();
         string[] rest = args[1..];
 
-        if (command == "devices") return ListDevices(renderer);
-
-        using var device = InzoneDevice.Open();
-
         return command switch
         {
-            "status" => Show(renderer, BuildStatus(device)),
-            "balance" => Show(renderer, new BalanceReport(Balance(device, rest))),
-            "volume" or "vol" => Show(renderer, new VolumeReport(Volume(device, rest))),
-            "mic" => Mic(device, rest, renderer),
-            "battery" => Show(renderer, new BatteryReport(device.GetBattery())),
-            "watch" => Watch(device, rest, renderer),
+            "devices" => ListDevices(renderer),
+            "status" => WithDevice(device => Show(renderer, BuildStatus(device))),
+            "balance" => WithDevice(device => Show(renderer, new BalanceReport(Balance(device, rest)))),
+            "volume" or "vol" => WithDevice(device => Show(renderer, new VolumeReport(Volume(device, rest)))),
+            "mic" => WithDevice(device => Mic(device, rest, renderer)),
+            "battery" => WithDevice(device => Show(renderer, new BatteryReport(device.GetBattery()))),
+            "watch" => WithDevice(device => Watch(device, rest, renderer)),
             _ => Unknown(command, renderer),
         };
+    }
+
+    /// <summary>
+    /// Opens the dongle for the commands that need one. Keeping it out of <see cref="Run"/> is
+    /// what lets an unknown command be rejected on a machine with nothing plugged in.
+    /// </summary>
+    private static int WithDevice(Func<InzoneDevice, int> action)
+    {
+        using var device = InzoneDevice.Open();
+        return action(device);
     }
 
     private static int Show(IReportRenderer renderer, IReport report)
