@@ -57,6 +57,10 @@ public sealed class TrayIcon : IDisposable
         _icon.Text = text.Length <= 63 ? text : text[..63];
     }
 
+    /// <summary>The tray has no window to put a dialog in, so a balloon is the only unsolicited way to reach the user.</summary>
+    public void ShowBalloon(string title, string text) =>
+        _icon.ShowBalloonTip(10000, title, text, ToolTipIcon.Warning);
+
     public void Dispose()
     {
         _icon.Visible = false;

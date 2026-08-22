@@ -44,7 +44,15 @@ public partial class App : System.Windows.Application
 
         _config = HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
         _hotkeys = new HotkeyHost(_controller);
-        _hotkeys.Apply(_config);
+        var rejected = _hotkeys.Apply(_config);
+        if (rejected.Count > 0)
+        {
+            // Apply collects failures instead of throwing precisely so they can be surfaced like this,
+            // rather than left as a binding that silently does nothing.
+            var names = rejected.Select(id => HotkeyCommand.ById(id)?.DisplayName ?? id);
+            _tray.ShowBalloon("ホットキーを登録できませんでした",
+                $"他のアプリと競合しているため、次のショートカットは無効です: {string.Join("、", names)}");
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
