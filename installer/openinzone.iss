@@ -47,6 +47,9 @@ Name: "desktopicon"; Description: "デスクトップにショートカットを
 ; Published self-contained, so there is no runtime to install: everything it needs is here.
 Source: "..\dist\tray\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\dist\cli\inzone.exe"; DestDir: "{app}"; Flags: ignoreversion
+; GPL-3.0 requires a copy of the licence to travel with the binaries, not just be shown by the
+; wizard during install (that's what LicenseFile above is for), so it is installed alongside them.
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\inzonetray.exe"
