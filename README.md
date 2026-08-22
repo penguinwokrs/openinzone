@@ -1,4 +1,12 @@
-# inzone-buds-ctl
+# OpenInzone
+
+An open, unofficial reimplementation of INZONE Hub's device control: a command line tool and a
+hotkey daemon for Windows.
+
+> **Not affiliated with Sony.** OpenInzone is an independent project. It is not affiliated with,
+> authorised, sponsored or endorsed by Sony Group Corporation or any of its affiliates. "Sony",
+> "INZONE" and "INZONE Hub" are trademarks of Sony Group Corporation or its affiliates, used here
+> only to identify the hardware and the vendor application this project interoperates with.
 
 Control a Sony INZONE headset from the command line or a physical key, without INZONE Hub.
 
@@ -32,8 +40,8 @@ sliders move.
 ### 1. Build
 
 ```sh
-dotnet publish src/InzoneBuds.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src/InzoneBuds.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
 That leaves two standalone executables in `publish/`. They need nothing installed on the machine
@@ -141,7 +149,7 @@ console, so you can tell a hotkey that did nothing from one that never arrived:
   mic      level 95%
 ```
 
-Run it without an argument and it uses `%APPDATA%\inzone-buds-ctl\hotkeys.json`, writing that
+Run it without an argument and it uses `%APPDATA%\openinzone\hotkeys.json`, writing that
 file with the defaults above the first time.
 
 ## Command reference
@@ -189,7 +197,7 @@ device open and caches the current values, a held-down key applies one write per
 a read and a write, so repeats stay responsive.
 
 ```sh
-inzoned                       # uses %APPDATA%\inzone-buds-ctl\hotkeys.json
+inzoned                       # uses %APPDATA%\openinzone\hotkeys.json
 inzoned C:\path\to\keys.json  # or point it somewhere else
 ```
 
@@ -221,15 +229,16 @@ A combination another application already holds is reported and skipped; the res
 ### Starting it with Windows
 
 Put a shortcut to `inzoned.exe` in the folder that opens from `shell:startup`. To lose the console
-window, add `<OutputType>WinExe</OutputType>` to `src/InzoneBuds.Daemon/InzoneBuds.Daemon.csproj`
+window, add `<OutputType>WinExe</OutputType>` to `src/OpenInzone.Daemon/OpenInzone.Daemon.csproj`
 and rebuild — note that this also hides the messages above, so get the bindings working first.
 
 ## Using it as a library
 
-`InzoneBuds.Core` has no dependencies beyond the framework.
+`OpenInzone.Core` has no dependencies beyond the framework. It is GPL-3.0-only, so anything
+you distribute that links against it has to be GPL-3.0 as well.
 
 ```csharp
-using var device = InzoneBudsDevice.Open();
+using var device = InzoneDevice.Open();
 
 Console.WriteLine(device.GetModelInfo().Name);   // INZONE Buds
 device.AdjustMixBalance(+10);
@@ -278,23 +287,46 @@ INZONE Hub and which parts were confirmed against hardware.
 ## Layout
 
 ```
-src/InzoneBuds.Core       protocol and transport
+src/OpenInzone.Core       protocol and transport
   Native/                 P/Invoke and COM declarations
   Hid/                    device discovery and report I/O
   Protocol/               packet codec and the request/response session
   Audio/                  the headset's Windows capture endpoint
   Model/                  typed values for each setting
-src/InzoneBuds.Cli        inzone.exe
-src/InzoneBuds.Daemon     inzoned.exe
+src/OpenInzone.Cli        inzone.exe
+src/OpenInzone.Daemon     inzoned.exe
 docs/PROTOCOL.md          the reverse-engineered wire format
 config/                   an example hotkey configuration
 ```
 
-## Notes
+## License
 
-This is an independent project. It is not affiliated with or endorsed by Sony, and INZONE is
-their trademark. It was written for interoperability — using hardware you own from software you
-choose — by reading the vendor application's own code and confirming the result against a device.
+GPL-3.0-only. See `LICENSE`.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. It talks to
+hardware over an undocumented channel; you run it at your own risk.
+
+## Trademarks and scope
+
+OpenInzone is an independent, non-commercial project. It is not affiliated with, authorised,
+sponsored or endorsed by Sony Group Corporation or its affiliates.
+
+"Sony", "INZONE" and "INZONE Hub" are trademarks of Sony Group Corporation or its affiliates.
+They appear in this repository only to identify the hardware this project talks to and the vendor
+application whose behaviour it reproduces — no more of those marks than that requires. No Sony
+logo, product photograph, typeface or artwork from INZONE Hub is used or redistributed here.
+
+The project exists for interoperability: using hardware you own from software you choose. The
+wire format in `docs/PROTOCOL.md` is a description of observed behaviour, confirmed against a
+device. It contains no code, resources or assets taken from INZONE Hub.
+
+Deliberately out of scope, and not accepted as contributions:
+
+- firmware update, firmware extraction, or redistribution of any Sony firmware image
+- circumventing any protection, licence check, or restriction
+- redistributing any part of INZONE Hub, including decompiler or disassembler output
+- anything that presents this project as an official or endorsed Sony product
 
 Writing values the firmware does not expect is a way to find out what happens the hard way. The
 ranges here match what INZONE Hub itself sends.

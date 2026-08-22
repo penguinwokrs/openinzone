@@ -6,6 +6,10 @@ each finding against an INZONE Buds dongle.
 
 Everything below was verified on real hardware unless marked otherwise.
 
+This document describes observed behaviour for the purpose of interoperability. It reproduces no
+code, resources or assets from INZONE Hub. "Sony", "INZONE" and "INZONE Hub" are trademarks of
+Sony Group Corporation or its affiliates; this project is not affiliated with or endorsed by them.
+
 ## Transport
 
 The dongle is a USB composite device. On INZONE Buds it enumerates as `VID_054C` / `PID_0EC2`:
