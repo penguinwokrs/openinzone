@@ -11,6 +11,7 @@ public partial class App : System.Windows.Application
     private Mutex? _instance;
     private DeviceController? _controller;
     private TrayIcon? _tray;
+    private FlyoutWindow? _flyout;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -30,11 +31,19 @@ public partial class App : System.Windows.Application
         _controller.StateChanged += (_, state) => Dispatcher.Invoke(() => _tray.Update(state));
         _tray.ExitRequested += (_, _) => Shutdown();
 
+        _flyout = new FlyoutWindow(_controller);
+        _tray.LeftClicked += (_, _) => Dispatcher.Invoke(() =>
+        {
+            if (_flyout.IsVisible) _flyout.Hide();
+            else _flyout.ShowNearTray();
+        });
+
         _controller.Refresh();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _flyout?.Close();
         _tray?.Dispose();
         _controller?.Dispose();
         _instance?.Dispose();

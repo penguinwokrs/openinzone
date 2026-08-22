@@ -1,0 +1,17 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!--
+    Drawn rather than shipped as images: sharp at any DPI, and the repository stays free of
+    artwork. Each path is authored on a 24x24 grid.
+  -->
+  <PathGeometry x:Key="SpeakerGeometry"
+                Figures="M4,9 L8,9 L13,4 L13,20 L8,15 L4,15 Z M16,9 A5,5 0 0 1 16,15" />
+  <PathGeometry x:Key="MicGeometry"
+                Figures="M12,3 A3,3 0 0 1 15,6 L15,12 A3,3 0 0 1 9,12 L9,6 A3,3 0 0 1 12,3 Z M6,11 A6,6 0 0 0 18,11 M12,17 L12,21" />
+  <PathGeometry x:Key="BalanceGeometry"
+                Figures="M3,8 L9,8 L9,16 L3,16 Z M15,8 L21,8 L21,16 L15,16 Z M9,12 L15,12" />
+  <PathGeometry x:Key="BatteryGeometry"
+                Figures="M4,8 A8,8 0 0 1 20,8 L20,15 A2,2 0 0 1 16,15 L16,11 A2,2 0 0 1 20,11 M4,11 A2,2 0 0 1 8,11 L8,15 A2,2 0 0 1 4,15 Z" />
+  <!-- The stroke laid over a muted row. -->
+  <PathGeometry x:Key="MutedSlashGeometry" Figures="M4,20 L20,4" />
+</ResourceDictionary>
