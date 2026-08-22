@@ -84,9 +84,21 @@ public class TextRendererTests
     public void DrawsAWatchLineWithTheEventPaddedToTwentyTwo()
     {
         var report = new EventReport(
-            new DateTime(2026, 8, 23, 1, 20, 23), EventId.GameChatMixBalance, "60 (+1.0)");
+            new DateTime(2026, 8, 23, 1, 20, 23),
+            EventId.GameChatMixBalance,
+            new BalanceReport(new MixBalance(60)),
+            "3C");
 
         Assert.Equal("01:20:23  GameChatMixBalance     60 (+1.0)\n", Render(report));
+    }
+
+    [Fact]
+    public void FallsBackToRawBytesForAnEventWithNoDecoder()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23), EventId.FirmwareVersion, null, "0A1B");
+
+        Assert.Equal("01:20:23  FirmwareVersion        0A1B\n", Render(report));
     }
 }
 
@@ -156,5 +168,34 @@ public class JsonRendererTests
         Assert.Contains("\"battery\":{", json);
         Assert.Contains("\"left\":76", json);
         Assert.Contains("\"value\":50", json);
+    }
+
+    // A status bar should be able to run `jq 'select(.event=="battery").left'` against the
+    // watch stream, not parse a rendered column layout out of a string.
+    [Fact]
+    public void PutsAWatchedEventsOwnFieldsBesideTimeAndEvent()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23),
+            EventId.BatteryInfo,
+            new BatteryReport(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34])),
+            "01 4C 00 FF 00 22");
+
+        var json = Render(report);
+
+        Assert.Contains("\"time\":\"01:20:23\"", json);
+        Assert.Contains("\"event\":\"battery\"", json);
+        Assert.Contains("\"left\":76", json);
+        Assert.Contains("\"right\":null", json);
+        Assert.DoesNotContain("\"detail\":\"", json);
+    }
+
+    [Fact]
+    public void KeepsTheRawBytesForAnEventWithNoDecoder()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23), EventId.FirmwareVersion, null, "0A1B");
+
+        Assert.Contains("\"detail\":\"0A1B\"", Render(report));
     }
 }

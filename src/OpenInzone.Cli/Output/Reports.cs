@@ -42,7 +42,12 @@ public sealed record MicLevelReport(int Level) : IReport;
 
 public sealed record DeviceListReport(IReadOnlyList<HidDeviceInfo> Devices) : IReport;
 
-/// <summary>One line of `inzone watch`.</summary>
-public sealed record EventReport(DateTime Time, EventId EventId, string Detail) : IReport;
+/// <summary>
+/// One line of `inzone watch`. <paramref name="Payload"/> is the report the matching command
+/// would have produced, so each renderer can draw a notification the way it draws that command.
+/// It is null for an event this tool has no decoder for, and <paramref name="RawHex"/> carries
+/// the undecoded bytes for that case.
+/// </summary>
+public sealed record EventReport(DateTime Time, EventId EventId, IReport? Payload, string RawHex) : IReport;
 
 public sealed record ErrorReport(string Code, string Message) : IReport;

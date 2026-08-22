@@ -87,7 +87,8 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
             case EventReport e:
                 json.WriteString("time", e.Time.ToString("HH:mm:ss"));
                 json.WriteString("event", EventName(e.EventId));
-                json.WriteString("detail", e.Detail);
+                if (e.Payload is not null) Write(json, e.Payload);
+                else json.WriteString("detail", e.RawHex);
                 break;
 
             case ErrorReport error:

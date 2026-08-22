@@ -45,7 +45,7 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
                 }
                 break;
             case EventReport e:
-                output.WriteLine($"{e.Time:HH:mm:ss}  {e.EventId,-22} {e.Detail}");
+                output.WriteLine($"{e.Time:HH:mm:ss}  {e.EventId,-22} {Detail(e)}");
                 break;
             case ErrorReport failure:
                 error.WriteLine(failure.Message);
@@ -74,6 +74,15 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
         string mute = mic.Mic.Muted ? "muted" : "unmuted";
         return mic.MicLevel is int level ? $"{mute}, level {level}%" : mute;
     }
+
+    private static string Detail(EventReport e) => e.Payload switch
+    {
+        BatteryReport battery => battery.Battery.ToString(),
+        BalanceReport balance => balance.Balance.ToString(),
+        VolumeReport volume => volume.Volume.ToString(),
+        MicMuteReport mic => mic.Mic.ToString(),
+        _ => e.RawHex,
+    };
 
     internal static string Hex(BatteryInfo battery) => string.Join(' ',
         new[]

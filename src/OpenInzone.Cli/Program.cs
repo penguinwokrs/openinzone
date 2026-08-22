@@ -64,7 +64,7 @@ internal static class Program
             "volume" or "vol" => Show(renderer, new VolumeReport(Volume(device, rest))),
             "mic" => Mic(device, rest, renderer),
             "battery" => Show(renderer, new BatteryReport(device.GetBattery())),
-            "watch" => Watch(device, renderer),
+            "watch" => Watch(device, rest, renderer),
             _ => Unknown(command),
         };
     }
@@ -164,28 +164,44 @@ internal static class Program
         }
     }
 
-    private static int Watch(InzoneDevice device, IReportRenderer renderer)
+    private static int Watch(InzoneDevice device, string[] args, IReportRenderer renderer)
     {
-        // Input reports reach every open handle, so this also shows replies to requests made by
-        // INZONE Hub or another copy of this tool, not only changes made at the headset.
-        Console.WriteLine($"Watching {device.GetModelInfo().Name}. Press Ctrl+C to stop.");
+        if (!WatchFilter.TryParse(args, out var wanted, out string? error))
+        {
+            renderer.Render(new ErrorReport("usage", error!));
+            return 2;
+        }
+
+
+        // Not a report: under --json every line on stdout has to be one object, and a banner is not.
+        Console.Error.WriteLine($"Watching {device.GetModelInfo().Name}. Press Ctrl+C to stop.");
+
         using var stop = new ManualResetEventSlim(false);
 
         device.SettingChanged += (_, e) =>
-            renderer.Render(new EventReport(DateTime.Now, e.EventId, Describe(e.EventId, e.Param)));
+        {
+            if (wanted.Count > 0 && !wanted.Contains(e.EventId)) return;
+            renderer.Render(new EventReport(
+                DateTime.Now, e.EventId, Payload(e.EventId, e.Param), Convert.ToHexString(e.Param)));
+        };
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
         stop.Wait();
         return 0;
     }
 
-    private static string Describe(EventId eventId, byte[] param) => eventId switch
+    /// <summary>
+    /// The report a notification carries, so both renderers can draw it the way they draw the
+    /// matching command's output. Null for an event with no decoder; the caller keeps the raw
+    /// bytes for that case.
+    /// </summary>
+    private static IReport? Payload(EventId eventId, byte[] param) => eventId switch
     {
-        EventId.GameChatMixBalance when param.Length >= 1 => new MixBalance(param[0]).ToString(),
-        EventId.HeadphoneVolume when param.Length >= 3 => HeadphoneVolume.Parse(param).ToString(),
-        EventId.MicVolume when param.Length >= 3 => MicVolume.Parse(param).ToString(),
-        EventId.BatteryInfo when param.Length >= 2 => BatteryInfo.Parse(param).ToString(),
-        _ => Convert.ToHexString(param),
+        EventId.GameChatMixBalance when param.Length >= 1 => new BalanceReport(new MixBalance(param[0])),
+        EventId.HeadphoneVolume when param.Length >= 3 => new VolumeReport(HeadphoneVolume.Parse(param)),
+        EventId.MicVolume when param.Length >= 3 => new MicMuteReport(MicVolume.Parse(param)),
+        EventId.BatteryInfo when param.Length >= 2 => new BatteryReport(BatteryInfo.Parse(param)),
+        _ => null,
     };
 
     /// <summary>Reads "70" as absolute and "+10" / "-10" as relative.</summary>
