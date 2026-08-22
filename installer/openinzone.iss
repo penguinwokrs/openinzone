@@ -66,6 +66,7 @@ function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
+  { If the tray is not running, taskkill returns non-zero; ignore it. }
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;

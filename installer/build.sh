@@ -6,7 +6,7 @@
 # side and hands the payload to the Windows-side Inno Setup compiler through interop.
 set -euo pipefail
 
-VERSION="${1:-0.0.0}"
+VERSION="${1:?VERSION argument required (e.g., 0.1.0)}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export DOTNET_ROOT="$HOME/.dotnet"
@@ -53,6 +53,16 @@ dotnet publish "$ROOT/src/OpenInzone.Tray" -c Release -r win-x64 --self-containe
   -p:Version="$VERSION" -o "$ROOT/dist/tray"
 dotnet publish "$ROOT/src/OpenInzone.Cli" -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true -p:Version="$VERSION" -o "$ROOT/dist/cli"
+
+# Verify both publish outputs exist; Inno Setup only warns on wildcard mismatches
+if [ ! -f "$ROOT/dist/tray/inzonetray.exe" ]; then
+  echo "Error: $ROOT/dist/tray/inzonetray.exe was not published." >&2
+  exit 1
+fi
+if [ ! -f "$ROOT/dist/cli/inzone.exe" ]; then
+  echo "Error: $ROOT/dist/cli/inzone.exe was not published." >&2
+  exit 1
+fi
 
 # WSL does not forward the environment to a Windows binary invoked directly unless the variable
 # is named in WSLENV; without this, ISCC.exe sees an empty OPENINZONE_VERSION and the installer
