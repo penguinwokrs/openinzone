@@ -33,7 +33,9 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="70" />
         </Grid.ColumnDefinitions>
-        <Path Data="{StaticResource SpeakerGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6" Fill="#FFE8EAED"
+        <!-- Stroke only, like every other icon: a filled wedge reads far heavier than the outlines
+             beside it and made this row look oversized even though Stretch had already matched its size. -->
+        <Path Data="{StaticResource SpeakerGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6"
               Width="28" Height="28" Stretch="Uniform" ToolTip="音量" />
         <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="30" Margin="10,0"
                 IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" />
