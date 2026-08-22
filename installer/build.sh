@@ -85,6 +85,9 @@ INSTALLER="$ROOT/dist/OpenInzone-$VERSION-setup.exe"
 #
 # The size must be read from the Windows side: it just wrote the file, and the Linux view of the
 # same file can lag behind for a few seconds afterward (observed directly on this machine).
+# A Linux-side existence check right here would hit the same stale view the size check below is
+# built to distrust, so there is no separate "-f" test: an empty result from installer_size_bytes
+# (neither side could report a length) is what stands in for "not found".
 installer_size_bytes() {
   local win_path bytes
   win_path="$(wslpath -w "$INSTALLER")"
@@ -94,17 +97,18 @@ installer_size_bytes() {
     return 0
   fi
   # powershell.exe unavailable or errored; fall back to the (possibly stale) Linux view rather
-  # than skip the check outright.
-  stat -c%s "$INSTALLER"
+  # than skip the check outright. Captured rather than returned directly, so a failed/missing
+  # stat leaves bytes empty for the caller to judge instead of tripping set -e in here.
+  bytes="$(stat -c%s "$INSTALLER" 2>/dev/null)" || true
+  printf '%s' "$bytes"
 }
-
-if [ ! -f "$INSTALLER" ]; then
-  echo "Error: expected installer not found at $INSTALLER" >&2
-  exit 1
-fi
 
 MIN_INSTALLER_BYTES=$((40 * 1024 * 1024))
 size_bytes="$(installer_size_bytes)"
+if [ -z "$size_bytes" ]; then
+  echo "Error: could not read a size for $INSTALLER from either side of the wsl.localhost boundary." >&2
+  exit 1
+fi
 if [ "$size_bytes" -lt "$MIN_INSTALLER_BYTES" ]; then
   echo "Error: $INSTALLER is only $size_bytes bytes, which is smaller than the $MIN_INSTALLER_BYTES-byte floor for a complete build." >&2
   echo "This is the wsl.localhost share serving ISCC.exe a partial view of dist/; re-run the build." >&2
