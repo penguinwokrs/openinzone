@@ -283,3 +283,54 @@ ilspycmd -p -o decompiled INZONEHub.dll
 ```
 
 `EVENT_ID` and `HeadsetParam` are where new settings show up first.
+
+## Independently corroborated
+
+The same wire format has been described elsewhere, arrived at from the opposite direction — from
+captures rather than from the vendor application:
+
+- [zoneout](https://github.com/marcinjakubowski/zoneout)'s `SPECS.md`, written for INZONE H9 II
+  (`0x0FA8`) and noting INZONE Buds as speaking the same protocol.
+- [HeadsetControl](https://github.com/Sapd/HeadsetControl)'s INZONE H5 driver,
+  `lib/devices/sony_inzone_h5.hpp`, which builds "a Sony vendor HCI COMMAND" and waits for the
+  matching EVENT.
+
+Everything the three descriptions have in common agrees: key id `96 C3`, `0x14` in the address byte
+of an event, `0xA0` as the event type of a notification, and the event ids `0x04` battery, `0x21`
+headphone volume, `0x22` game/chat balance, `0x23` sidetone, `0x24` microphone, `0x41` noise
+cancelling.
+
+They differ in how much is generalised, not in what goes on the wire.
+
+### Reading zoneout's tables against this one
+
+zoneout counts bytes from the start of the **report**, so its byte numbers are two higher than the
+packet indices used here — its byte 13 is the packet's index 11, the first param byte.
+
+Its checksums are given per command as `(sequence + value + constant) & 0xFF`, with a constant
+tabulated for each. That constant is the sum of everything fixed in the packet, which is what the
+general rule here produces once the param bytes are taken out. Balance, from the worked example
+above:
+
+```
+TX  01 00 FC 09  96 C3 41 22 02  65 00  1E  41
+    \_________/  \____________/  \___/  \/  \/
+     HCI header    fixed for       txn   pa  checksum
+     not summed    this command    id    ram
+
+sum(packet[4:-1])          = 0x241 & 0xFF = 0x41    the rule in this document
+
+0x96+0xC3+0x41+0x22+0x02   = 0x1BE
+              + txn id 00  = 0x1BE & 0xFF = 0xBE    zoneout's constant for balance
+0x65 + 0x1E + 0xBE         = 0x241 & 0xFF = 0x41    zoneout's rule, same answer
+```
+
+zoneout's "sequence" is the low byte of the transaction id; the high byte is almost always zero and
+lands in the constant with everything else that does not move.
+
+Headphone volume works the same way, and its constant `0xBC` absorbs the two param bytes that never
+vary: `0x96+0xC3+0x41+0x21+0x02+0x00` plus the mute byte `0x00` and the percent byte `0xFF`.
+
+So a discrepancy between the two documents is a real disagreement worth resolving, not two
+conventions talking past each other. Anything here that zoneout also lists has been confirmed
+twice, from separate evidence; anything only here rests on the single reading described above.
