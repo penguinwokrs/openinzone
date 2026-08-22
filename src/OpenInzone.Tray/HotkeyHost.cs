@@ -77,7 +77,19 @@ public sealed class HotkeyHost : IDisposable
     }
 
     /// <summary>Re-registers the configuration last given to <see cref="Apply"/>, undoing a Suspend.</summary>
-    public IReadOnlyList<string> Resume() => _appliedConfig is null ? [] : Apply(_appliedConfig);
+    public IReadOnlyList<string> Resume()
+    {
+        if (_appliedConfig is null)
+        {
+            // Nothing has been applied yet, so there is nothing to re-register - but Apply is what
+            // normally clears _suspended, and it is not being called here, so it must be cleared
+            // directly or a later Suspend would find it already (and wrongly) set.
+            _suspended = false;
+            return [];
+        }
+
+        return Apply(_appliedConfig);
+    }
 
     /// <summary>
     /// Tests a combination by taking it and letting it go again, which is the only way to know: the

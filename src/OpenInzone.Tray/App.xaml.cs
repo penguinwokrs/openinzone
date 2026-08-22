@@ -14,6 +14,7 @@ public partial class App : System.Windows.Application
     private FlyoutWindow? _flyout;
     private HotkeyHost? _hotkeys;
     private HotkeyConfig _config = HotkeyConfig.Default();
+    private SettingsWindow? _settings;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -44,15 +45,39 @@ public partial class App : System.Windows.Application
 
         _config = HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
         _hotkeys = new HotkeyHost(_controller);
-        var rejected = _hotkeys.Apply(_config);
-        if (rejected.Count > 0)
+        SurfaceRejected(_hotkeys.Apply(_config));
+
+        _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() =>
         {
-            // Apply collects failures instead of throwing precisely so they can be surfaced like this,
-            // rather than left as a binding that silently does nothing.
-            var names = rejected.Select(id => HotkeyCommand.ById(id)?.DisplayName ?? id);
-            _tray.ShowBalloon("ホットキーを登録できませんでした",
-                $"他のアプリと競合しているため、次のショートカットは無効です: {string.Join("、", names)}");
-        }
+            if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
+
+            // Releases our own registrations for the window's lifetime, so a combination this
+            // application already holds does not falsely probe as taken while the user is
+            // re-confirming it or moving it to another command.
+            _hotkeys?.Suspend();
+
+            _settings = new SettingsWindow(_config);
+            // Re-registering here is what makes a saved change take effect without a restart.
+            _settings.Saved += (_, config) => SurfaceRejected(_hotkeys?.Apply(config) ?? []);
+            // Runs whether the window was saved or dismissed with the X button: Resume puts back
+            // whatever configuration was last applied, which after a save is the new one.
+            _settings.Closed += (_, _) => SurfaceRejected(_hotkeys?.Resume() ?? []);
+            _settings.Show();
+        });
+    }
+
+    /// <summary>
+    /// Warns about any command whose key could not be registered, rather than leaving it as a
+    /// binding that silently never fires. Shared by startup and by re-applying after the settings
+    /// window closes.
+    /// </summary>
+    private void SurfaceRejected(IReadOnlyList<string> rejected)
+    {
+        if (rejected.Count == 0) return;
+
+        var names = rejected.Select(id => HotkeyCommand.ById(id)?.DisplayName ?? id);
+        _tray?.ShowBalloon("ホットキーを登録できませんでした",
+            $"他のアプリと競合しているため、次のショートカットは無効です: {string.Join("、", names)}");
     }
 
     protected override void OnExit(ExitEventArgs e)
