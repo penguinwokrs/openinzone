@@ -117,15 +117,54 @@ public partial class FlyoutWindow : Window
         Show();
         // The height is only known once the layout has run.
         UpdateLayout();
-        var work = SystemParameters.WorkArea;
+
+        Rect work = GetTrayMonitorWorkArea();
         Left = work.Right - Width - 12;
         Top = work.Bottom - ActualHeight - 12;
         Activate();
+    }
+
+    /// <summary>
+    /// SystemParameters.WorkArea is always the primary monitor, so on a multi-monitor setup with
+    /// the taskbar elsewhere the panel would open on the wrong screen. Screen.FromPoint(cursor)
+    /// finds the monitor the click actually happened on, but its WorkingArea is in physical device
+    /// pixels while Window.Left/Top are device-independent units; TransformFromDevice is the
+    /// per-monitor DPI matrix that converts one to the other correctly on a scaled display.
+    /// </summary>
+    private Rect GetTrayMonitorWorkArea()
+    {
+        var screenWork = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
+
+        // The source only exists once the window has a handle (i.e. after Show()); fall back to
+        // the primary work area rather than throwing if it is somehow unavailable.
+        var target = PresentationSource.FromVisual(this)?.CompositionTarget;
+        if (target is null) return SystemParameters.WorkArea;
+
+        var transform = target.TransformFromDevice;
+        var topLeft = transform.Transform(new System.Windows.Point(screenWork.Left, screenWork.Top));
+        var bottomRight = transform.Transform(new System.Windows.Point(screenWork.Right, screenWork.Bottom));
+        return new Rect(topLeft, bottomRight);
+    }
+
+    /// <summary>Hides the panel for the tray icon's toggle path, flushing first so a pending
+    /// drag write is never dropped just because this happens not to also deactivate the window.</summary>
+    public void HideAndFlush()
+    {
+        Flush();
+        Hide();
     }
 
     protected override void OnDeactivated(EventArgs e)
     {
         Flush();
         base.OnDeactivated(e);
+    }
+
+    /// <summary>Covers the shutdown path (App.OnExit calls Close() directly): the device must
+    /// never end up disagreeing with the panel just because closing skipped deactivation.</summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        Flush();
+        base.OnClosed(e);
     }
 }

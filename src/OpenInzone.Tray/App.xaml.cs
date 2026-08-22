@@ -34,7 +34,7 @@ public partial class App : System.Windows.Application
         _flyout = new FlyoutWindow(_controller);
         _tray.LeftClicked += (_, _) => Dispatcher.Invoke(() =>
         {
-            if (_flyout.IsVisible) _flyout.Hide();
+            if (_flyout.IsVisible) _flyout.HideAndFlush();
             else _flyout.ShowNearTray();
         });
 
