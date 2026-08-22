@@ -1,12 +1,14 @@
 {
-  "bindings": [
-    { "keys": "Ctrl+Alt+Up",    "action": "balance",   "delta": 10 },
-    { "keys": "Ctrl+Alt+Down",  "action": "balance",   "delta": -10 },
-    { "keys": "Ctrl+Alt+Home",  "action": "balance",   "value": 50 },
-    { "keys": "Ctrl+Alt+Right", "action": "volume",    "delta": 1 },
-    { "keys": "Ctrl+Alt+Left",  "action": "volume",    "delta": -1 },
-    { "keys": "Ctrl+Alt+Shift+M", "action": "mic-mute" },
-    { "keys": "Ctrl+Alt+PageUp",   "action": "mic-level", "delta": 5 },
-    { "keys": "Ctrl+Alt+PageDown", "action": "mic-level", "delta": -5 }
-  ]
+  "bindings": {
+    "volume-up": "Ctrl+Alt+Right",
+    "volume-down": "Ctrl+Alt+Left",
+    "volume-mute": "Ctrl+Alt+Shift+V",
+    "balance-game": "Ctrl+Alt+Up",
+    "balance-chat": "Ctrl+Alt+Down",
+    "balance-centre": "Ctrl+Alt+Home",
+    "mic-mute": "Ctrl+Alt+Shift+M",
+    "mic-up": "Ctrl+Alt+PageUp",
+    "mic-down": "Ctrl+Alt+PageDown"
+  },
+  "autostart": false
 }
