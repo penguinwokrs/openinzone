@@ -2,19 +2,21 @@
 
 English · [日本語](README.ja.md)
 
-An open, unofficial reimplementation of INZONE Hub's device control: a command line tool and a
-hotkey daemon for Windows.
+An open, unofficial reimplementation of INZONE Hub's device control: a tray application and a
+command line tool for Windows.
 
 > **Not affiliated with Sony.** OpenInzone is an independent project. It is not affiliated with,
 > authorised, sponsored or endorsed by Sony Group Corporation or any of its affiliates. "Sony",
 > "INZONE" and "INZONE Hub" are trademarks of Sony Group Corporation or its affiliates, used here
 > only to identify the hardware and the vendor application this project interoperates with.
 
-Control a Sony INZONE headset from the command line or a physical key, without INZONE Hub.
+Control a Sony INZONE headset from the notification area, a physical key, or the command line,
+without INZONE Hub.
 
 INZONE Hub can adjust the headphone volume and the game/chat balance, but only through its own
 window. This talks to the dongle directly over the same HID channel, so the same settings can be
-bound to a key, scripted, or read from a status bar.
+reached from a panel in the notification area, bound to a key, scripted, or read from a status
+bar.
 
 Built and verified against **INZONE Buds** (`VID_054C` / `PID_0EC2`). The protocol is shared
 across the INZONE range, so other models are likely to work, but only INZONE Buds has been tested.
@@ -46,44 +48,62 @@ sliders move.
 
 ### 1. Download
 
-Take `OpenInzone-win-x64.zip` from the
-[latest release](https://github.com/penguinwokrs/openinzone/releases/latest). It contains two
-programs:
+The [latest release](https://github.com/penguinwokrs/openinzone/releases/latest) offers two
+downloads, both carrying the version number:
 
 | | |
 |---|---|
+| `OpenInzone-<version>-setup.exe` | the installer — the ordinary way in |
+| `OpenInzone-<version>-win-x64.zip` | the same programs, for anyone who would rather not run one |
+
+Either one gives you the same two programs:
+
+| | |
+|---|---|
+| `inzonetray.exe` | the tray application — a panel and global hotkeys in the notification area |
 | `inzone.exe` | the command line tool — read and change settings |
-| `inzoned.exe` | the hotkey daemon — bind those settings to keys |
 
-### 2. Unpack it somewhere permanent
+Both downloads carry `LICENSE` and the .NET runtime the programs need, so there is nothing to
+install alongside them.
 
-Open Windows Terminal or PowerShell (right-click the Start button → **Terminal**) and run:
+### 2. Install it
+
+Run `OpenInzone-<version>-setup.exe`. It installs for you rather than for the whole machine, so it
+never asks for administrator rights: the programs go to `%LOCALAPPDATA%\Programs\OpenInzone`, with
+a Start menu entry, a desktop icon if you want one, and a **run at startup** task that is ticked
+by default. Uninstalling leaves `%APPDATA%\openinzone` alone, so the keys you chose survive a
+reinstall.
+
+Rather not run an installer? Unpack the zip somewhere permanent instead. Open Windows Terminal or
+PowerShell (right-click the Start button → **Terminal**) and run:
 
 ```powershell
 $dir = "$env:LOCALAPPDATA\OpenInzone"
-Expand-Archive "$env:USERPROFILE\Downloads\OpenInzone-win-x64.zip" -DestinationPath $dir -Force
+$zip = (Get-Item "$env:USERPROFILE\Downloads\OpenInzone-*-win-x64.zip").FullName
+Expand-Archive $zip -DestinationPath $dir -Force
 Get-ChildItem $dir -Recurse | Unblock-File
 ```
 
 `Unblock-File` clears the mark Windows puts on anything that came from the internet. Without it
-the first run is met with **"Windows protected your PC"**. These builds are not code-signed, so
-if SmartScreen still appears, choose **More info → Run anyway**.
+the first run is met with **"Windows protected your PC"**. Neither download is code-signed, so
+SmartScreen can appear for the installer as well; choose **More info → Run anyway**.
 
 ### 3. Put it on PATH
 
-So that `inzone` works from any directory, not just that folder:
+So that `inzone` works from any directory, not just the folder it sits in:
 
 ```powershell
+$dir = "$env:LOCALAPPDATA\Programs\OpenInzone"      # or wherever the zip was unpacked
 [Environment]::SetEnvironmentVariable(
     "Path",
-    [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\OpenInzone",
+    [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir",
     "User")
 ```
 
 Close the terminal and open a new one for that to take effect.
 
-This step is optional. Skipping it only means writing `.\inzone.exe` from inside the folder
-wherever the examples below say `inzone`.
+This step is optional, and only the command line tool cares about it. Skipping it means writing
+`.\inzone.exe` from inside the folder wherever the examples below say `inzone`.
 
 ### 4. Check the headset is found
 
@@ -105,7 +125,41 @@ If this prints numbers, everything below will work. If it prints an error instea
 
 ## Using it
 
+### Use it from the tray
+
+`inzonetray.exe` is the one to start. It puts an icon in the notification area and stays there:
+the installer's **run at startup** task brings it up with Windows, and from the zip it is the
+executable itself. Only one copy runs — start a second and it exits at once, leaving the first
+holding the hotkeys.
+
+**Left click the icon** for a panel at the bottom-right of the monitor the notification area is
+on. It carries three sliders and the battery levels:
+
+| Slider | What it moves |
+|---|---|
+| headphone volume | the headset's own volume, 0–30 — not the Windows playback volume |
+| microphone level | the Windows capture endpoint for the headset, 0–100 |
+| game/chat balance | 0–100, shown on the -5.0 to +5.0 scale INZONE Hub uses |
+
+Clicking a row's speaker or microphone icon toggles that mute. The microphone is split on purpose:
+the slider is the Windows endpoint, the mute is the headset's own flag. That is what INZONE Hub
+does, because only the mute is on the wire — `docs/PROTOCOL.md` records why. See
+[Which volume is which](#which-volume-is-which).
+
+Dragging a slider does not flood the HID channel. Writes are coalesced onto a 100 ms timer, and
+the value you release on is always sent.
+
+Below the sliders are the battery levels for both earbuds and the case. The case number is the
+same snapshot the command line reports: see [Battery](#battery) for why it can sit still for
+hours, and for what charging does not tell you.
+
+The panel closes as soon as it loses focus. **Right click the icon** for a menu with 設定
+(settings) and 終了 (exit); hovering over it shows the model, the volume and the battery.
+
 ### Change something
+
+The command line reaches the same settings without the tray, one at a time — which is where
+scripting and status bars start.
 
 Open INZONE Hub next to the terminal and watch its slider move as you run these.
 
@@ -169,85 +223,64 @@ announces the new value.
 
 This is what makes a status bar or stream overlay possible: pipe it somewhere and read it.
 
-### Bind it to a key
+### Settings and hotkeys
 
-`inzoned.exe` stays running, holds the connection open, and listens for global hotkeys. Start it
-with no argument and it uses `%APPDATA%\openinzone\hotkeys.json`, writing that file with a set of
-defaults the first time:
+The tray holds nine global hotkeys. They work from any application, including from inside a
+full-screen game:
 
-```console
-PS> inzoned
-Ctrl+Alt+Up          balance +10
-Ctrl+Alt+Down        balance -10
-Ctrl+Alt+Home        balance = 50
-Ctrl+Alt+Right       volume +1
-Ctrl+Alt+Left        volume -1
-Ctrl+Alt+Shift+M     mic-mute
-Ctrl+Alt+PageUp      mic-level +5
-Ctrl+Alt+PageDown    mic-level -5
+| Command | Default |
+|---|---|
+| 音量を上げる / 下げる (volume up / down) | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
+| 音量ミュート切り替え (toggle volume mute) | `Ctrl+Alt+Shift+V` |
+| バランスをゲーム寄りに / チャット寄りに (balance towards game / chat) | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
+| バランスを中央に (balance to the middle) | `Ctrl+Alt+Home` |
+| マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
+| マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
 
-Listening. Press Ctrl+C to stop.
-Connected to INZONE Buds - battery L 98%  R 97%  case 34%
-```
+**設定** in the right-click menu opens a window listing all nine with the key each one holds.
+Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
+another application already holds is marked as in use the moment you press it, so you find out
+there rather than by pressing it later and getting nothing. The same window has a checkbox for
+starting with Windows and a 既定に戻す (restore defaults) button. Saving re-registers the hotkeys
+immediately — there is nothing to restart.
 
-Press `Ctrl+Alt+Up` and the balance moves, from any application — including from inside a
-full-screen game. Each change is echoed in the console, so you can tell a hotkey that did nothing
-from one that never arrived:
+If a combination cannot be registered when the tray starts, because something else claimed it
+first, a balloon names the commands affected. Every other hotkey still works.
 
-```
-  balance  60 (+1.0)
-  mic      level 95%
-```
+Because the tray keeps the device open and caches the current values, a held-down key applies one
+write per press instead of a read and a write, so repeats stay responsive.
 
-Because it keeps the device open and caches the current values, a held-down key applies one write
-per press instead of a read and a write, so repeats stay responsive.
-
-### Editing the bindings
-
-Open `%APPDATA%\openinzone\hotkeys.json` — `notepad $env:APPDATA\openinzone\hotkeys.json` — or
-point the daemon at another file with `inzoned C:\path\to\keys.json`.
+The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id:
 
 ```json
 {
-  "bindings": [
-    { "keys": "Ctrl+Alt+Up",    "action": "balance",   "delta": 10 },
-    { "keys": "Ctrl+Alt+Down",  "action": "balance",   "delta": -10 },
-    { "keys": "Ctrl+Alt+Home",  "action": "balance",   "value": 50 },
-    { "keys": "Ctrl+Alt+Right", "action": "volume",    "delta": 1 },
-    { "keys": "Ctrl+Alt+Left",  "action": "volume",    "delta": -1 },
-    { "keys": "Ctrl+Alt+Shift+M",  "action": "mic-mute" },
-    { "keys": "Ctrl+Alt+PageUp",   "action": "mic-level", "delta": 5 },
-    { "keys": "Ctrl+Alt+PageDown", "action": "mic-level", "delta": -5 }
-  ]
+  "bindings": {
+    "volume-up": "Ctrl+Alt+Right",
+    "volume-down": "Ctrl+Alt+Left",
+    "volume-mute": "Ctrl+Alt+Shift+V",
+    "balance-game": "Ctrl+Alt+Up",
+    "balance-chat": "Ctrl+Alt+Down",
+    "balance-centre": "Ctrl+Alt+Home",
+    "mic-mute": "Ctrl+Alt+Shift+M",
+    "mic-up": "Ctrl+Alt+PageUp",
+    "mic-down": "Ctrl+Alt+PageDown"
+  },
+  "autostart": false
 }
 ```
 
-**Actions**: `balance`, `volume`, `mic-level`, `volume-mute`, `mic-mute`.
-The first three take either `delta` to move by a step or `value` to jump to a number.
-
-**Keys**: modifiers `Ctrl`, `Alt`, `Shift`, `Win`, plus one key. Letters and digits, `F1`–`F24`,
-arrows, `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Space`, `Enter`, `Tab`,
-`Escape`, `Backspace`, the numpad operators, and the media keys `VolumeUp`, `VolumeDown`,
+Hand-editing works as well as capturing. An empty string leaves that command unassigned, and a
+**key** is the modifiers `Ctrl`, `Alt`, `Shift`, `Win` plus one key: letters and digits,
+`F1`–`F24`, arrows, `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Space`, `Enter`,
+`Tab`, `Escape`, `Backspace`, the numpad operators, and the media keys `VolumeUp`, `VolumeDown`,
 `VolumeMute`, `MediaNext`, `MediaPrev`, `MediaStop`, `MediaPlayPause`.
 
-A combination another application already holds is reported and skipped; the rest still register.
+A configuration file left by an earlier version is in a different shape, and is migrated when the
+tray reads it, so an upgrade keeps the keys you chose.
 
-Restart the daemon after editing the file.
-
-### Starting the daemon with Windows
-
-Press `Win+R`, enter `shell:startup`, and put a shortcut to `inzoned.exe` in the folder that
-opens. The quickest way to create one:
-
-```powershell
-$link = (New-Object -ComObject WScript.Shell).CreateShortcut(
-    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\OpenInzone.lnk")
-$link.TargetPath = "$env:LOCALAPPDATA\OpenInzone\inzoned.exe"
-$link.Save()
-```
-
-A console window stays open while it runs. Minimising it is enough; getting rid of it entirely
-needs a rebuild, described under [Developer guide](#a-windowless-daemon).
+Starting with Windows is a `Run` entry under `HKCU`, written either by that checkbox or by the
+installer's optional task. Both mean the same thing, so setting it in one place and clearing it in
+the other is not a conflict.
 
 ## Command reference
 
@@ -324,17 +357,13 @@ so SmartScreen may still want **More info → Run anyway**.
 The PATH step was skipped, or the terminal predates it. Open a new terminal, or run the executable
 by path: `& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status`.
 
-**A hotkey is reported as already claimed.**
+**A balloon says a hotkey could not be registered.**
 Something else registered that combination first; graphics drivers and chat applications are the
-usual culprits. Pick another combination in the config. The remaining bindings still work.
+usual culprits. Pick another combination in 設定. The remaining hotkeys still work.
 
 **`inzone mic` shows the mute state but no level.**
 Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
 headset and keeps working; the level is a Windows setting and needs that endpoint.
-
-**Nothing appears when piping the daemon's output.**
-Killing the process discards whatever the shell buffered. The daemon flushes each line as it
-writes it, so `inzoned | tee log.txt` shows output live.
 
 ## Scripting
 
@@ -421,8 +450,10 @@ to use the released build.
 - The dongle and the earbuds, for anything beyond the protocol tests
 - Windows to run it; the build itself also works from Linux or WSL
 
-The projects target `net8.0` and reach Windows only through P/Invoke and COM, so they compile
-anywhere the SDK runs. Only the resulting `.exe` is Windows-only.
+`OpenInzone.Core`, `OpenInzone.Control` and the CLI target `net8.0` and reach Windows only through
+P/Invoke and COM. The tray is a WPF application on `net8.0-windows`, and `EnableWindowsTargeting`
+lets even that one build off Windows. So the whole solution compiles anywhere the SDK runs; only
+the resulting `.exe` is Windows-only.
 
 ### Building on Windows
 
@@ -431,13 +462,15 @@ winget install Microsoft.DotNet.SDK.8
 git clone https://github.com/penguinwokrs/openinzone.git
 cd openinzone
 
-dotnet publish src\OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src\OpenInzone.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src\OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src\OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish\tray
 ```
 
-That leaves `inzone.exe` and `inzoned.exe` in `publish\`, needing nothing installed on the machine
-that runs them — the same thing the release zip contains. Drop `--self-contained true` for much
-smaller binaries if the .NET 8 runtime is already present.
+That leaves `inzone.exe` in `publish\` and `inzonetray.exe` in `publish\tray\`, needing nothing
+installed on the machine that runs them — the same programs the release downloads contain. The
+tray publishes as a folder rather than a single file, which is the shape both the installer and
+the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 8 runtime is
+already present.
 
 ```console
 PS> .\publish\inzone.exe status
@@ -457,21 +490,33 @@ export PATH="$HOME/.dotnet:$PATH"
 ```
 
 ```sh
-dotnet publish src/OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src/OpenInzone.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish/tray
 ```
 
 The resulting `.exe` runs straight from the WSL path through the usual interop, so
 `./publish/inzone.exe status` works from the repository directory — the dongle is reached through
 the Windows side, no USB passthrough involved.
 
-The daemon is the exception: WSL is a poor place to exercise it, since global hotkeys are
-registered against the Windows session. It runs, but test it from a Windows terminal.
+The tray is the exception: WSL is a poor place to exercise it, since global hotkeys are registered
+against the Windows session and the panel is a Windows desktop window. It builds and it starts,
+but try it from Windows.
+
+`installer/build.sh 0.1.0` builds the installer from here too. It publishes both programs into
+`dist/`, then hands them to the Windows-side Inno Setup compiler, which has to be installed on
+that side (`winget install --id JRSoftware.InnoSetup`).
+
+That last hand-off is through the `\\wsl.localhost` share, which occasionally gives the compiler
+an incomplete view of a directory the Linux side already sees in full. When that happens the
+compile can abort with `Error on line 48 ... No files found matching "...\dist\tray\*"`;
+re-running the script is the fix. The script also checks the finished installer's size, so a run
+where the compiler saw only part of the payload cannot produce an undersized installer and still
+report success.
 
 ### Tests
 
-The protocol layer has unit tests. They are plain managed code with no device involved, so they
-run anywhere the SDK does, WSL included:
+The protocol layer and the control layer have unit tests. They are plain managed code with no
+device involved, so they run anywhere the SDK does, WSL included:
 
 ```sh
 dotnet test
@@ -482,7 +527,9 @@ dongle. They pin the framing, the address nibbles, the little endian transaction
 checksum starts — the last one differing between commands and events is the detail most likely to
 be reintroduced by mistake.
 
-Discovery, report I/O and the Windows audio endpoint need the hardware and are not covered.
+Discovery, report I/O, the Windows audio endpoint and the tray's own windows need hardware or a
+desktop, and are not covered. The device state, the hotkey catalogue and the configuration sit in
+`OpenInzone.Control`, which has no UI of its own — that is what leaves them testable.
 
 ### Layout
 
@@ -493,21 +540,21 @@ src/OpenInzone.Core       protocol and transport
   Protocol/               packet codec and the request/response session
   Audio/                  the headset's Windows capture endpoint
   Model/                  typed values for each setting
+src/OpenInzone.Control    device state, the hotkey catalogue and the configuration, with no UI
 src/OpenInzone.Cli        inzone.exe
-src/OpenInzone.Daemon     inzoned.exe
+src/OpenInzone.Tray       inzonetray.exe - the icon, the panel and the settings window
 tests/OpenInzone.Core.Tests
   Protocol/               packet codec tests, checked against docs/PROTOCOL.md
+  Model/                  the battery values and how they format
+  Output/                 the CLI's text and JSON output
+  Control/                device state, key parsing and the configuration, migration included
+installer/                the Inno Setup script and the script that compiles it
+assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the four projects together for Visual Studio and Rider.
-
-### A windowless daemon
-
-To lose the daemon's console window, add `<OutputType>WinExe</OutputType>` to
-`src/OpenInzone.Daemon/OpenInzone.Daemon.csproj` and rebuild. Note that this also hides the
-startup listing and the per-change echo, so get the bindings working first.
+`OpenInzone.sln` ties the five projects together for Visual Studio and Rider.
 
 ### Using it as a library
 
@@ -573,15 +620,6 @@ offset, a checksum offset and a constant; `docs/PROTOCOL.md` describes the frami
 fall out of, which makes each of those constants the sum over that command's fixed header bytes.
 Two readings taken separately and agreeing is the strongest evidence either is right, short of
 Sony saying so.
-
----
-
-`installer/build.sh` hands the published payload to the Windows-side Inno Setup compiler through
-the `\\wsl.localhost` share, and that share occasionally gives the compiler an incomplete view of
-a directory the Linux side already sees in full. When that happens the compile can abort with
-`Error on line 48 ... No files found matching "...\dist\tray\*"`; re-running the script is the
-fix. The script also checks the finished installer's size, so a run where the compiler saw only
-part of the payload cannot produce an undersized installer and still report success.
 
 ## License
 

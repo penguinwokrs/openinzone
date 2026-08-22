@@ -3,18 +3,20 @@
 [English](README.md) · 日本語
 
 INZONE Hub のデバイス制御を独自に実装しなおした、非公式のオープンソース実装です。Windows 向けの
-コマンドラインツールと、ホットキー常駐プログラムが入っています。
+常駐トレイアプリケーションと、コマンドラインツールが入っています。
 
 > **ソニーとは無関係です。** OpenInzone は独立したプロジェクトであり、ソニーグループ株式会社およ
 > びその関連会社から承認・後援・推奨を受けたものではなく、関連もありません。「Sony」「INZONE」
 > 「INZONE Hub」はソニーグループ株式会社またはその関連会社の商標であり、本プロジェクトが対象と
 > するハードウェアおよびベンダーアプリケーションを指し示す目的でのみ使用しています。
 
-INZONE Hub を起動せずに、ソニーの INZONE ヘッドセットをコマンドラインや物理キーから操作できます。
+INZONE Hub を起動せずに、ソニーの INZONE ヘッドセットを通知領域・物理キー・コマンドラインから操作
+できます。
 
 INZONE Hub でもヘッドホン音量とゲーム/チャットバランスは変えられますが、操作は Hub のウィンドウ
-からだけです。本ツールはドングルと同じ HID チャンネルで直接やり取りするので、同じ設定をキーに
-割り当てたり、スクリプトから叩いたり、ステータスバーに読み出したりできます。
+からだけです。本ツールはドングルと同じ HID チャンネルで直接やり取りするので、同じ設定を通知領域の
+パネルから触ったり、キーに割り当てたり、スクリプトから叩いたり、ステータスバーに読み出したりでき
+ます。
 
 **INZONE Buds**（`VID_054C` / `PID_0EC2`）で実装・動作確認しています。プロトコルは INZONE
 シリーズで共通なので他のモデルでも動く見込みですが、検証済みなのは INZONE Buds だけです。
@@ -46,44 +48,63 @@ INZONE Hub を閉じる必要はありません。制御インターフェース
 
 ### 1. ダウンロード
 
-[最新リリース](https://github.com/penguinwokrs/openinzone/releases/latest)から
-`OpenInzone-win-x64.zip` を取得します。中身は 2 つのプログラムです。
+[最新リリース](https://github.com/penguinwokrs/openinzone/releases/latest)には、バージョン番号の
+入ったダウンロードが 2 種類あります。
 
 | | |
 |---|---|
+| `OpenInzone-<version>-setup.exe` | インストーラー。通常はこちら |
+| `OpenInzone-<version>-win-x64.zip` | 同じ内容の、インストーラーを使いたくない人向け |
+
+どちらにも同じ 2 つのプログラムが入っています。
+
+| | |
+|---|---|
+| `inzonetray.exe` | トレイアプリケーション。通知領域のパネルとグローバルホットキー |
 | `inzone.exe` | コマンドラインツール。設定の読み出しと変更 |
-| `inzoned.exe` | ホットキー常駐プログラム。設定をキーに割り当てる |
 
-### 2. 展開して置く
+どちらにも `LICENSE` と、動作に必要な .NET ランタイムが同梱されているので、別途入れるものはあり
+ません。
 
-Windows ターミナルか PowerShell を開いて（スタートボタンを右クリック →**ターミナル**）、次を実行
-します。
+### 2. インストールする
+
+`OpenInzone-<version>-setup.exe` を実行します。マシン全体ではなくユーザー単位で入るので、管理者
+権限は要求されません。プログラムは `%LOCALAPPDATA%\Programs\OpenInzone` に置かれ、スタート
+メニューの項目、任意のデスクトップアイコン、そして既定でチェックの入った**Windows の起動時に
+常駐する**タスクが付きます。アンインストールしても `%APPDATA%\openinzone` はそのまま残すので、
+選んだキー割り当ては入れ直しても失われません。
+
+インストーラーを使いたくない場合は、代わりに zip を展開して置きます。Windows ターミナルか
+PowerShell を開いて（スタートボタンを右クリック →**ターミナル**）、次を実行します。
 
 ```powershell
 $dir = "$env:LOCALAPPDATA\OpenInzone"
-Expand-Archive "$env:USERPROFILE\Downloads\OpenInzone-win-x64.zip" -DestinationPath $dir -Force
+$zip = (Get-Item "$env:USERPROFILE\Downloads\OpenInzone-*-win-x64.zip").FullName
+Expand-Archive $zip -DestinationPath $dir -Force
 Get-ChildItem $dir -Recurse | Unblock-File
 ```
 
 `Unblock-File` は、インターネットから取得したファイルに Windows が付ける印を外します。これをしな
-いと初回起動時に**「WindowsによってPCが保護されました」**が出ます。コード署名はしていないので、
-それでも SmartScreen が出る場合は**詳細情報 → 実行**を選んでください。
+いと初回起動時に**「WindowsによってPCが保護されました」**が出ます。どちらの配布物もコード署名は
+していないので、この表示はインストーラーでも出ることがあります。その場合は**詳細情報 → 実行**を
+選んでください。
 
 ### 3. PATH を通す
 
 そのフォルダ以外からも `inzone` で呼べるようにします。
 
 ```powershell
+$dir = "$env:LOCALAPPDATA\Programs\OpenInzone"      # zip の場合は展開先
 [Environment]::SetEnvironmentVariable(
     "Path",
-    [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\OpenInzone",
+    [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir",
     "User")
 ```
 
 反映にはターミナルを閉じて開きなおす必要があります。
 
-この手順は任意です。省いた場合は、以下の例で `inzone` と書いてあるところを、フォルダ内で
-`.\inzone.exe` と読み替えてください。
+この手順は任意で、必要としているのはコマンドラインツールだけです。省いた場合は、以下の例で
+`inzone` と書いてあるところを、フォルダ内で `.\inzone.exe` と読み替えてください。
 
 ### 4. ヘッドセットが見つかるか確認する
 
@@ -105,7 +126,42 @@ Sidetone     0
 
 ## 使い方
 
+### 通知領域から使う
+
+まず起動するのは `inzonetray.exe` です。通知領域にアイコンを出したまま常駐します。インストーラー
+の**Windows の起動時に常駐する**タスクを使えば Windows と一緒に立ち上がりますし、zip の場合は実行
+ファイルをそのまま起動します。同時に動くのは 1 つだけで、2 つめを起動しても即座に終了するので、
+ホットキーは先に起動したほうが持ち続けます。
+
+**アイコンを左クリック**すると、通知領域のあるモニターの右下にパネルが開きます。3 つのスライダー
+とバッテリー残量が並びます。
+
+| スライダー | 何を動かすか |
+|---|---|
+| ヘッドホン音量 | ヘッドセット自身の音量 0–30。Windows の再生音量ではありません |
+| マイクレベル | ヘッドセットに対応する Windows のキャプチャ端点 0–100 |
+| ゲーム/チャットバランス | 0–100。表示は INZONE Hub と同じ -5.0 〜 +5.0 のスケール |
+
+行の左にあるスピーカーやマイクのアイコンをクリックすると、そのミュートを切り替えます。マイクだけ
+が意図的に分かれていて、スライダーは Windows の端点、ミュートはヘッドセット自身のフラグです。
+INZONE Hub の挙動もこれと同じで、ワイヤに乗っているのはミュートだけだからです。理由は
+`docs/PROTOCOL.md` に書いてあります。[どのボリュームがどれか](#どのボリュームがどれか)も参照して
+ください。
+
+スライダーをドラッグしても HID チャンネルが溢れることはありません。書き込みは 100 ms のタイマーに
+まとめられ、指を離した時点の値は必ず送られます。
+
+スライダーの下は、左右のイヤホンとケースのバッテリーです。ケースの数値はコマンドラインが返すのと
+同じスナップショットです。何時間も動かないことがある理由と、充電中かどうかが分からないことは
+[バッテリー](#バッテリー)を参照してください。
+
+パネルはフォーカスを失うと閉じます。**アイコンを右クリック**すると「設定」と「終了」のメニューが
+出ます。アイコンにマウスを乗せれば、モデル名・音量・バッテリーが分かります。
+
 ### 何か変えてみる
+
+コマンドラインからは、トレイなしで同じ設定に 1 つずつ触れます。スクリプトやステータスバーの出発点
+はこちらです。
 
 ターミナルの隣に INZONE Hub を開いて、スライダーが動くのを見ながら実行してみてください。
 
@@ -169,85 +225,64 @@ Watching INZONE Buds. Press Ctrl+C to stop.
 
 ステータスバーや配信オーバーレイに出せるのはこれのおかげです。パイプで受けて読むだけで済みます。
 
-### キーに割り当てる
+### 設定とホットキー
 
-`inzoned.exe` は常駐して接続を開いたまま保持し、グローバルホットキーを待ち受けます。引数なしで
-起動すると `%APPDATA%\openinzone\hotkeys.json` を使い、初回はそのファイルを既定値で書き出します。
+トレイは 9 つのグローバルホットキーを持っています。どのアプリケーションからでも——フルスクリーンの
+ゲーム中でも——効きます。
 
-```console
-PS> inzoned
-Ctrl+Alt+Up          balance +10
-Ctrl+Alt+Down        balance -10
-Ctrl+Alt+Home        balance = 50
-Ctrl+Alt+Right       volume +1
-Ctrl+Alt+Left        volume -1
-Ctrl+Alt+Shift+M     mic-mute
-Ctrl+Alt+PageUp      mic-level +5
-Ctrl+Alt+PageDown    mic-level -5
+| コマンド | 既定のキー |
+|---|---|
+| 音量を上げる / 下げる | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
+| 音量ミュート切り替え | `Ctrl+Alt+Shift+V` |
+| バランスをゲーム寄りに / チャット寄りに | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
+| バランスを中央に | `Ctrl+Alt+Home` |
+| マイクミュート切り替え | `Ctrl+Alt+Shift+M` |
+| マイクレベルを上げる / 下げる | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
 
-Listening. Press Ctrl+C to stop.
-Connected to INZONE Buds - battery L 98%  R 97%  case 34%
-```
+右クリックメニューの**設定**を選ぶと、9 つすべてと、それぞれに割り当たっているキーが並んだ
+ウィンドウが開きます。行を選んで組み合わせを押せば割り当て、`Esc` を押せば未割り当てに戻ります。
+他のアプリケーションが既に取得している組み合わせは、押した時点で「使用中」と表示されるので、
+あとで押してみて無反応で気づく、ということになりません。同じウィンドウに Windows の起動時に常駐
+するかのチェックボックスと**既定に戻す**ボタンがあります。保存するとその場でホットキーを登録し
+なおすので、再起動は要りません。
 
-`Ctrl+Alt+Up` を押せば、どのアプリケーションからでも——フルスクリーンのゲーム中でも——バランスが
-動きます。変更はコンソールに出るので、「押したが何も起きなかったホットキー」と「そもそも届いて
-いないホットキー」を区別できます。
+起動時にどれかの組み合わせを登録できなかったときは——別のアプリケーションが先に取っている場合
+です——バルーンが該当するコマンド名を知らせます。残りのホットキーはそのまま動きます。
 
-```
-  balance  60 (+1.0)
-  mic      level 95%
-```
+トレイはデバイスを開いたまま現在値をキャッシュするので、キーを押しっぱなしにしても 1 回の押下に
+つき読み出し＋書き込みではなく書き込み 1 回で済み、連打に対する反応が鈍りません。
 
-デバイスを開いたまま現在値をキャッシュするので、キーを押しっぱなしにしても 1 回の押下につき
-読み出し＋書き込みではなく書き込み 1 回で済み、連打に対する反応が鈍りません。
-
-### 割り当てを編集する
-
-`%APPDATA%\openinzone\hotkeys.json` を開きます（`notepad $env:APPDATA\openinzone\hotkeys.json`）。
-別の場所を使いたい場合は `inzoned C:\path\to\keys.json` のようにパスを渡します。
+割り当ての保存先は `%APPDATA%\openinzone\hotkeys.json` で、コマンド ID をキーにしています。
 
 ```json
 {
-  "bindings": [
-    { "keys": "Ctrl+Alt+Up",    "action": "balance",   "delta": 10 },
-    { "keys": "Ctrl+Alt+Down",  "action": "balance",   "delta": -10 },
-    { "keys": "Ctrl+Alt+Home",  "action": "balance",   "value": 50 },
-    { "keys": "Ctrl+Alt+Right", "action": "volume",    "delta": 1 },
-    { "keys": "Ctrl+Alt+Left",  "action": "volume",    "delta": -1 },
-    { "keys": "Ctrl+Alt+Shift+M",  "action": "mic-mute" },
-    { "keys": "Ctrl+Alt+PageUp",   "action": "mic-level", "delta": 5 },
-    { "keys": "Ctrl+Alt+PageDown", "action": "mic-level", "delta": -5 }
-  ]
+  "bindings": {
+    "volume-up": "Ctrl+Alt+Right",
+    "volume-down": "Ctrl+Alt+Left",
+    "volume-mute": "Ctrl+Alt+Shift+V",
+    "balance-game": "Ctrl+Alt+Up",
+    "balance-chat": "Ctrl+Alt+Down",
+    "balance-centre": "Ctrl+Alt+Home",
+    "mic-mute": "Ctrl+Alt+Shift+M",
+    "mic-up": "Ctrl+Alt+PageUp",
+    "mic-down": "Ctrl+Alt+PageDown"
+  },
+  "autostart": false
 }
 ```
 
-**アクション**: `balance`、`volume`、`mic-level`、`volume-mute`、`mic-mute`。
-はじめの 3 つは、ステップで動かす `delta` か、値に飛ぶ `value` のどちらかを取ります。
-
-**キー**: 修飾キー `Ctrl`、`Alt`、`Shift`、`Win` と、通常キー 1 つの組み合わせ。使えるのは英数字、
+手で編集しても構いません。値を空文字列にすると、そのコマンドは未割り当てになります。**キー**は
+修飾キー `Ctrl`、`Alt`、`Shift`、`Win` と、通常キー 1 つの組み合わせです。使えるのは英数字、
 `F1`–`F24`、方向キー、`Home`、`End`、`PageUp`、`PageDown`、`Insert`、`Delete`、`Space`、`Enter`、
 `Tab`、`Escape`、`Backspace`、テンキーの演算子キー、およびメディアキー `VolumeUp`、`VolumeDown`、
 `VolumeMute`、`MediaNext`、`MediaPrev`、`MediaStop`、`MediaPlayPause` です。
 
-他のアプリケーションが既に取得している組み合わせは、報告したうえで読み飛ばします。残りのバイン
-ドは通常どおり登録されます。
+以前のバージョンが残した設定ファイルは形式が異なりますが、トレイが読み込むときに移行するので、
+アップグレードしても選んであったキーはそのまま引き継がれます。
 
-編集したらデーモンを起動しなおしてください。
-
-### Windows の起動時に立ち上げる
-
-`Win+R` で `shell:startup` を開き、そのフォルダに `inzoned.exe` のショートカットを置きます。手早く
-作るなら次のとおりです。
-
-```powershell
-$link = (New-Object -ComObject WScript.Shell).CreateShortcut(
-    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\OpenInzone.lnk")
-$link.TargetPath = "$env:LOCALAPPDATA\OpenInzone\inzoned.exe"
-$link.Save()
-```
-
-実行中はコンソールウィンドウが残ります。最小化しておけば十分ですが、完全に消すにはビルドが必要
-です。[コンソールウィンドウを消す](#コンソールウィンドウを消す)を参照してください。
+Windows の起動時に常駐する設定は、`HKCU` の `Run` エントリです。設定ウィンドウのチェックボックス
+からでも、インストーラーの任意タスクからでも書かれます。どちらも同じものを指しているので、片方で
+入れてもう片方で外しても矛盾は起きません。
 
 ## コマンド一覧
 
@@ -323,17 +358,13 @@ VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 "Hid Interface"
 PATH の手順を飛ばしたか、ターミナルがそれより前から開いています。新しいターミナルを開くか、パスを
 指定して実行してください: `& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status`
 
-**ホットキーが「既に取得済み」と報告される**
+**ホットキーを登録できなかった、とバルーンが出る**
 別の何かがその組み合わせを先に登録しています。グラフィックスドライバやチャットアプリがよくある
-原因です。設定で別の組み合わせを選んでください。残りのバインドはそのまま動きます。
+原因です。**設定**で別の組み合わせを選んでください。残りのホットキーはそのまま動きます。
 
 **`inzone mic` でミュート状態は出るがレベルが出ない**
 Windows がそのヘッドセットのキャプチャ端点を公開していません。ミュートフラグはヘッドセット側にあ
 るので動き続けますが、レベルは Windows 側の設定なのでその端点が必要です。
-
-**デーモンの出力をパイプすると何も出てこない**
-プロセスを kill すると、シェルがバッファしていた分は捨てられます。デーモンは 1 行ごとにフラッシュ
-しているので、`inzoned | tee log.txt` ならリアルタイムに出力が見えます。
 
 ## スクリプトから使う
 
@@ -420,8 +451,11 @@ $ inzone battery --json          # 両耳ともケースに入っている場合
 - プロトコルのテスト以外を触るなら、ドングルとイヤホン本体
 - 実行には Windows。ビルド自体は Linux や WSL からもできます
 
-プロジェクトのターゲットは `net8.0` で、Windows には P/Invoke と COM を通してしか触れないため、
-SDK が動く環境ならどこでもコンパイルできます。Windows 専用なのは、できあがった `.exe` だけです。
+`OpenInzone.Core`・`OpenInzone.Control`・CLI のターゲットは `net8.0` で、Windows には P/Invoke と
+COM を通してしか触れません。トレイは `net8.0-windows` の WPF アプリケーションですが、
+`EnableWindowsTargeting` を有効にしてあるので、これも Windows 以外からビルドできます。つまり
+ソリューション全体が SDK の動く環境でコンパイルでき、Windows 専用なのはできあがった `.exe` だけ
+です。
 
 ### Windows でビルドする
 
@@ -430,13 +464,14 @@ winget install Microsoft.DotNet.SDK.8
 git clone https://github.com/penguinwokrs/openinzone.git
 cd openinzone
 
-dotnet publish src\OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src\OpenInzone.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src\OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src\OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish\tray
 ```
 
-`publish\` に `inzone.exe` と `inzoned.exe` ができます。実行する PC には何もインストールしなくて
-構いません（リリースの zip と同じものです）。.NET 8 ランタイムが既に入っているなら
-`--self-contained true` を外すとバイナリはずっと小さくなります。
+`publish\` に `inzone.exe`、`publish\tray\` に `inzonetray.exe` ができます。実行する PC には何も
+インストールしなくて構いません（リリースの配布物と同じものです）。トレイは単一ファイルではなく
+フォルダとして publish されますが、これはインストーラーと zip が配っている形と同じです。.NET 8
+ランタイムが既に入っているなら `--self-contained true` を外すとバイナリはずっと小さくなります。
 
 ```console
 PS> .\publish\inzone.exe status
@@ -455,21 +490,33 @@ export PATH="$HOME/.dotnet:$PATH"
 ```
 
 ```sh
-dotnet publish src/OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src/OpenInzone.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish/tray
 ```
 
 できあがった `.exe` は WSL のパスからそのまま相互運用で実行できるので、リポジトリのディレクトリで
 `./publish/inzone.exe status` が通ります。ドングルには Windows 側を経由して届くので、USB の
 パススルー設定などは要りません。
 
-例外はデーモンです。グローバルホットキーは Windows のセッションに対して登録されるため、WSL は
-動作確認の場所として向いていません。起動はしますが、Windows のターミナルから試してください。
+例外はトレイです。グローバルホットキーは Windows のセッションに対して登録され、パネルも Windows
+のデスクトップウィンドウなので、WSL は動作確認の場所として向いていません。ビルドも起動もできます
+が、確認は Windows から行ってください。
+
+インストーラーも `installer/build.sh 0.1.0` でここから作れます。両方のプログラムを `dist/` へ
+publish し、それを Windows 側の Inno Setup コンパイラーに渡します。コンパイラーは Windows 側に
+入れておく必要があります（`winget install --id JRSoftware.InnoSetup`）。
+
+この受け渡しは `\\wsl.localhost` 共有を通ります。この共有は、Linux 側では既に揃って見えている
+ディレクトリが Windows 側からは一部しか見えない、という状態をまれに起こします。そうなるとコンパ
+イルが `Error on line 48 ... No files found matching "...\dist\tray\*"` で中断することがあり
+ますが、再実行すれば直ります。また、このスクリプトは完成したインストーラーのサイズも確認している
+ため、コンパイラーがペイロードの一部しか見えていないまま実行された場合でも、サイズ不足のインス
+トーラーが成功として素通りすることはありません。
 
 ### テスト
 
-プロトコル層には単体テストがあります。実機を使わない純粋な managed コードなので、SDK が動く環境
-ならどこでも、WSL でも実行できます。
+プロトコル層とコントロール層には単体テストがあります。実機を使わない純粋な managed コードなので、
+SDK が動く環境ならどこでも、WSL でも実行できます。
 
 ```sh
 dotnet test
@@ -479,7 +526,9 @@ dotnet test
 グ、アドレスのニブル、リトルエンディアンのトランザクション ID、そして各チェックサムの開始位置を
 固定します。最後のものはコマンドとイベントで異なり、間違いが再び混入しやすい箇所です。
 
-デバイス探索、レポート I/O、Windows のオーディオ端点は実機が必要なため対象外です。
+デバイス探索、レポート I/O、Windows のオーディオ端点、そしてトレイのウィンドウは、実機かデスク
+トップが必要なため対象外です。デバイスの状態・ホットキーのカタログ・設定は、UI を持たない
+`OpenInzone.Control` に置いてあり、それがテストできる形を保っています。
 
 ### 構成
 
@@ -490,22 +539,21 @@ src/OpenInzone.Core       プロトコルとトランスポート
   Protocol/               パケットのコーデックと要求/応答セッション
   Audio/                  ヘッドセットの Windows キャプチャ端点
   Model/                  各設定の型付きの値
+src/OpenInzone.Control    デバイスの状態、ホットキーのカタログと設定。UI は持たない
 src/OpenInzone.Cli        inzone.exe
-src/OpenInzone.Daemon     inzoned.exe
+src/OpenInzone.Tray       inzonetray.exe。アイコン、パネル、設定ウィンドウ
 tests/OpenInzone.Core.Tests
   Protocol/               docs/PROTOCOL.md と突き合わせたパケットコーデックのテスト
+  Model/                  バッテリーの値とその表示形式
+  Output/                 CLI のテキスト出力と JSON 出力
+  Control/                デバイスの状態、キーの解析、設定（移行を含む）
+installer/                Inno Setup のスクリプトと、それをコンパイルするスクリプト
+assets/                   アプリケーションアイコンと、それを生成するスクリプト
 docs/PROTOCOL.md          解析したワイヤフォーマット
 config/                   ホットキー設定の例
 ```
 
-Visual Studio や Rider 用に、4 つのプロジェクトを `OpenInzone.sln` がまとめています。
-
-### コンソールウィンドウを消す
-
-デーモンのコンソールウィンドウを出したくない場合は、
-`src/OpenInzone.Daemon/OpenInzone.Daemon.csproj` に `<OutputType>WinExe</OutputType>` を足して
-ビルドしなおします。ただしこれをすると起動時の一覧も変更時のエコーも見えなくなるので、先にバイン
-ドが動くことを確認してからにしてください。
+Visual Studio や Rider 用に、5 つのプロジェクトを `OpenInzone.sln` がまとめています。
 
 ### ライブラリとして使う
 
@@ -570,16 +618,6 @@ zoneout の `SPECS.md` は同じワイヤフォーマットを、独立に、し
 オフセット、定数を挙げます。`docs/PROTOCOL.md` はそのオフセットが導かれる元のフレーミングを記述
 しており、結果としてそれらの定数は各コマンドの固定ヘッダ部分の総和になります。別々に読まれた
 2 つが一致しているというのは、ソニー自身が認めない限り得られる中で最も強い裏付けです。
-
----
-
-`installer/build.sh` は、公開したペイロードを `\\wsl.localhost` 共有経由で Windows 側の Inno
-Setup コンパイラーに渡しています。この共有は、Linux 側では既に揃って見えているディレクトリが
-Windows 側からは一部しか見えない、という状態をまれに起こします。そうなるとコンパイルが
-`Error on line 48 ... No files found matching "...\dist\tray\*"` で中断することがありますが、
-再実行すれば直ります。また、このスクリプトは完成したインストーラーのサイズも確認しているため、
-コンパイラーがペイロードの一部しか見えていないまま実行された場合でも、サイズ不足のインストー
-ラーが成功として素通りすることはありません。
 
 ## ライセンス
 
