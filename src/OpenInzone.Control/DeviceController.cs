@@ -132,14 +132,28 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     });
 
     // ---- IDeviceActions ------------------------------------------------------
-    // Each one queues; none of them block the caller.
+    // Each one queues; none of them block the caller. The adjusting methods connect via Device()
+    // before reading State, because Device() is what publishes real values on first connect -
+    // reading State first would compute the delta against DeviceState.Disconnected's defaults.
+    // Even connected, the read-then-write here is not atomic against OnSettingChanged, which
+    // mutates straight from the HCI reader thread rather than queueing through _work; a
+    // headset-initiated change landing in that window is overwritten. This mirrors the daemon's
+    // caching before it, so it is accepted rather than restructured away.
 
-    public void AdjustBalance(int delta) => Post(_ => SetBalanceNow(State.Balance.Value + delta));
+    public void AdjustBalance(int delta) => Post(_ => { Device(); SetBalanceNow(State.Balance.Value + delta); });
     public void SetBalance(int value) => Post(_ => SetBalanceNow(value));
-    public void AdjustVolume(int delta) => Post(_ => SetVolumeNow(State.Volume.Value + delta));
+    public void AdjustVolume(int delta) => Post(_ => { Device(); SetVolumeNow(State.Volume.Value + delta); });
     public void SetVolume(int value) => Post(_ => SetVolumeNow(value));
     public void SetMicLevel(int value) => Post(_ => SetMicLevelNow(value));
-    public void AdjustMicLevel(int delta) => Post(_ => SetMicLevelNow(State.MicLevel + delta));
+
+    // The level is the Windows capture endpoint, not a HID value - there is no EventId for it and
+    // DeviceState.Apply never refreshes it, so the cache goes stale the moment anything else (the
+    // volume mixer, INZONE Hub) moves it. Adjust it live against the endpoint instead of the cache.
+    public void AdjustMicLevel(int delta) => Post(_ =>
+    {
+        var result = Device().AdjustMicLevel(delta);
+        Mutate(state => state with { MicLevel = result });
+    });
 
     public void ToggleVolumeMute() => Post(_ =>
     {
