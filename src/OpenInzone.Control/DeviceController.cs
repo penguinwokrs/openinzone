@@ -12,8 +12,9 @@ namespace OpenInzone.Control;
 /// slider never stalls the interface. The current values are cached and kept in step with the
 /// headset's own notifications, which means a repeated action costs one write rather than a read
 /// and a write. Every change publishes a fresh <see cref="DeviceState"/> through
-/// <see cref="StateChanged"/>; the event is raised on the worker thread, so subscribers that touch
-/// a window must marshal it themselves.
+/// <see cref="StateChanged"/>, raised on a background thread — either the inzone-worker thread for
+/// posted actions or the inzone-hci-reader thread for unsolicited headset changes — so subscribers
+/// that touch a window must marshal it themselves.
 /// </summary>
 public sealed class DeviceController : IDeviceActions, IDisposable
 {
