@@ -142,6 +142,10 @@ public partial class FlyoutWindow : Window
     /// </summary>
     private void PositionNearTray()
     {
+        // If the panel was hidden or closed before this deferred call ran, don't move it.
+        if (!IsLoaded || Visibility != Visibility.Visible)
+            return;
+
         IntPtr hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == IntPtr.Zero)
         {
@@ -153,7 +157,16 @@ public partial class FlyoutWindow : Window
             return;
         }
 
-        NativeMethods.GetWindowRect(hwnd, out OpenInzone.Tray.Native.Rect windowRect);
+        if (!NativeMethods.GetWindowRect(hwnd, out OpenInzone.Tray.Native.Rect windowRect))
+        {
+            // GetWindowRect failed; fall back to the previous DIP-based placement against the primary
+            // monitor rather than proceeding with a zeroed rectangle.
+            System.Windows.Rect work = SystemParameters.WorkArea;
+            Left = work.Right - Width - 12;
+            Top = work.Bottom - ActualHeight - 12;
+            return;
+        }
+
         int width = windowRect.Right - windowRect.Left;
         int height = windowRect.Bottom - windowRect.Top;
 
