@@ -42,7 +42,9 @@ public sealed class HotkeyConfig
             new Binding { Keys = "Ctrl+Alt+Home",  Action = "balance", Value = 50 },
             new Binding { Keys = "Ctrl+Alt+Right", Action = "volume",  Delta = 1 },
             new Binding { Keys = "Ctrl+Alt+Left",  Action = "volume",  Delta = -1 },
-            new Binding { Keys = "Ctrl+Alt+M",     Action = "mic-mute" },
+            new Binding { Keys = "Ctrl+Alt+PageUp",   Action = "mic-level", Delta = 5 },
+            new Binding { Keys = "Ctrl+Alt+PageDown", Action = "mic-level", Delta = -5 },
+            new Binding { Keys = "Ctrl+Alt+Shift+M", Action = "mic-mute" },
         ],
     };
 

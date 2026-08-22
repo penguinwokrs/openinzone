@@ -155,7 +155,9 @@ internal static class Program
 
     private static int Watch(InzoneBudsDevice device)
     {
-        Console.WriteLine($"Watching {device.DeviceInfo.ProductName}. Press Ctrl+C to stop.");
+        // Input reports reach every open handle, so this also shows replies to requests made by
+        // INZONE Hub or another copy of this tool, not only changes made at the headset.
+        Console.WriteLine($"Watching {device.GetModelInfo().Name}. Press Ctrl+C to stop.");
         using var stop = new ManualResetEventSlim(false);
 
         device.SettingChanged += (_, e) =>

@@ -20,26 +20,131 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 ## Requirements
 
 - Windows 10 1809 or later, x64
-- The INZONE USB dongle
+- The INZONE USB dongle, plugged in, with the earbuds out of the case and connected
 - .NET 8 SDK to build
 
 INZONE Hub does not need to be closed. The control interface is opened with sharing enabled, so
-both can be connected at once.
+both can be connected at once — handy while trying this out, since you can watch INZONE Hub's own
+sliders move.
 
-## Build
+## Quick start
+
+### 1. Build
 
 ```sh
 dotnet publish src/InzoneBuds.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 dotnet publish src/InzoneBuds.Daemon -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
-This produces `publish/inzone.exe` and `publish/inzoned.exe`, each standalone. Drop
-`--self-contained true` for much smaller binaries if the .NET 8 runtime is already installed.
+That leaves two standalone executables in `publish/`. They need nothing installed on the machine
+that runs them; drop `--self-contained true` for much smaller binaries if the .NET 8 runtime is
+already present.
 
-Cross-building from WSL works: the projects target `net8.0` and reach Windows only through
-P/Invoke and COM.
+<details>
+<summary>Building from WSL</summary>
 
-## Command line
+This cross-builds from WSL without anything extra — the projects target `net8.0` and reach
+Windows only through P/Invoke and COM. If the SDK was installed with the `dotnet-install.sh`
+script rather than a package manager, put it on the path first:
+
+```sh
+export DOTNET_ROOT="$HOME/.dotnet"
+export PATH="$HOME/.dotnet:$PATH"
+```
+
+The resulting `.exe` runs straight from the WSL path through the usual interop, so
+`./publish/inzone.exe status` works from the repository directory.
+</details>
+
+### 2. Check the dongle is found
+
+```console
+$ ./publish/inzone.exe devices
+VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 "Hid Interface"
+  \\?\hid#vid_054c&pid_0ec2&mi_05&col03#8&29ddaaec&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}
+```
+
+Nothing listed means the dongle is not plugged in, or this model uses a product id the filter does
+not recognise. See Troubleshooting.
+
+### 3. Read the current settings
+
+```console
+$ ./publish/inzone.exe status
+Device       INZONE Buds
+Serial       L 3015430 / R 3015430 / dongle 3015430
+Battery      L 97%  R 97%  case 34%
+Balance      50 (0.0)
+Volume       15/30
+Microphone   unmuted, level 100%
+Sidetone     0
+```
+
+If this prints numbers, everything below will work.
+
+### 4. Change something
+
+Open INZONE Hub next to the terminal and watch its slider move as you run these.
+
+```console
+$ ./publish/inzone.exe balance +10
+60 (+1.0)
+
+$ ./publish/inzone.exe balance +10
+70 (+2.0)
+
+$ ./publish/inzone.exe balance centre
+50 (0.0)
+```
+
+The number in brackets is the scale INZONE Hub shows, -5.0 to +5.0.
+
+To see it work in the other direction, leave this running and change the balance from INZONE Hub
+or from the earbuds themselves:
+
+```console
+$ ./publish/inzone.exe watch
+Watching INZONE Buds. Press Ctrl+C to stop.
+01:20:20  GameChatMixBalance     60 (+1.0)
+01:20:21  HeadphoneVolume        16/30
+01:20:23  BatteryInfo            L 94%  R 94%  case 34%
+01:20:24  MicVolume              muted
+```
+
+The headset's replies reach every program that has the interface open, so `watch` also shows
+traffic caused by INZONE Hub or by another copy of this tool — not only changes made at the
+earbuds. Repeated lines for one change are normal: the headset answers the request and then
+announces the new value.
+
+### 5. Bind it to a key
+
+```console
+$ ./publish/inzoned.exe config/hotkeys.example.json
+Ctrl+Alt+Up          balance +10
+Ctrl+Alt+Down        balance -10
+Ctrl+Alt+Home        balance = 50
+Ctrl+Alt+Right       volume +1
+Ctrl+Alt+Left        volume -1
+Ctrl+Alt+Shift+M     mic-mute
+Ctrl+Alt+PageUp      mic-level +5
+Ctrl+Alt+PageDown    mic-level -5
+
+Listening. Press Ctrl+C to stop.
+Connected to INZONE Buds - battery L 98%  R 97%  case 34%
+```
+
+Press `Ctrl+Alt+Up` and the balance moves, from any application. Each change is echoed in the
+console, so you can tell a hotkey that did nothing from one that never arrived:
+
+```
+  balance  60 (+1.0)
+  mic      level 95%
+```
+
+Run it without an argument and it uses `%APPDATA%\inzone-buds-ctl\hotkeys.json`, writing that
+file with the defaults above the first time.
+
+## Command reference
 
 ```
 inzone status                 Show everything at once
@@ -64,19 +169,6 @@ inzone battery                Show charge levels
 inzone watch                  Print changes as they happen
 ```
 
-```
-$ inzone status
-Device       INZONE Buds
-Serial       L 3015430 / R 3015430 / dongle 3015430
-Battery      L 98%  R 97%  case 34%
-Balance      50 (0.0)
-Volume       15/30
-Microphone   unmuted, level 100%
-Sidetone     0
-```
-
-The number in brackets after the balance is the same scale INZONE Hub shows, -5.0 to +5.0.
-
 ### Which volume is which
 
 Worth being precise about, because the names invite the wrong guess:
@@ -87,22 +179,19 @@ Worth being precise about, because the names invite the wrong guess:
 | `inzone mic` level | the **Windows capture endpoint** for the headset, 0–100 |
 | `inzone mic mute` | the **headset's own** microphone mute |
 
-`inzone volume` does not touch the Windows playback volume, and neither does INZONE Hub.
-The microphone is the one setting INZONE Hub splits across both worlds, and this follows it.
+`inzone volume` does not touch the Windows playback volume, and neither does INZONE Hub. The
+microphone is the one setting INZONE Hub splits across both worlds, and this follows it.
 
 ## Hotkey daemon
 
 `inzoned.exe` holds the connection open and listens for global hotkeys. Because it keeps the
-device open and caches the current values, a held-down key applies one write per press instead
-of a read and a write, so repeats stay responsive.
+device open and caches the current values, a held-down key applies one write per press instead of
+a read and a write, so repeats stay responsive.
 
 ```sh
 inzoned                       # uses %APPDATA%\inzone-buds-ctl\hotkeys.json
 inzoned C:\path\to\keys.json  # or point it somewhere else
 ```
-
-The config file is written with sensible defaults the first time it runs. See
-`config/hotkeys.example.json`:
 
 ```json
 {
@@ -112,7 +201,7 @@ The config file is written with sensible defaults the first time it runs. See
     { "keys": "Ctrl+Alt+Home",  "action": "balance",   "value": 50 },
     { "keys": "Ctrl+Alt+Right", "action": "volume",    "delta": 1 },
     { "keys": "Ctrl+Alt+Left",  "action": "volume",    "delta": -1 },
-    { "keys": "Ctrl+Alt+M",     "action": "mic-mute" },
+    { "keys": "Ctrl+Alt+Shift+M",  "action": "mic-mute" },
     { "keys": "Ctrl+Alt+PageUp",   "action": "mic-level", "delta": 5 },
     { "keys": "Ctrl+Alt+PageDown", "action": "mic-level", "delta": -5 }
   ]
@@ -129,9 +218,11 @@ arrows, `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Space`, `Enter
 
 A combination another application already holds is reported and skipped; the rest still register.
 
-To start it with Windows, put a shortcut to `inzoned.exe` in `shell:startup`. Add
-`<OutputType>WinExe</OutputType>` to the daemon's project file first if you would rather it ran
-without a console window.
+### Starting it with Windows
+
+Put a shortcut to `inzoned.exe` in the folder that opens from `shell:startup`. To lose the console
+window, add `<OutputType>WinExe</OutputType>` to `src/InzoneBuds.Daemon/InzoneBuds.Daemon.csproj`
+and rebuild — note that this also hides the messages above, so get the bindings working first.
 
 ## Using it as a library
 
@@ -148,8 +239,32 @@ device.SetMicLevel(80);
 device.SettingChanged += (_, e) => Console.WriteLine($"{e.EventId} changed");
 ```
 
-`device.Session` exposes raw `Get` and `Set` against any event id, for settings this wrapper
-does not model yet. `docs/PROTOCOL.md` lists what is known.
+`device.Session` exposes raw `Get` and `Set` against any event id, for settings this wrapper does
+not model yet. `docs/PROTOCOL.md` lists what is known.
+
+## Troubleshooting
+
+**"No INZONE dongle found."**
+The dongle is not plugged in, or it enumerates with a product id this does not know. Run
+`inzone devices`; if that is empty too, check that a device with vendor `054C` and usage page
+`0xFF04` is present. Discovery matches on capability rather than a fixed product id, so a
+different INZONE model should still be found.
+
+**"The headset did not answer ... within 1500 ms."**
+The dongle is there but the earbuds are not reachable — still in the case, out of range, or
+powered off. Take them out and try `inzone status` again.
+
+**A hotkey is reported as already claimed.**
+Something else registered that combination first; graphics drivers and chat applications are the
+usual culprits. Pick another combination in the config. The remaining bindings still work.
+
+**`inzone mic` shows the mute state but no level.**
+Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
+headset and keeps working; the level is a Windows setting and needs that endpoint.
+
+**Nothing appears when piping the daemon's output.**
+Killing the process discards whatever the shell buffered. The daemon flushes each line as it
+writes it, so `inzoned | tee log.txt` shows output live.
 
 ## How it works
 

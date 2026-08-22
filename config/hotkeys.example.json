@@ -5,7 +5,7 @@
     { "keys": "Ctrl+Alt+Home",  "action": "balance",   "value": 50 },
     { "keys": "Ctrl+Alt+Right", "action": "volume",    "delta": 1 },
     { "keys": "Ctrl+Alt+Left",  "action": "volume",    "delta": -1 },
-    { "keys": "Ctrl+Alt+M",     "action": "mic-mute" },
+    { "keys": "Ctrl+Alt+Shift+M", "action": "mic-mute" },
     { "keys": "Ctrl+Alt+PageUp",   "action": "mic-level", "delta": 5 },
     { "keys": "Ctrl+Alt+PageDown", "action": "mic-level", "delta": -5 }
   ]

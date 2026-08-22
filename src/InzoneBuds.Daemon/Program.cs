@@ -4,6 +4,10 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        // Without this a redirected stdout stays block-buffered, so `inzoned | tee log.txt`
+        // shows nothing until the daemon exits.
+        Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+
         string configPath = args.Length > 0 ? args[0] : HotkeyConfig.DefaultPath;
 
         HotkeyConfig config;
