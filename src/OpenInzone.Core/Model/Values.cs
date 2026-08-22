@@ -72,6 +72,30 @@ public readonly record struct SidetoneVolume(byte Value, byte Percent)
     public override string ToString() => Value.ToString();
 }
 
+/// <summary>Whether a battery reading is a real value, withheld, or not applicable to this model.</summary>
+public enum BatteryPartState
+{
+    /// <summary>A percentage between 0 and 100.</summary>
+    Reporting,
+
+    /// <summary>The part exists but is not reporting: in the case, out of range, or never relayed.</summary>
+    NotReporting,
+
+    /// <summary>This model has no such part. Headset models have no separate right earbud or case.</summary>
+    Absent,
+}
+
+/// <summary>
+/// One battery reading. The raw bytes are kept so a value the firmware did not document can still
+/// be inspected, while <see cref="Percent"/> stays null unless the reading is usable.
+/// </summary>
+public readonly record struct BatteryPart(byte RawStatus, byte RawPercent, BatteryPartState State)
+{
+    public int? Percent => State is BatteryPartState.Reporting ? RawPercent : null;
+
+    public override string ToString() => Percent is int percent ? $"{percent}%" : "--";
+}
+
 /// <summary>
 /// Charge levels. Earbud models report left, right and case separately; headset models report a single pair.
 /// A percentage of 0xFF means the part is not currently reporting — a case that is open, for instance.
@@ -87,6 +111,29 @@ public readonly record struct BatteryInfo(
         if (param.Length >= 6)
             return new BatteryInfo(param[0], param[1], param[2], param[3], param[4], param[5], true);
         return new BatteryInfo(param[0], param[1], Unknown.Byte, Unknown.Byte, Unknown.Byte, Unknown.Byte, false);
+    }
+
+    public BatteryPart Left => Part(LeftStatus, LeftPercent, present: true);
+
+    public BatteryPart Right => Part(RightStatus, RightPercent, HasSeparateBuds);
+
+    public BatteryPart Case => Part(CaseStatus, CasePercent, HasSeparateBuds);
+
+    /// <summary>
+    /// The case carries no radio of its own. A reported level was relayed by an earbud the last
+    /// time one was docked, so it is a snapshot rather than a live reading.
+    /// </summary>
+    public bool CaseIsSnapshot => HasSeparateBuds;
+
+    /// <summary>
+    /// Never throws: notifications are folded on the HID reader thread, where an exception would
+    /// take the connection down. An undocumented percentage is withheld rather than shown.
+    /// </summary>
+    private static BatteryPart Part(byte status, byte percent, bool present)
+    {
+        if (!present) return new BatteryPart(status, percent, BatteryPartState.Absent);
+        if (percent > 100) return new BatteryPart(status, percent, BatteryPartState.NotReporting);
+        return new BatteryPart(status, percent, BatteryPartState.Reporting);
     }
 
     private static string Format(byte percent) => Unknown.Is(percent) ? "--" : $"{percent}%";
