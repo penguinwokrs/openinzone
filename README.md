@@ -135,6 +135,14 @@ PS> inzone mic toggle
 muted
 ```
 
+### Battery
+
+`inzone battery` shows charge for both earbuds and the case.
+
+The case percentage is not a live reading. The case has no radio of its own — an earbud relays
+the level when it is docked, so the number is a snapshot from that moment. Both earbuds in the
+case means nothing answers at all, and `inzone battery` says so and exits 1.
+
 ### Watch changes as they happen
 
 Leave this running and change the balance from INZONE Hub, or from the earbuds themselves:
@@ -258,6 +266,12 @@ inzone mic +5 | -5            Move the level by a step
 
 inzone battery                Show charge levels
 inzone watch                  Print changes as they happen
+inzone watch battery          Print changes to one event only
+                              (battery, balance, volume, mic, sidetone)
+
+--json                        Any command, as one JSON object
+                              (watch emits one object per line)
+--raw                         Add the undecoded bytes to battery output
 ```
 
 `inzone --help` prints the same list.

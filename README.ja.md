@@ -135,6 +135,14 @@ PS> inzone mic toggle
 muted
 ```
 
+### バッテリー
+
+`inzone battery` で両耳とケースの残量を表示します。
+
+ケースの残量はライブな値ではありません。ケース自体に無線が無く、イヤホンを戻した時点の値が中継
+されるだけなので、その瞬間のスナップショットです。両耳ともケースに入っていると応答自体が返らず、
+`inzone battery` はその旨を表示して終了コード 1 を返します。
+
 ### 変更をリアルタイムに見る
 
 次を起動したまま、INZONE Hub かイヤホン本体からバランスを変えてみてください。
@@ -258,6 +266,12 @@ inzone mic +5 | -5            レベルを 1 ステップ動かす
 
 inzone battery                残量を表示
 inzone watch                  変更が起きるたびに出力
+inzone watch battery          指定したイベントの変更だけを出力
+                              （battery, balance, volume, mic, sidetone）
+
+--json                        任意のコマンドの結果を JSON オブジェクトで出力
+                              （watch は 1 行 1 オブジェクト）
+--raw                         battery の出力に生バイトを添える
 ```
 
 `inzone --help` でも同じ一覧が出ます。

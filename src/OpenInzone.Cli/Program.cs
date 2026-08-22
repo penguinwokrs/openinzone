@@ -191,7 +191,6 @@ internal static class Program
             return 2;
         }
 
-
         // Not a report: under --json every line on stdout has to be one object, and a banner is not.
         Console.Error.WriteLine($"Watching {device.GetModelInfo().Name}. Press Ctrl+C to stop.");
 
@@ -259,6 +258,13 @@ internal static class Program
               inzone battery                Show charge levels
               inzone watch                  Print changes as they happen, including
                                             ones made from the earbuds themselves
+              inzone watch battery          Print changes to one event only
+                                            (battery, balance, volume, mic, sidetone)
+
+            Flags:
+              --json                        Any command, as one JSON object
+                                            (watch emits one object per line)
+              --raw                         Add the undecoded bytes to battery output
             """);
     }
 }

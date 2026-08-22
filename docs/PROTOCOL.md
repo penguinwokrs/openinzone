@@ -184,6 +184,29 @@ Earbud models report six bytes:
 Headset models report only the first pair. A percentage of `0xFF` means that part is not
 reporting — an open case, for instance.
 
+The order was confirmed on hardware on 2026-08-23. With the right earbud in the case and the left
+in the ear, the right slot read `0xFF`:
+
+```
+Battery      L 76%  R --  case 34%
+```
+
+`ModelInfo` corroborated it from an unrelated byte layout in the same run — the docked earbud's
+serial read all zeros:
+
+```
+Serial       L 3015430 / R 0000000 / dongle 3015430
+```
+
+HeadsetControl's `sony_inzone_buds.hpp` labels these the other way round. Its number is still
+correct, since it reports `min(left, right)`, but its labels are not.
+
+`inzone battery --raw` with both earbuds worn has produced `00 39 00 4F FF 22`, decoded as
+`[0x00, 57, 0x00, 79, 0xFF, 34]`. That is the one condition observed so far, and the status byte's
+meaning is still unknown: `0xFF` for the case is consistent with the case having no radio and
+therefore no live status of its own, but the earbud value has only ever been seen as `0x00`, so
+nothing can yet be concluded about what it would read while charging.
+
 ### Model info, `0x02`
 
 ```
@@ -200,6 +223,9 @@ reporting — an open case, for instance.
 ```
 
 Bytes 6 onwards are only present on models that report per-bud identity (model ids 4 and 5).
+
+The left and right serial slots normally carry the same value — a connected pair reports the same
+serial in both. An earbud that is not connected reads back a serial of all zeros instead.
 
 | Model id | Product |
 |---|---|
