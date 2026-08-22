@@ -1,5 +1,7 @@
 # OpenInzone
 
+English · [日本語](README.ja.md)
+
 An open, unofficial reimplementation of INZONE Hub's device control: a command line tool and a
 hotkey daemon for Windows.
 
