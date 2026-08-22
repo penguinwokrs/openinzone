@@ -2,10 +2,14 @@
 // Copyright (C) 2026 penguinwokrs
 
 using OpenInzone.Cli.Output;
+using OpenInzone.Hid;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
 
 namespace OpenInzone.Tests.Output;
+
+/// <summary>A report type neither renderer knows how to draw, so the `default` arm has something to catch.</summary>
+file sealed record UnknownReport : IReport;
 
 public class TextRendererTests
 {
@@ -38,6 +42,12 @@ public class TextRendererTests
     }
 
     [Fact]
+    public void DrawsSidetoneOnItsOwn()
+    {
+        Assert.Equal("30\n", Render(new SidetoneReport(new SidetoneVolume(30, 100))));
+    }
+
+    [Fact]
     public void DrawsAnErrorOnOneLine()
     {
         var report = new ErrorReport("unreachable", "The earbuds did not answer.");
@@ -52,6 +62,19 @@ public class TextRendererTests
 
         Assert.DoesNotContain("raw", Render(report));
         Assert.Contains("01 4C 00 FF 00 22", Render(report, raw: true));
+    }
+
+    // `Parse` synthesises four 0xFF bytes for a two-byte payload; `--raw` should show what the
+    // wire actually carried, not the synthesised padding.
+    [Fact]
+    public void ShowsOnlyTheBytesTheWireSentForATwoBytePayload()
+    {
+        var report = new BatteryReport(BatteryInfo.Parse([0x01, 62]));
+
+        string text = Render(report, raw: true);
+
+        Assert.Contains("01 3E", text);
+        Assert.DoesNotContain("FF", text);
     }
 
     // Muting is a headset flag. `inzone mic toggle` has always printed just that, never the
@@ -100,6 +123,101 @@ public class TextRendererTests
 
         Assert.Equal("01:20:23  FirmwareVersion        0A1B\n", Render(report));
     }
+
+    // `inzone watch battery --raw` is exactly how you would see the bytes change during a
+    // notification; the `--json` form already worked, the text form silently ignored `raw`.
+    [Fact]
+    public void AppendsTheRawBytesToAWatchedBatteryEventOnTheSameLine()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23),
+            EventId.BatteryInfo,
+            new BatteryReport(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34])),
+            "01 4C 00 FF 00 22");
+
+        string line = Render(report, raw: true);
+
+        Assert.Single(line.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Contains("L 76%  R --  case 34%  raw 01 4C 00 FF 00 22", line);
+    }
+
+    [Fact]
+    public void OmitsTheRawBytesFromAWatchedBatteryEventByDefault()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23),
+            EventId.BatteryInfo,
+            new BatteryReport(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34])),
+            "01 4C 00 FF 00 22");
+
+        Assert.DoesNotContain("raw", Render(report));
+    }
+
+    // README.md's "Check the headset is found" transcript, pinned so the documented output stays true.
+    [Fact]
+    public void DrawsTheFullStatusForAnEarbudModel()
+    {
+        var status = new StatusReport(
+            new ModelInfo(4, 0, 0, 0, 0, "3015430", "3015430", "3015430"),
+            BatteryInfo.Parse([0x00, 97, 0x00, 97, 0x00, 34]),
+            new MixBalance(50),
+            new HeadphoneVolume(false, 15, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            100,
+            new SidetoneVolume(0, 0));
+
+        Assert.Equal(
+            "Device       INZONE Buds\n" +
+            "Serial       L 3015430 / R 3015430 / dongle 3015430\n" +
+            "Battery      L 97%  R 97%  case 34%\n" +
+            "Balance      50 (0.0)\n" +
+            "Volume       15/30\n" +
+            "Microphone   unmuted, level 100%\n" +
+            "Sidetone     0\n",
+            Render(status));
+    }
+
+    [Fact]
+    public void DrawsStatusWithoutASerialLineForANonEarbudModel()
+    {
+        var status = new StatusReport(
+            new ModelInfo(0, 0, 0, 0, 0, "", "", ""),
+            BatteryInfo.Parse([0x00, 62]),
+            new MixBalance(60),
+            new HeadphoneVolume(false, 19, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            95,
+            new SidetoneVolume(0, 0));
+
+        Assert.Equal(
+            "Device       INZONE H9\n" +
+            "Battery      62%\n" +
+            "Balance      60 (+1.0)\n" +
+            "Volume       19/30\n" +
+            "Microphone   unmuted, level 95%\n" +
+            "Sidetone     0\n",
+            Render(status));
+    }
+
+    // README.md's `inzone devices` transcript under Troubleshooting.
+    [Fact]
+    public void DrawsOneDeviceAsTheDescriptionThenTheIndentedPath()
+    {
+        var device = new HidDeviceInfo(
+            @"\\?\hid#vid_054c&pid_0ec2&mi_05&col03#8&29ddaaec&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}",
+            0x054C, 0x0EC2, 0xFF04, 0x0001, 64, 64, "Hid Interface");
+
+        Assert.Equal(
+            "VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 \"Hid Interface\"\n" +
+            "  \\\\?\\hid#vid_054c&pid_0ec2&mi_05&col03#8&29ddaaec&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}\n",
+            Render(new DeviceListReport([device])));
+    }
+
+    [Fact]
+    public void ThrowsForAReportTypeItDoesNotKnowHowToDraw()
+    {
+        Assert.Throws<NotSupportedException>(() => Render(new UnknownReport()));
+    }
 }
 
 public class JsonRendererTests
@@ -131,6 +249,8 @@ public class JsonRendererTests
         Assert.Contains("\"left\":62", json);
         Assert.DoesNotContain("\"right\"", json);
         Assert.DoesNotContain("\"case\"", json);
+        // No case, so nothing to say is or is not a snapshot.
+        Assert.DoesNotContain("\"case_is_snapshot\"", json);
     }
 
     [Fact]
@@ -140,6 +260,16 @@ public class JsonRendererTests
 
         Assert.DoesNotContain("\"raw\"", Render(report));
         Assert.Contains("\"raw\":\"01 4C 00 FF 00 22\"", Render(report, raw: true));
+    }
+
+    [Fact]
+    public void ShowsOnlyTheBytesTheWireSentForATwoBytePayload()
+    {
+        var report = new BatteryReport(BatteryInfo.Parse([0x01, 62]));
+
+        string json = Render(report, raw: true);
+
+        Assert.Contains("\"raw\":\"01 3E\"", json);
     }
 
     [Fact]
@@ -170,6 +300,63 @@ public class JsonRendererTests
         Assert.Contains("\"value\":50", json);
     }
 
+    [Fact]
+    public void AddsTheSerialObjectForAnEarbudModel()
+    {
+        var status = new StatusReport(
+            new ModelInfo(4, 0, 0, 0, 0, "3015430", "3015430", "3015430"),
+            BatteryInfo.Parse([0x01, 76, 0x00, 71, 0x00, 34]),
+            new MixBalance(50),
+            new HeadphoneVolume(false, 15, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            100,
+            new SidetoneVolume(0, 0));
+
+        var json = Render(status);
+
+        Assert.Contains("\"serial\":{\"left\":\"3015430\",\"right\":\"3015430\",\"dongle\":\"3015430\"}", json);
+    }
+
+    [Fact]
+    public void OmitsTheSerialObjectForANonEarbudModel()
+    {
+        var status = new StatusReport(
+            new ModelInfo(0, 0, 0, 0, 0, "", "", ""),
+            BatteryInfo.Parse([0x01, 62]),
+            new MixBalance(50),
+            new HeadphoneVolume(false, 15, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            100,
+            new SidetoneVolume(0, 0));
+
+        Assert.DoesNotContain("\"serial\"", Render(status));
+    }
+
+    [Fact]
+    public void WritesTheSidetoneValueOnItsOwn()
+    {
+        var json = Render(new SidetoneReport(new SidetoneVolume(30, 100)));
+
+        Assert.Contains("\"value\":30", json);
+    }
+
+    // Sidetone in `status --json` used to be an ad-hoc inline object; it now goes through the
+    // same `SidetoneReport` the `watch sidetone` event uses.
+    [Fact]
+    public void RendersSidetoneInsideStatusThroughTheSameReportType()
+    {
+        var status = new StatusReport(
+            default,
+            BatteryInfo.Parse([0x01, 62]),
+            new MixBalance(50),
+            new HeadphoneVolume(false, 15, 0xFF),
+            new MicVolume(false, 0xFF, 0xFF),
+            100,
+            new SidetoneVolume(30, 100));
+
+        Assert.Contains("\"sidetone\":{\"value\":30}", Render(status));
+    }
+
     // A status bar should be able to run `jq 'select(.event=="battery").left'` against the
     // watch stream, not parse a rendered column layout out of a string.
     [Fact]
@@ -187,15 +374,74 @@ public class JsonRendererTests
         Assert.Contains("\"event\":\"battery\"", json);
         Assert.Contains("\"left\":76", json);
         Assert.Contains("\"right\":null", json);
-        Assert.DoesNotContain("\"detail\":\"", json);
+        Assert.DoesNotContain("\"raw\":\"", json);
+    }
+
+    // Renamed from "detail" to "raw": "detail" is otherwise always the battery body's nested
+    // object, and a typed decoder cannot deserialize a key whose type varies line to line.
+    [Fact]
+    public void KeepsTheRawBytesUnderTheirOwnKeyForAnEventWithNoDecoder()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23), EventId.FirmwareVersion, null, "0A 1B");
+
+        var json = Render(report);
+
+        Assert.Contains("\"raw\":\"0A 1B\"", json);
+        Assert.DoesNotContain("\"detail\"", json);
+    }
+
+    // Known events read as lowercase words ("battery"); an unmapped one used to leak the
+    // PascalCase enum name, mixing two casings in one stream.
+    [Fact]
+    public void LowerCasesTheEventNameFallback()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23), EventId.FirmwareVersion, null, "0A 1B");
+
+        Assert.Contains("\"event\":\"firmwareversion\"", Render(report));
     }
 
     [Fact]
-    public void KeepsTheRawBytesForAnEventWithNoDecoder()
+    public void ThrowsForAReportTypeItDoesNotKnowHowToDraw()
     {
-        var report = new EventReport(
-            new DateTime(2026, 8, 23, 1, 20, 23), EventId.FirmwareVersion, null, "0A1B");
+        Assert.Throws<NotSupportedException>(() => Render(new UnknownReport()));
+    }
 
-        Assert.Contains("\"detail\":\"0A1B\"", Render(report));
+    // `devices --json` used to escape "&" and quotation marks meant for a pipe or a file, not HTML.
+    [Fact]
+    public void DoesNotHtmlEscapeDeviceStrings()
+    {
+        var device = new HidDeviceInfo(
+            @"\\?\hid#vid_054c&pid_0ec2", 0x054C, 0x0EC2, 0xFF04, 0x0001, 64, 64, "Hid Interface");
+
+        var json = Render(new DeviceListReport([device]));
+
+        Assert.Contains("VID_054C&PID_0EC2", json);
+        Assert.Contains("Hid Interface", json);
+        Assert.DoesNotContain("\\u0026", json);
+    }
+}
+
+public class HexFormatTests
+{
+    [Fact]
+    public void JoinsBytesWithASpace()
+    {
+        Assert.Equal("0A 1B", HexFormat.Bytes([0x0A, 0x1B]));
+    }
+
+    [Fact]
+    public void ShowsOnlyTwoBytesForAHeadsetPayload()
+    {
+        Assert.Equal("01 3E", HexFormat.Battery(BatteryInfo.Parse([0x01, 62])));
+    }
+
+    [Fact]
+    public void ShowsAllSixBytesForAnEarbudPayload()
+    {
+        Assert.Equal(
+            "01 4C 00 FF 00 22",
+            HexFormat.Battery(BatteryInfo.Parse([0x01, 76, 0x00, 0xFF, 0x00, 34])));
     }
 }

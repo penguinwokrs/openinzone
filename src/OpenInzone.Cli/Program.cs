@@ -16,15 +16,20 @@ internal static class Program
         bool json = Take(ref args, "--json");
         bool raw = Take(ref args, "--raw");
 
-        if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
-        {
-            PrintUsage();
-            return args.Length == 0 ? 1 : 0;
-        }
-
         IReportRenderer renderer = json
             ? new JsonRenderer(Console.Out, raw)
             : new TextRenderer(Console.Out, Console.Error, raw);
+
+        if (args.Length == 0)
+        {
+            return NoArguments(renderer, json);
+        }
+
+        if (args[0] is "-h" or "--help" or "help")
+        {
+            PrintUsage();
+            return 0;
+        }
 
         try
         {
@@ -97,6 +102,25 @@ internal static class Program
     {
         renderer.Render(new ErrorReport("usage",
             $"Unknown command '{command}'. Run 'inzone --help' to see what is available."));
+        return 2;
+    }
+
+    /// <summary>
+    /// No command is a usage failure, not a device failure: exit 2, not 1. Under `--json` the
+    /// error path stays well-formed JSON rather than falling back to the text usage block.
+    /// </summary>
+    internal static int NoArguments(IReportRenderer renderer, bool json)
+    {
+        if (json)
+        {
+            renderer.Render(new ErrorReport("usage",
+                "No command given. Run 'inzone --help' to see what is available."));
+        }
+        else
+        {
+            PrintUsage();
+        }
+
         return 2;
     }
 
@@ -200,7 +224,7 @@ internal static class Program
         {
             if (wanted.Count > 0 && !wanted.Contains(e.EventId)) return;
             renderer.Render(new EventReport(
-                DateTime.Now, e.EventId, Payload(e.EventId, e.Param), Convert.ToHexString(e.Param)));
+                DateTime.Now, e.EventId, Payload(e.EventId, e.Param), HexFormat.Bytes(e.Param)));
         };
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
@@ -213,12 +237,13 @@ internal static class Program
     /// matching command's output. Null for an event with no decoder; the caller keeps the raw
     /// bytes for that case.
     /// </summary>
-    private static IReport? Payload(EventId eventId, byte[] param) => eventId switch
+    internal static IReport? Payload(EventId eventId, byte[] param) => eventId switch
     {
         EventId.GameChatMixBalance when param.Length >= 1 => new BalanceReport(new MixBalance(param[0])),
         EventId.HeadphoneVolume when param.Length >= 3 => new VolumeReport(HeadphoneVolume.Parse(param)),
         EventId.MicVolume when param.Length >= 3 => new MicMuteReport(MicVolume.Parse(param)),
         EventId.BatteryInfo when param.Length >= 2 => new BatteryReport(BatteryInfo.Parse(param)),
+        EventId.SidetoneVolume when param.Length >= 2 => new SidetoneReport(SidetoneVolume.Parse(param)),
         _ => null,
     };
 

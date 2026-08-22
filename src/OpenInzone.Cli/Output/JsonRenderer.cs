@@ -2,6 +2,7 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
@@ -14,10 +15,15 @@ namespace OpenInzone.Cli.Output;
 /// </summary>
 public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportRenderer
 {
+    // The output is a pipe or a file, never HTML, so there is nothing to gain from escaping
+    // characters like '&' and '"' inside strings such as a device's VID_054C&PID_0EC2 tag.
+    private static readonly JsonWriterOptions Options =
+        new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     public void Render(IReport report)
     {
         var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
+        using (var json = new Utf8JsonWriter(buffer, Options))
         {
             json.WriteStartObject();
             Write(json, report);
@@ -37,6 +43,14 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
 
             case StatusReport status:
                 json.WriteString("device", status.Model.Name);
+                if (status.Model.IsEarbuds)
+                {
+                    json.WriteStartObject("serial");
+                    json.WriteString("left", status.Model.LeftSerial);
+                    json.WriteString("right", status.Model.RightSerial);
+                    json.WriteString("dongle", status.Model.DongleSerial);
+                    json.WriteEndObject();
+                }
                 json.WriteStartObject("battery");
                 WriteBatteryBody(json, status.Battery);
                 json.WriteEndObject();
@@ -44,7 +58,7 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
                 WriteVolume(json, status.Volume);
                 WriteMic(json, status.Mic, status.MicLevel);
                 json.WriteStartObject("sidetone");
-                json.WriteNumber("value", status.Sidetone.Value);
+                Write(json, new SidetoneReport(status.Sidetone));
                 json.WriteEndObject();
                 break;
 
@@ -57,6 +71,10 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
                 json.WriteNumber("value", volume.Volume.Value);
                 json.WriteNumber("max", HeadphoneVolume.Max);
                 json.WriteBoolean("muted", volume.Volume.Muted);
+                break;
+
+            case SidetoneReport sidetone:
+                json.WriteNumber("value", sidetone.Sidetone.Value);
                 break;
 
             case MicReport mic:
@@ -88,13 +106,16 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
                 json.WriteString("time", e.Time.ToString("HH:mm:ss"));
                 json.WriteString("event", EventName(e.EventId));
                 if (e.Payload is not null) Write(json, e.Payload);
-                else json.WriteString("detail", e.RawHex);
+                else json.WriteString("raw", e.RawHex);
                 break;
 
             case ErrorReport error:
                 json.WriteString("error", error.Code);
                 json.WriteString("message", error.Message);
                 break;
+
+            default:
+                throw new NotSupportedException($"No rendering for {report.GetType().Name}");
         }
     }
 
@@ -108,8 +129,13 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
         WriteState(json, "left_state", battery.Left);
         WriteState(json, "right_state", battery.Right);
         WriteState(json, "case_state", battery.Case);
-        if (battery.CaseIsSnapshot) json.WriteBoolean("case_is_snapshot", true);
-        if (raw) json.WriteString("raw", TextRenderer.Hex(battery));
+
+        // Emitted whenever a case exists, true or false, so a consumer learns the number is not
+        // live without having to read the protocol document to find out.
+        if (battery.Case.State is not BatteryPartState.Absent)
+            json.WriteBoolean("case_is_snapshot", battery.CaseIsSnapshot);
+
+        if (raw) json.WriteString("raw", HexFormat.Battery(battery));
         json.WriteEndObject();
     }
 
@@ -165,6 +191,6 @@ public sealed class JsonRenderer(TextWriter output, bool raw = false) : IReportR
         EventId.HeadphoneVolume => "volume",
         EventId.MicVolume => "mic",
         EventId.SidetoneVolume => "sidetone",
-        _ => eventId.ToString(),
+        _ => eventId.ToString().ToLowerInvariant(),
     };
 }

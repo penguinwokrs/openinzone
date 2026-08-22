@@ -20,13 +20,16 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
                 break;
             case BatteryReport battery:
                 output.WriteLine(battery.Battery.ToString());
-                if (raw) output.WriteLine($"raw    {Hex(battery.Battery)}");
+                if (raw) output.WriteLine($"raw    {HexFormat.Battery(battery.Battery)}");
                 break;
             case BalanceReport balance:
                 output.WriteLine(balance.Balance.ToString());
                 break;
             case VolumeReport volume:
                 output.WriteLine(volume.Volume.ToString());
+                break;
+            case SidetoneReport sidetone:
+                output.WriteLine(sidetone.Sidetone.ToString());
                 break;
             case MicReport mic:
                 output.WriteLine(Mic(mic));
@@ -50,6 +53,8 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
             case ErrorReport failure:
                 error.WriteLine(failure.Message);
                 break;
+            default:
+                throw new NotSupportedException($"No rendering for {report.GetType().Name}");
         }
     }
 
@@ -66,7 +71,7 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
         output.WriteLine($"Volume       {status.Volume}");
         output.WriteLine($"Microphone   {Mic(new MicReport(status.Mic, status.MicLevel))}");
         output.WriteLine($"Sidetone     {status.Sidetone}");
-        if (raw) output.WriteLine($"Battery raw  {Hex(status.Battery)}");
+        if (raw) output.WriteLine($"Battery raw  {HexFormat.Battery(status.Battery)}");
     }
 
     private static string Mic(MicReport mic)
@@ -75,20 +80,19 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
         return mic.MicLevel is int level ? $"{mute}, level {level}%" : mute;
     }
 
-    private static string Detail(EventReport e) => e.Payload switch
+    /// <summary>
+    /// One line per event, so a battery reading arriving as a notification appends its hex under
+    /// `--raw` rather than adding a second line: watching bytes change during a notification is
+    /// exactly what `--raw` is for.
+    /// </summary>
+    private string Detail(EventReport e) => e.Payload switch
     {
+        BatteryReport battery when raw => $"{battery.Battery}  raw {HexFormat.Battery(battery.Battery)}",
         BatteryReport battery => battery.Battery.ToString(),
         BalanceReport balance => balance.Balance.ToString(),
         VolumeReport volume => volume.Volume.ToString(),
         MicMuteReport mic => mic.Mic.ToString(),
+        SidetoneReport sidetone => sidetone.Sidetone.ToString(),
         _ => e.RawHex,
     };
-
-    internal static string Hex(BatteryInfo battery) => string.Join(' ',
-        new[]
-        {
-            battery.LeftStatus, battery.LeftPercent,
-            battery.RightStatus, battery.RightPercent,
-            battery.CaseStatus, battery.CasePercent,
-        }.Select(b => b.ToString("X2")));
 }

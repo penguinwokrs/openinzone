@@ -28,6 +28,9 @@ public sealed record BalanceReport(MixBalance Balance) : IReport;
 
 public sealed record VolumeReport(HeadphoneVolume Volume) : IReport;
 
+/// <summary>`inzone watch sidetone`, and the sidetone line of `inzone status --json`.</summary>
+public sealed record SidetoneReport(SidetoneVolume Sidetone) : IReport;
+
 /// <summary>`inzone mic` with no arguments, and the microphone line of `inzone status`.</summary>
 public sealed record MicReport(MicVolume Mic, int? MicLevel) : IReport;
 
