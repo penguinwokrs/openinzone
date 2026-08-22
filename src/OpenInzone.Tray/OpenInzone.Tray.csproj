@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- NotifyIcon has no WPF equivalent; it is the only thing WinForms is used for. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Tray</RootNamespace>
+    <AssemblyName>inzonetray</AssemblyName>
+    <ApplicationIcon>..\..\assets\openinzone.ico</ApplicationIcon>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <Product>OpenInzone</Product>
+    <!-- Required to build a desktop application from a non-Windows host. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenInzone.Control\OpenInzone.Control.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\assets\openinzone.ico" Link="openinzone.ico" />
+  </ItemGroup>
+</Project>
