@@ -329,6 +329,79 @@ Windows がそのヘッドセットのキャプチャ端点を公開していま
 プロセスを kill すると、シェルがバッファしていた分は捨てられます。デーモンは 1 行ごとにフラッシュ
 しているので、`inzoned | tee log.txt` ならリアルタイムに出力が見えます。
 
+## スクリプトから使う
+
+`--json` は `battery` に限らずどのコマンドでも使えます。付けると、整列した列表示の代わりに JSON
+オブジェクト 1 個が標準出力に出ます。`watch --json` は 1 行 1 オブジェクトで出すので、1 行だけで
+そのまま完結したレコードになります。
+
+### 出力例
+
+```console
+$ inzone battery --json
+{"left":51,"right":71,"case":34,"detail":{"left_state":"reporting","right_state":"reporting","case_state":"reporting","case_is_snapshot":true}}
+```
+
+```console
+$ inzone status --json
+{"device":"INZONE Buds","serial":{"left":"3015430","right":"3015430","dongle":"3015430"},"battery":{"left":51,"right":71,"case":34,"detail":{…}},"balance":{"value":50,"notch":0},"volume":{"value":15,"max":30,"muted":false},"mic":{"muted":false,"level":100,"level_available":true},"sidetone":{"value":0}}
+```
+
+```console
+$ inzone watch battery --json
+{"time":"05:21:11","event":"battery","left":57,"right":78,"case":34,"detail":{…}}
+{"time":"05:23:21","event":"battery","left":56,"right":78,"case":34,"detail":{…}}
+```
+
+語彙は意図的に揃えてあります。`inzone watch battery` と `jq 'select(.event=="battery")'` は、片方
+はサーバー側、片方はクライアント側で同じものを選び出しています。
+
+```console
+$ inzone watch --json | jq -c 'select(.event=="battery")'
+```
+
+### バッテリーの各キーの意味
+
+`left`・`right`・`case` はパーセンテージか、その部分が応答していなければ `null` です。イヤホンが
+ケースに入っている場合や、ケースの残量が一度も中継されていない場合が該当します。
+
+ヘッドセットモデルには右イヤホンもケースも別個には存在しないので、そのモデルではこれらのキーが
+`null` ではなく**オブジェクトから丸ごと欠落**します。`null` は「その部分は存在するが今は応答して
+いない」、キーが無いことは「このモデルにはそもそもその部分が無い」という意味です。
+
+`detail.case_is_snapshot` はイヤホンでは常に `true` です。ケース自体には無線が無く、ドックした
+イヤホンがその瞬間の残量を中継するだけなので、この数値はライブな値ではなく、その瞬間のスナップ
+ショットです。
+
+`detail.raw` は `--raw` を付けたときだけ現れ、生の未解析バイト列を持ちます。
+
+### 終了コード
+
+| コード | 意味 |
+|---|---|
+| 0 | 成功 |
+| 1 | デバイス側の失敗 — ドングルが無い、イヤホンがケースの中、応答が無い |
+| 2 | コマンド自体が誤り — 未知のコマンド、未知の watch フィルタ、数値でない値 |
+
+この区別は、タイマーでポーリングするものが「打ち間違えた」のか「充電中で応答がない」のかを見分け、
+リトライする価値があるかを判断できるようにするためのものです。
+
+### エラーも JSON になる
+
+テキストモードでは、これまでどおりエラーは stderr に出ます。`--json` を付けると、成功・失敗を
+問わずすべて stdout に出るので、stdout を読む側は成功でも失敗でもオブジェクト 1 個だけを受け取れ
+ます。
+
+```console
+$ inzone battery --json          # 両耳ともケースに入っている場合
+{"error":"unreachable","message":"The earbuds did not answer. They are in the case, out of range, or off."}
+```
+
+### watch のフィルタ
+
+`inzone watch` はフィルタ語を渡すと、その 1 種類の変更だけを出力します: `battery`、`balance`、
+`volume`、`mic`、`sidetone`。上の `event` フィールドと同じ語です。
+
 ---
 
 ## 開発者向け

@@ -330,6 +330,78 @@ headset and keeps working; the level is a Windows setting and needs that endpoin
 Killing the process discards whatever the shell buffered. The daemon flushes each line as it
 writes it, so `inzoned | tee log.txt` shows output live.
 
+## Scripting
+
+`--json` works on every command, not just `battery` — add it and you get one JSON object on
+stdout instead of the aligned columns. `watch --json` prints one object per line instead, so each
+line is a complete record on its own.
+
+### Examples
+
+```console
+$ inzone battery --json
+{"left":51,"right":71,"case":34,"detail":{"left_state":"reporting","right_state":"reporting","case_state":"reporting","case_is_snapshot":true}}
+```
+
+```console
+$ inzone status --json
+{"device":"INZONE Buds","serial":{"left":"3015430","right":"3015430","dongle":"3015430"},"battery":{"left":51,"right":71,"case":34,"detail":{…}},"balance":{"value":50,"notch":0},"volume":{"value":15,"max":30,"muted":false},"mic":{"muted":false,"level":100,"level_available":true},"sidetone":{"value":0}}
+```
+
+```console
+$ inzone watch battery --json
+{"time":"05:21:11","event":"battery","left":57,"right":78,"case":34,"detail":{…}}
+{"time":"05:23:21","event":"battery","left":56,"right":78,"case":34,"detail":{…}}
+```
+
+The vocabulary matches on purpose: `inzone watch battery` and `jq 'select(.event=="battery")'`
+pick out the same thing, one server-side and one client-side.
+
+```console
+$ inzone watch --json | jq -c 'select(.event=="battery")'
+```
+
+### What the battery keys mean
+
+`left`, `right` and `case` are percentages, or `null` when that part is not reporting — an earbud
+sitting in the case, or a case level that has never been relayed.
+
+A headset model has no separate right earbud and no case, so on that model those keys are
+**absent** from the object rather than `null`. `null` means "this part exists but is not
+reporting right now"; a missing key means "this model has no such part".
+
+`detail.case_is_snapshot` is always `true` for earbuds. The case has no radio of its own — an
+earbud relays its level when it is docked, so the number is a snapshot from that moment, not a
+live reading.
+
+`detail.raw` appears only with `--raw`, and carries the undecoded bytes.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | The device side failed — no dongle, earbuds in the case, no answer |
+| 2 | The command itself was wrong — unknown command, unknown watch filter, a value that is not a number |
+
+The split is there for anything polling on a timer: it can tell "I typed this wrong" apart from
+"they are charging", and decide whether retrying is worth it.
+
+### Errors are JSON too
+
+In text mode, errors go to stderr, same as always. Under `--json`, everything goes to stdout —
+success or failure — so a consumer reading stdout gets exactly one object either way:
+
+```console
+$ inzone battery --json          # with both earbuds in the case
+{"error":"unreachable","message":"The earbuds did not answer. They are in the case, out of range, or off."}
+```
+
+### Watch filters
+
+`inzone watch` takes filter words to print changes to just one thing: `battery`, `balance`,
+`volume`, `mic`, `sidetone` — the same words the `event` field carries above.
+
 ---
 
 ## Developer guide

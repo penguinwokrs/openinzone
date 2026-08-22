@@ -234,7 +234,10 @@ decoding is covered.
 - Filter parsing: known words, unknown word, no words.
 
 New files go under `tests/OpenInzone.Core.Tests/Model/` and `.../Output/`. The test project's
-`.csproj` is not touched.
+`.csproj` gets one edit: a new `ItemGroup` appended after the existing ones, adding the
+`ProjectReference` to `OpenInzone.Cli` that the renderer tests need. It is safe alongside the
+parallel branch below because it only appends — it does not touch any of the file's existing
+`ItemGroup`s, so there is nothing for a concurrent edit to those to collide with.
 
 ## Compatibility with the tray GUI branch
 
@@ -250,8 +253,10 @@ genuinely parallel and either can merge first. The contract this design keeps:
 | Additive changes only — no renames, no removals | so their branch needs no edit |
 
 Untouched: `src/OpenInzone.Control/**`, `src/OpenInzone.Daemon/**`, `OpenInzone.sln`,
-`tests/OpenInzone.Core.Tests/OpenInzone.Core.Tests.csproj`, `tests/OpenInzone.Core.Tests/Control/**`,
-and their spec and plan documents.
+`tests/OpenInzone.Core.Tests/Control/**`, and their spec and plan documents.
+`tests/OpenInzone.Core.Tests/OpenInzone.Core.Tests.csproj` gets the one appended `ItemGroup`
+described under Testing above — every existing line in the file, including any `ItemGroup` the
+tray GUI branch adds or edits, is left alone.
 
 Removing the superseded members is deliberately deferred rather than dropped. Once the GUI has
 merged and can move to `BatteryPart.State`, they can be marked `[Obsolete]` and retired
