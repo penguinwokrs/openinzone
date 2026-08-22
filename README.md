@@ -1,3 +1,5 @@
+![OpenInzone — control a Sony INZONE headset without INZONE Hub](docs/images/banner.png)
+
 # OpenInzone
 
 English · [日本語](README.ja.md)
@@ -18,8 +20,34 @@ window. This talks to the dongle directly over the same HID channel, so the same
 reached from a panel in the notification area, bound to a key, scripted, or read from a status
 bar.
 
+There are two programs, and one download carries both:
+
+| | |
+|---|---|
+| `inzonetray.exe` | the tray application — an icon in the notification area, a panel and global hotkeys. **This is the one most people want.** |
+| `inzone.exe` | the command line tool — the same settings from a terminal, with JSON for scripting |
+
+One left click on the tray icon opens this:
+
+![The OpenInzone panel: sliders for headphone volume, microphone level and game/chat balance, with the battery level of both earbuds and the case below them](docs/images/flyout.png)
+
 Built and verified against **INZONE Buds** (`VID_054C` / `PID_0EC2`). The protocol is shared
 across the INZONE range, so other models are likely to work, but only INZONE Buds has been tested.
+
+## Contents
+
+- [What it can do](#what-it-can-do)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Using the tray](#using-the-tray)
+- [Hotkeys and settings](#hotkeys-and-settings)
+- [Troubleshooting](#troubleshooting)
+- [Command line](#command-line)
+- [Scripting](#scripting)
+- [Developer guide](#developer-guide)
+- [Related projects](#related-projects)
+- [License](#license)
+- [Trademarks and scope](#trademarks-and-scope)
 
 ## What it can do
 
@@ -46,36 +74,203 @@ sliders move.
 
 ## Install
 
-### 1. Download
+No terminal, and no administrator rights. Download one file, run it, and the icon is in the
+notification area.
 
-The [latest release](https://github.com/penguinwokrs/openinzone/releases/latest) offers two
-downloads, both carrying the version number:
+### 1. Download the installer
 
-| | |
+Open the [latest release](https://github.com/penguinwokrs/openinzone/releases/latest), scroll down
+to **Assets**, and click **`OpenInzone-<version>-setup.exe`** — with the current release that file
+is `OpenInzone-0.1.0-setup.exe`. It lands in your Downloads folder like any other download.
+
+The other file there, `OpenInzone-<version>-win-x64.zip`, is the same two programs without an
+installer. It needs a terminal, so it is covered under [Command line](#command-line).
+
+### 2. Run it, and get past the warning
+
+Double-click the file you downloaded. Windows will stop you with a blue window saying
+**"Windows protected your PC"**.
+
+That is SmartScreen. It appears because this build is not code-signed — signing certificates cost
+money, and this is a free project — not because anything is wrong with the file. Click
+**More info**, and then the **Run anyway** button that appears underneath.
+
+The installer opens with a language prompt; the wizard itself is available in English, though the
+two optional checkboxes on the next page and the tray application's own menus are in Japanese.
+
+### 3. Take the defaults
+
+It installs for you rather than for the whole machine, so it never asks for administrator rights,
+and it puts the programs in `%LOCALAPPDATA%\Programs\OpenInzone` with a Start menu entry.
+
+Two checkboxes are worth knowing about:
+
+| Checkbox | |
 |---|---|
-| `OpenInzone-<version>-setup.exe` | the installer — the ordinary way in |
-| `OpenInzone-<version>-win-x64.zip` | the same programs, for anyone who would rather not run one |
+| Windows の起動時に常駐する (run at startup) | ticked — the tray comes up with Windows |
+| デスクトップにショートカットを作成する (desktop shortcut) | not ticked |
 
-Either one gives you the same two programs:
+The last page offers to start OpenInzone straight away. Leave that ticked and click **Finish**.
 
-| | |
+### 4. That is it
+
+A headphone icon appears in the notification area, at the right-hand end of the taskbar. Windows
+often hides new icons behind the **^** arrow there: click the arrow, and drag the icon out onto the
+taskbar to keep it in sight.
+
+Left click it. If the panel shows your model name and some numbers, everything works — see
+[Using the tray](#using-the-tray). If it says 未接続 (not connected), check the dongle is plugged
+in and the earbuds are out of the case, then see [Troubleshooting](#troubleshooting).
+
+To remove it later: **Settings → Apps → Installed apps → OpenInzone → Uninstall**. That leaves
+`%APPDATA%\openinzone` alone, so the keys you chose survive a reinstall.
+
+## Using the tray
+
+`inzonetray.exe` is the one to start. It puts an icon in the notification area and stays there:
+the installer's **run at startup** task brings it up with Windows, and from the zip it is the
+executable itself. Only one copy runs — start a second and it exits at once, leaving the first
+holding the hotkeys.
+
+**Left click the icon** for a panel at the bottom-right of the monitor the notification area is
+on. It carries three sliders and the battery levels — the panel pictured at the top of this
+page:
+
+| Slider | What it moves |
 |---|---|
-| `inzonetray.exe` | the tray application — a panel and global hotkeys in the notification area |
-| `inzone.exe` | the command line tool — read and change settings |
+| headphone volume | the headset's own volume, 0–30 — not the Windows playback volume |
+| microphone level | the Windows capture endpoint for the headset, 0–100 |
+| game/chat balance | 0–100, shown on the -5.0 to +5.0 scale INZONE Hub uses |
 
-Both downloads carry `LICENSE` and the .NET runtime the programs need, so there is nothing to
-install alongside them.
+Clicking the microphone icon toggles the headset's microphone mute, and the icon gets a red slash
+while it is muted. The speaker and the game/chat icons are labels rather than buttons; the
+headphone mute is on the command line, as `inzone volume mute`.
 
-### 2. Install it
+The microphone is split on purpose: the slider is the Windows endpoint, the mute is the headset's
+own flag. That is what INZONE Hub does, because only the mute is on the wire — `docs/PROTOCOL.md`
+records why. See [Which volume is which](#which-volume-is-which).
 
-Run `OpenInzone-<version>-setup.exe`. It installs for you rather than for the whole machine, so it
-never asks for administrator rights: the programs go to `%LOCALAPPDATA%\Programs\OpenInzone`, with
-a Start menu entry, a desktop icon if you want one, and a **run at startup** task that is ticked
-by default. Uninstalling leaves `%APPDATA%\openinzone` alone, so the keys you chose survive a
-reinstall.
+Dragging a slider does not flood the HID channel. Writes are coalesced onto a 100 ms timer, and
+the value you release on is always sent.
 
-Rather not run an installer? Unpack the zip somewhere permanent instead. Open Windows Terminal or
-PowerShell (right-click the Start button → **Terminal**) and run:
+Below the sliders are the battery levels for both earbuds and the case. The case number is the
+same snapshot the command line reports: see [Battery](#battery) for why it can sit still for
+hours, and for what charging does not tell you.
+
+The panel closes as soon as it loses focus. **Right click the icon** for a menu with 設定
+(settings) and 終了 (exit); hovering over it shows the model, the volume and the battery.
+
+## Hotkeys and settings
+
+The tray holds eight global hotkeys. They work from any application, including from inside a
+full-screen game:
+
+| Command | Default |
+|---|---|
+| 音量を上げる / 下げる (volume up / down) | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
+| バランスをゲーム寄りに / チャット寄りに (balance towards game / chat) | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
+| バランスを中央に (balance to the middle) | `Ctrl+Alt+Home` |
+| マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
+| マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
+
+**設定** in the right-click menu opens a window listing all eight with the key each one holds.
+Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
+another application already holds is marked as in use the moment you press it, so you find out
+there rather than by pressing it later and getting nothing. The same window has a checkbox for
+starting with Windows and a 既定に戻す (restore defaults) button. Saving re-registers the hotkeys
+immediately — there is nothing to restart.
+
+If a combination cannot be registered when the tray starts, because something else claimed it
+first, a balloon names the commands affected. Every other hotkey still works.
+
+Because the tray keeps the device open and caches the current values, a held-down key applies one
+write per press instead of a read and a write, so repeats stay responsive.
+
+The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id:
+
+```json
+{
+  "bindings": {
+    "volume-up": "Ctrl+Alt+Right",
+    "volume-down": "Ctrl+Alt+Left",
+    "balance-game": "Ctrl+Alt+Up",
+    "balance-chat": "Ctrl+Alt+Down",
+    "balance-centre": "Ctrl+Alt+Home",
+    "mic-mute": "Ctrl+Alt+Shift+M",
+    "mic-up": "Ctrl+Alt+PageUp",
+    "mic-down": "Ctrl+Alt+PageDown"
+  },
+  "autostart": false
+}
+```
+
+Hand-editing works as well as capturing. An empty string leaves that command unassigned, and a
+**key** is the modifiers `Ctrl`, `Alt`, `Shift`, `Win` plus one key: letters and digits,
+`F1`–`F24`, arrows, `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Space`, `Enter`,
+`Tab`, `Escape`, `Backspace`, the numpad operators, and the media keys `VolumeUp`, `VolumeDown`,
+`VolumeMute`, `MediaNext`, `MediaPrev`, `MediaStop`, `MediaPlayPause`.
+
+A configuration file left by an earlier version is in a different shape, and is migrated when the
+tray reads it, so an upgrade keeps the keys you chose.
+
+Starting with Windows is a `Run` entry under `HKCU`, written either by that checkbox or by the
+installer's optional task. Both mean the same thing, so setting it in one place and clearing it in
+the other is not a conflict.
+
+## Troubleshooting
+
+**The panel says 未接続, or "No INZONE dongle found."**
+The dongle is not plugged in, or it enumerates with a product id this does not know. From a
+terminal, `inzone devices` lists what was found:
+
+```console
+PS> inzone devices
+VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 "Hid Interface"
+  \\?\hid#vid_054c&pid_0ec2&mi_05&col03#8&29ddaaec&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}
+```
+
+If that is empty too, check that a device with vendor `054C` and usage page `0xFF04` is present.
+Discovery matches on capability rather than a fixed product id, so a different INZONE model should
+still be found.
+
+**"The headset did not answer ... within 1500 ms."**
+The dongle is there but the earbuds are not reachable — still in the case, out of range, or
+powered off. Take them out and try again.
+
+**"Windows protected your PC", or the exe will not start.**
+Nothing here is code-signed, so SmartScreen asks about the installer: choose
+**More info → Run anyway**. If instead you unpacked the zip, the files still carry their mark of
+the web — run `Unblock-File` recursively over wherever you put them, as
+[Command line](#command-line) shows.
+
+**`inzone` is not recognised as a command.**
+The PATH step was skipped, or the terminal predates it. Open a new terminal, or run the executable
+by path: `& "$env:LOCALAPPDATA\Programs\OpenInzone\inzone.exe" status` for the installer,
+`& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status` for a zip unpack.
+
+**A balloon says a hotkey could not be registered.**
+Something else registered that combination first; graphics drivers and chat applications are the
+usual culprits. Pick another combination in 設定. The remaining hotkeys still work.
+
+**`inzone mic` shows the mute state but no level.**
+Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
+headset and keeps working; the level is a Windows setting and needs that endpoint.
+
+## Command line
+
+`inzone.exe` reaches the same settings without the tray, one at a time — which is where scripting
+and status bars start. Everything from here to the end of this section wants a terminal:
+right-click the Start button → **Terminal**.
+
+### Getting inzone.exe
+
+If you ran the installer, it is already there, in `%LOCALAPPDATA%\Programs\OpenInzone` beside the
+tray. Skip to [Put it on PATH](#put-it-on-path).
+
+If you would rather not run an installer at all, `OpenInzone-<version>-win-x64.zip` on the
+[latest release](https://github.com/penguinwokrs/openinzone/releases/latest) carries the same two
+programs — `inzone.exe` and `inzonetray.exe`, with `LICENSE` and the .NET runtime they need — and
+installs nothing. Unpack it somewhere permanent:
 
 ```powershell
 $dir = "$env:LOCALAPPDATA\OpenInzone"
@@ -88,7 +283,10 @@ Get-ChildItem $dir -Recurse | Unblock-File
 the first run is met with **"Windows protected your PC"**. Neither download is code-signed, so
 SmartScreen can appear for the installer as well; choose **More info → Run anyway**.
 
-### 3. Put it on PATH
+Unpacking the zip gives you no Start menu entry and no autostart task. The tray's 設定 window has
+a checkbox for starting with Windows, which writes the same registry entry the installer would.
+
+### Put it on PATH
 
 So that `inzone` works from any directory, not just the folder it sits in:
 
@@ -102,10 +300,10 @@ $dir = "$env:LOCALAPPDATA\Programs\OpenInzone"      # or wherever the zip was un
 
 Close the terminal and open a new one for that to take effect.
 
-This step is optional, and only the command line tool cares about it. Skipping it means writing
-`.\inzone.exe` from inside the folder wherever the examples below say `inzone`.
+This step is optional. Skipping it means writing `.\inzone.exe` from inside the folder wherever the
+examples below say `inzone`.
 
-### 4. Check the headset is found
+### Check the headset is found
 
 With the dongle plugged in and the earbuds out of the case:
 
@@ -123,43 +321,7 @@ Sidetone     0
 If this prints numbers, everything below will work. If it prints an error instead, see
 [Troubleshooting](#troubleshooting).
 
-## Using it
-
-### Use it from the tray
-
-`inzonetray.exe` is the one to start. It puts an icon in the notification area and stays there:
-the installer's **run at startup** task brings it up with Windows, and from the zip it is the
-executable itself. Only one copy runs — start a second and it exits at once, leaving the first
-holding the hotkeys.
-
-**Left click the icon** for a panel at the bottom-right of the monitor the notification area is
-on. It carries three sliders and the battery levels:
-
-| Slider | What it moves |
-|---|---|
-| headphone volume | the headset's own volume, 0–30 — not the Windows playback volume |
-| microphone level | the Windows capture endpoint for the headset, 0–100 |
-| game/chat balance | 0–100, shown on the -5.0 to +5.0 scale INZONE Hub uses |
-
-Clicking a row's speaker or microphone icon toggles that mute. The microphone is split on purpose:
-the slider is the Windows endpoint, the mute is the headset's own flag. That is what INZONE Hub
-does, because only the mute is on the wire — `docs/PROTOCOL.md` records why. See
-[Which volume is which](#which-volume-is-which).
-
-Dragging a slider does not flood the HID channel. Writes are coalesced onto a 100 ms timer, and
-the value you release on is always sent.
-
-Below the sliders are the battery levels for both earbuds and the case. The case number is the
-same snapshot the command line reports: see [Battery](#battery) for why it can sit still for
-hours, and for what charging does not tell you.
-
-The panel closes as soon as it loses focus. **Right click the icon** for a menu with 設定
-(settings) and 終了 (exit); hovering over it shows the model, the volume and the battery.
-
 ### Change something
-
-The command line reaches the same settings without the tray, one at a time — which is where
-scripting and status bars start.
 
 Open INZONE Hub next to the terminal and watch its slider move as you run these.
 
@@ -223,64 +385,7 @@ announces the new value.
 
 This is what makes a status bar or stream overlay possible: pipe it somewhere and read it.
 
-### Settings and hotkeys
-
-The tray holds eight global hotkeys. They work from any application, including from inside a
-full-screen game:
-
-| Command | Default |
-|---|---|
-| 音量を上げる / 下げる (volume up / down) | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
-| バランスをゲーム寄りに / チャット寄りに (balance towards game / chat) | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
-| バランスを中央に (balance to the middle) | `Ctrl+Alt+Home` |
-| マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
-| マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
-
-**設定** in the right-click menu opens a window listing all eight with the key each one holds.
-Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
-another application already holds is marked as in use the moment you press it, so you find out
-there rather than by pressing it later and getting nothing. The same window has a checkbox for
-starting with Windows and a 既定に戻す (restore defaults) button. Saving re-registers the hotkeys
-immediately — there is nothing to restart.
-
-If a combination cannot be registered when the tray starts, because something else claimed it
-first, a balloon names the commands affected. Every other hotkey still works.
-
-Because the tray keeps the device open and caches the current values, a held-down key applies one
-write per press instead of a read and a write, so repeats stay responsive.
-
-The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id:
-
-```json
-{
-  "bindings": {
-    "volume-up": "Ctrl+Alt+Right",
-    "volume-down": "Ctrl+Alt+Left",
-    "balance-game": "Ctrl+Alt+Up",
-    "balance-chat": "Ctrl+Alt+Down",
-    "balance-centre": "Ctrl+Alt+Home",
-    "mic-mute": "Ctrl+Alt+Shift+M",
-    "mic-up": "Ctrl+Alt+PageUp",
-    "mic-down": "Ctrl+Alt+PageDown"
-  },
-  "autostart": false
-}
-```
-
-Hand-editing works as well as capturing. An empty string leaves that command unassigned, and a
-**key** is the modifiers `Ctrl`, `Alt`, `Shift`, `Win` plus one key: letters and digits,
-`F1`–`F24`, arrows, `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Space`, `Enter`,
-`Tab`, `Escape`, `Backspace`, the numpad operators, and the media keys `VolumeUp`, `VolumeDown`,
-`VolumeMute`, `MediaNext`, `MediaPrev`, `MediaStop`, `MediaPlayPause`.
-
-A configuration file left by an earlier version is in a different shape, and is migrated when the
-tray reads it, so an upgrade keeps the keys you chose.
-
-Starting with Windows is a `Run` entry under `HKCU`, written either by that checkbox or by the
-installer's optional task. Both mean the same thing, so setting it in one place and clearing it in
-the other is not a conflict.
-
-## Command reference
+### Command reference
 
 ```
 inzone status                 Show everything at once
@@ -325,45 +430,6 @@ Worth being precise about, because the names invite the wrong guess:
 
 `inzone volume` does not touch the Windows playback volume, and neither does INZONE Hub. The
 microphone is the one setting INZONE Hub splits across both worlds, and this follows it.
-
-## Troubleshooting
-
-**"No INZONE dongle found."**
-The dongle is not plugged in, or it enumerates with a product id this does not know. Run
-`inzone devices`, which lists what was found:
-
-```console
-PS> inzone devices
-VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 "Hid Interface"
-  \\?\hid#vid_054c&pid_0ec2&mi_05&col03#8&29ddaaec&0&0002#{4d1e55b2-f16f-11cf-88cb-001111000030}
-```
-
-If that is empty too, check that a device with vendor `054C` and usage page `0xFF04` is present.
-Discovery matches on capability rather than a fixed product id, so a different INZONE model should
-still be found.
-
-**"The headset did not answer ... within 1500 ms."**
-The dongle is there but the earbuds are not reachable — still in the case, out of range, or
-powered off. Take them out and try `inzone status` again.
-
-**"Windows protected your PC", or the exe will not start.**
-The download still carries its mark of the web. Run `Unblock-File` recursively over wherever you
-put it — `$env:LOCALAPPDATA\Programs\OpenInzone` for the installer, `$env:LOCALAPPDATA\OpenInzone`
-for a zip unpacked as this README suggests. Nothing here is code-signed, so SmartScreen may still
-want **More info → Run anyway**.
-
-**`inzone` is not recognised as a command.**
-The PATH step was skipped, or the terminal predates it. Open a new terminal, or run the executable
-by path: `& "$env:LOCALAPPDATA\Programs\OpenInzone\inzone.exe" status` for the installer,
-`& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status` for a zip unpack.
-
-**A balloon says a hotkey could not be registered.**
-Something else registered that combination first; graphics drivers and chat applications are the
-usual culprits. Pick another combination in 設定. The remaining hotkeys still work.
-
-**`inzone mic` shows the mute state but no level.**
-Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
-headset and keeps working; the level is a Windows setting and needs that endpoint.
 
 ## Scripting
 
