@@ -12,6 +12,8 @@ public partial class App : System.Windows.Application
     private DeviceController? _controller;
     private TrayIcon? _tray;
     private FlyoutWindow? _flyout;
+    private HotkeyHost? _hotkeys;
+    private HotkeyConfig _config = HotkeyConfig.Default();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -39,11 +41,16 @@ public partial class App : System.Windows.Application
         });
 
         _controller.Refresh();
+
+        _config = HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
+        _hotkeys = new HotkeyHost(_controller);
+        _hotkeys.Apply(_config);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _flyout?.Close();
+        _hotkeys?.Dispose();
         _tray?.Dispose();
         _controller?.Dispose();
         _instance?.Dispose();
