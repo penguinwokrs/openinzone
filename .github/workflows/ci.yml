@@ -1,0 +1,18 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      # The desktop project targets net8.0-windows; this is what lets it build on Linux.
+      - run: dotnet build OpenInzone.sln -warnaserror
+      - run: dotnet test OpenInzone.sln --no-build

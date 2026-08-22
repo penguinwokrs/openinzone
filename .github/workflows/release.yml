@@ -1,0 +1,73 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # release notes are generated from the history
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet test OpenInzone.sln
+
+      - name: Publish
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true \
+            -p:Version="$VERSION" -o dist/tray
+          dotnet publish src/OpenInzone.Cli -c Release -r win-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:Version="$VERSION" -o dist/cli
+
+      - name: Make sure Inno Setup is present
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Build the installer
+        shell: pwsh
+        env:
+          OPENINZONE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\openinzone.iss
+
+      - name: Zip the portable build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          Copy-Item dist\cli\inzone.exe dist\tray\
+          Compress-Archive -Path dist\tray\* -DestinationPath "dist\OpenInzone-${{ steps.version.outputs.value }}-win-x64.zip"
+
+      - name: Create the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/OpenInzone-*-setup.exe \
+            dist/OpenInzone-*-win-x64.zip
