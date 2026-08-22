@@ -58,13 +58,16 @@
 
       <Grid x:Name="BalanceRow">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="70" />
+          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="70" />
         </Grid.ColumnDefinitions>
-        <Path Data="{StaticResource BalanceGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6"
-              Width="28" Height="28" Stretch="Uniform" ToolTip="ゲーム / チャット" />
+        <Path Data="{StaticResource GameGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6"
+              Width="28" Height="28" Stretch="Uniform" ToolTip="ゲーム" />
         <Slider x:Name="BalanceSlider" Grid.Column="1" Minimum="0" Maximum="100" Margin="10,0"
                 IsSnapToTickEnabled="True" TickFrequency="10" VerticalAlignment="Center" />
-        <TextBlock x:Name="BalanceText" Grid.Column="2" Text="--" HorizontalAlignment="Right" />
+        <Path Grid.Column="2" Data="{StaticResource ChatGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6"
+              Width="28" Height="28" Stretch="Uniform" ToolTip="チャット" />
+        <TextBlock x:Name="BalanceText" Grid.Column="3" Text="--" HorizontalAlignment="Right" />
       </Grid>
 
       <Separator Margin="0,14,0,10" Background="#FF3A3D42" />
