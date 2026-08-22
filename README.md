@@ -139,9 +139,15 @@ muted
 
 `inzone battery` shows charge for both earbuds and the case.
 
-The case percentage is not a live reading. The case has no radio of its own — an earbud relays
-the level when it is docked, so the number is a snapshot from that moment. Both earbuds in the
-case means nothing answers at all, and `inzone battery` says so and exits 1.
+The case percentage is not a live reading. The case has no radio of its own, so its level only
+reaches the dongle when you put an earbud in — that is the moment it catches up. A case left
+charging on its own keeps reporting the same number however long you wait: in one measurement it
+sat at 36% for 37 minutes on a charger, then jumped straight to 42% the moment an earbud went in.
+Both earbuds in the case means nothing answers at all, and `inzone battery` says so and exits 1.
+
+**Charging is not reported.** The headset sends nothing that distinguishes charging from not
+charging, so neither this tool nor INZONE Hub can show it. An earbud that has been in the case
+simply comes back with a higher percentage.
 
 ### Watch changes as they happen
 

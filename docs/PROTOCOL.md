@@ -201,11 +201,71 @@ Serial       L 3015430 / R 0000000 / dongle 3015430
 HeadsetControl's `sony_inzone_buds.hpp` labels these the other way round. Its number is still
 correct, since it reports `min(left, right)`, but its labels are not.
 
-`inzone battery --raw` with both earbuds worn has produced `00 39 00 4F FF 22`, decoded as
-`[0x00, 57, 0x00, 79, 0xFF, 34]`. That is the one condition observed so far, and the status byte's
-meaning is still unknown: `0xFF` for the case is consistent with the case having no radio and
-therefore no live status of its own, but the earbud value has only ever been seen as `0x00`, so
-nothing can yet be concluded about what it would read while charging.
+#### The status bytes
+
+Still undeciphered, but their range is now narrow. `inzone battery --raw` and `inzone watch
+battery --raw` were run across a session covering four conditions: both earbuds worn, one docked,
+the case on a charger with an earbud inside, and an earbud reconnecting. **An earbud's status byte
+read `0x00` in every one of them**, and the case's read `0xFF` throughout.
+
+So the status byte is not a connection flag — a docked earbud's `percent` becomes `0xFF` while its
+status stays `0x00` — and it is not a charging flag either. The case's constant `0xFF` fits a part
+that has no radio and therefore no status of its own to report.
+
+#### Charging is not reported
+
+Plugging the case into a charger with an earbud inside changes nothing in this event. Both an
+active `GET` and the unsolicited notification that followed returned bytes identical to the
+reading before the charger was connected:
+
+```
+06:19:08  before the charger   00 2F 00 FF FF 22
+06:20:09  charger connected    00 2F 00 FF FF 22   (active GET)
+06:20:11  charger connected    00 2F 00 FF FF 22   (notification)
+```
+
+Nothing here distinguishes charging from not charging, so a charging state cannot be reported from
+this event. This matches [zoneout](https://github.com/marcinjakubowski/zoneout)'s note that no
+charging flag has been observed on the Buds, arrived at separately.
+
+That is a statement about event `0x04` only. Whether a charging flag exists under some other event
+id is untested; `0x06`–`0x08`, the bulk setting reads, have never been exercised here.
+
+#### The case level is relayed, not live
+
+The case carries no radio, so its level reaches the dongle only by way of an earbud. The reported
+number is therefore a snapshot rather than a live reading.
+
+**The transfer happens when an earbud is docked**, not when it is taken out again. Established on
+2026-08-23 by leaving the case on a charger and watching what the dongle reported.
+
+The case charged for 37 minutes while the reported level sat frozen — 15 of those minutes under a
+watch that would have flagged any change, with both earbuds out of the case:
+
+```
+06:18   case put on the charger, reported level 36
+        ... 37 minutes, both earbuds out, no change reported ...
+06:55:20  right earbud docked
+06:56:44  R --   case 42        raw 00 2D 00 FF FF 2A
+```
+
+At 06:56:44 the earbud is still `0xFF` — it has not been taken out — and the case has already
+jumped from 36 to 42, catching up on everything it had charged in the meantime. So docking is what
+carries the value across, and a reading is only ever as fresh as the last time an earbud went in.
+
+An earlier attempt could not tell docking from reconnection, because the earbud was pulled straight
+back out and the only packets captured were from the tail of the cycle. Leaving it docked is what
+separates the two.
+
+The same session settles one more thing: an earbud's own level is refreshed across a dock cycle.
+The right earbud went into the case at 67% and came back at 71%.
+
+#### When notifications arrive
+
+Docking or undocking an earbud produces a notification within a second. Between those, the device
+also pushes unprompted at intervals that vary widely — 17, 20, 22, 45, 46, 63, 80 and 130 seconds
+were all seen in one session. Anything that wants a current value on demand should issue a `GET`
+rather than wait.
 
 ### Model info, `0x02`
 
