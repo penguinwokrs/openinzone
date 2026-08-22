@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 penguinwokrs
+
+using OpenInzone.Hid;
+using OpenInzone.Model;
+using OpenInzone.Protocol;
+
+namespace OpenInzone.Cli.Output;
+
+/// <summary>
+/// What a command produced, before anything decides how it looks. Commands build one of these and
+/// a renderer draws it, so a new output format costs one renderer rather than one branch per command.
+/// </summary>
+public interface IReport;
+
+public sealed record BatteryReport(BatteryInfo Battery) : IReport;
+
+public sealed record StatusReport(
+    ModelInfo Model,
+    BatteryInfo Battery,
+    MixBalance Balance,
+    HeadphoneVolume Volume,
+    MicVolume Mic,
+    int? MicLevel,
+    SidetoneVolume Sidetone) : IReport;
+
+public sealed record BalanceReport(MixBalance Balance) : IReport;
+
+public sealed record VolumeReport(HeadphoneVolume Volume) : IReport;
+
+public sealed record MicReport(MicVolume Mic, int? MicLevel) : IReport;
+
+public sealed record DeviceListReport(IReadOnlyList<HidDeviceInfo> Devices) : IReport;
+
+/// <summary>One line of `inzone watch`.</summary>
+public sealed record EventReport(DateTime Time, EventId EventId, string Detail) : IReport;
+
+public sealed record ErrorReport(string Code, string Message) : IReport;

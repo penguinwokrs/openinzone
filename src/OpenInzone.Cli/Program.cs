@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using OpenInzone;
+using OpenInzone.Cli.Output;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
 
@@ -18,9 +19,11 @@ internal static class Program
             return args.Length == 0 ? 1 : 0;
         }
 
+        IReportRenderer renderer = new TextRenderer(Console.Out, Console.Error);
+
         try
         {
-            return Run(args);
+            return Run(args, renderer);
         }
         catch (Exception ex)
         {
@@ -29,25 +32,31 @@ internal static class Program
         }
     }
 
-    private static int Run(string[] args)
+    private static int Run(string[] args, IReportRenderer renderer)
     {
         string command = args[0].ToLowerInvariant();
         string[] rest = args[1..];
 
-        if (command == "devices") return ListDevices();
+        if (command == "devices") return ListDevices(renderer);
 
         using var device = InzoneDevice.Open();
 
         return command switch
         {
-            "status" => ShowStatus(device),
-            "balance" => Balance(device, rest),
-            "volume" or "vol" => Volume(device, rest),
-            "mic" => Mic(device, rest),
-            "battery" => Print(device.GetBattery().ToString()),
-            "watch" => Watch(device),
+            "status" => Show(renderer, BuildStatus(device)),
+            "balance" => Show(renderer, new BalanceReport(Balance(device, rest))),
+            "volume" or "vol" => Show(renderer, new VolumeReport(Volume(device, rest))),
+            "mic" => Mic(device, rest, renderer),
+            "battery" => Show(renderer, new BatteryReport(device.GetBattery())),
+            "watch" => Watch(device, renderer),
             _ => Unknown(command),
         };
+    }
+
+    private static int Show(IReportRenderer renderer, IReport report)
+    {
+        renderer.Render(report);
+        return 0;
     }
 
     private static int Unknown(string command)
@@ -56,107 +65,87 @@ internal static class Program
         return 1;
     }
 
-    private static int Print(string text)
-    {
-        Console.WriteLine(text);
-        return 0;
-    }
-
-    private static int ListDevices()
+    private static int ListDevices(IReportRenderer renderer)
     {
         var devices = InzoneDevice.Enumerate();
         if (devices.Count == 0)
         {
-            Console.WriteLine("No INZONE control interface found.");
+            renderer.Render(new ErrorReport("no-device", "No INZONE control interface found."));
             return 1;
         }
 
-        foreach (var d in devices)
-        {
-            Console.WriteLine(d);
-            Console.WriteLine($"  {d.DevicePath}");
-        }
+        renderer.Render(new DeviceListReport(devices));
         return 0;
     }
 
-    private static int ShowStatus(InzoneDevice device)
-    {
-        var model = device.GetModelInfo();
-        Console.WriteLine($"Device       {model.Name}");
-        if (model.IsEarbuds)
-        {
-            Console.WriteLine($"Serial       L {model.LeftSerial} / R {model.RightSerial} / dongle {model.DongleSerial}");
-        }
-        Console.WriteLine($"Battery      {device.GetBattery()}");
-        Console.WriteLine($"Balance      {device.GetMixBalance()}");
-        Console.WriteLine($"Volume       {device.GetHeadphoneVolume()}");
-        Console.WriteLine($"Microphone   {DescribeMic(device)}");
-        Console.WriteLine($"Sidetone     {device.GetSidetoneVolume()}");
-        return 0;
-    }
+    private static StatusReport BuildStatus(InzoneDevice device) => new(
+        device.GetModelInfo(),
+        device.GetBattery(),
+        device.GetMixBalance(),
+        device.GetHeadphoneVolume(),
+        device.GetMicVolume(),
+        MicLevel(device),
+        device.GetSidetoneVolume());
 
-    private static int Balance(InzoneDevice device, string[] args)
+    private static MixBalance Balance(InzoneDevice device, string[] args)
     {
-        if (args.Length == 0) return Print(device.GetMixBalance().ToString());
+        if (args.Length == 0) return device.GetMixBalance();
 
         string arg = args[0];
-        if (arg is "centre" or "center") return Print(device.SetMixBalance(MixBalance.Centre).ToString());
+        if (arg is "centre" or "center") return device.SetMixBalance(MixBalance.Centre);
 
         var (value, relative) = ParseAmount(arg, "balance");
-        var result = relative ? device.AdjustMixBalance(value) : device.SetMixBalance(value);
-        return Print(result.ToString());
+        return relative ? device.AdjustMixBalance(value) : device.SetMixBalance(value);
     }
 
-    private static int Volume(InzoneDevice device, string[] args)
+    private static HeadphoneVolume Volume(InzoneDevice device, string[] args)
     {
-        if (args.Length == 0) return Print(device.GetHeadphoneVolume().ToString());
+        if (args.Length == 0) return device.GetHeadphoneVolume();
 
         switch (args[0].ToLowerInvariant())
         {
-            case "mute": return Print(device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: true).ToString());
-            case "unmute": return Print(device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: false).ToString());
-            case "toggle": return Print(device.ToggleHeadphoneMute().ToString());
+            case "mute": return device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: true);
+            case "unmute": return device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: false);
+            case "toggle": return device.ToggleHeadphoneMute();
         }
 
         var (value, relative) = ParseAmount(args[0], "volume");
-        var result = relative ? device.AdjustHeadphoneVolume(value) : device.SetHeadphoneVolume(value);
-        return Print(result.ToString());
+        return relative ? device.AdjustHeadphoneVolume(value) : device.SetHeadphoneVolume(value);
     }
 
-    /// <summary>
-    /// Mute is a headset setting; the level is the Windows capture endpoint. INZONE Hub splits them
-    /// the same way, so both are reported together.
-    /// </summary>
-    private static string DescribeMic(InzoneDevice device)
+    private static int Mic(InzoneDevice device, string[] args, IReportRenderer renderer)
     {
-        string mute = device.GetMicVolume().Muted ? "muted" : "unmuted";
-        try
-        {
-            return $"{mute}, level {device.GetMicLevel()}%";
-        }
-        catch (InvalidOperationException)
-        {
-            return mute;
-        }
-    }
-
-    private static int Mic(InzoneDevice device, string[] args)
-    {
-        if (args.Length == 0) return Print(DescribeMic(device));
+        if (args.Length == 0) return Show(renderer, MicNow(device));
 
         switch (args[0].ToLowerInvariant())
         {
-            case "mute": return Print(device.SetMicMuted(true).ToString());
-            case "unmute": return Print(device.SetMicMuted(false).ToString());
-            case "toggle": return Print(device.ToggleMicMute().ToString());
+            case "mute": return Show(renderer, new MicReport(device.SetMicMuted(true), MicLevel(device)));
+            case "unmute": return Show(renderer, new MicReport(device.SetMicMuted(false), MicLevel(device)));
+            case "toggle": return Show(renderer, new MicReport(device.ToggleMicMute(), MicLevel(device)));
         }
 
         var (value, relative) = ParseAmount(args[0], "microphone level");
         int level = relative ? device.AdjustMicLevel(value) : device.SetMicLevel(value);
-        return Print($"level {level}%");
+        return Show(renderer, new MicReport(device.GetMicVolume(), level));
     }
 
-    private static int Watch(InzoneDevice device)
+    private static MicReport MicNow(InzoneDevice device)
+        => new(device.GetMicVolume(), MicLevel(device));
+
+    /// <summary>The level lives on the Windows capture endpoint, which may not exist.</summary>
+    private static int? MicLevel(InzoneDevice device)
+    {
+        try
+        {
+            return device.GetMicLevel();
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static int Watch(InzoneDevice device, IReportRenderer renderer)
     {
         // Input reports reach every open handle, so this also shows replies to requests made by
         // INZONE Hub or another copy of this tool, not only changes made at the headset.
@@ -164,22 +153,21 @@ internal static class Program
         using var stop = new ManualResetEventSlim(false);
 
         device.SettingChanged += (_, e) =>
-        {
-            string detail = e.EventId switch
-            {
-                EventId.GameChatMixBalance when e.Param.Length >= 1 => new MixBalance(e.Param[0]).ToString(),
-                EventId.HeadphoneVolume when e.Param.Length >= 3 => HeadphoneVolume.Parse(e.Param).ToString(),
-                EventId.MicVolume when e.Param.Length >= 3 => MicVolume.Parse(e.Param).ToString(),
-                EventId.BatteryInfo when e.Param.Length >= 2 => BatteryInfo.Parse(e.Param).ToString(),
-                _ => Convert.ToHexString(e.Param),
-            };
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {e.EventId,-22} {detail}");
-        };
+            renderer.Render(new EventReport(DateTime.Now, e.EventId, Describe(e.EventId, e.Param)));
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
         stop.Wait();
         return 0;
     }
+
+    private static string Describe(EventId eventId, byte[] param) => eventId switch
+    {
+        EventId.GameChatMixBalance when param.Length >= 1 => new MixBalance(param[0]).ToString(),
+        EventId.HeadphoneVolume when param.Length >= 3 => HeadphoneVolume.Parse(param).ToString(),
+        EventId.MicVolume when param.Length >= 3 => MicVolume.Parse(param).ToString(),
+        EventId.BatteryInfo when param.Length >= 2 => BatteryInfo.Parse(param).ToString(),
+        _ => Convert.ToHexString(param),
+    };
 
     /// <summary>Reads "70" as absolute and "+10" / "-10" as relative.</summary>
     private static (int Value, bool Relative) ParseAmount(string text, string what)

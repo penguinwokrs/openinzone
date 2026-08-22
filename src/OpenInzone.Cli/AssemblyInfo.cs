@@ -4,3 +4,4 @@
 using System.Runtime.Versioning;
 
 [assembly: SupportedOSPlatform("windows")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("OpenInzone.Core.Tests")]
