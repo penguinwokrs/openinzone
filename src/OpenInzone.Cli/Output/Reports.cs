@@ -28,7 +28,17 @@ public sealed record BalanceReport(MixBalance Balance) : IReport;
 
 public sealed record VolumeReport(HeadphoneVolume Volume) : IReport;
 
+/// <summary>`inzone mic` with no arguments, and the microphone line of `inzone status`.</summary>
 public sealed record MicReport(MicVolume Mic, int? MicLevel) : IReport;
+
+/// <summary>
+/// `inzone mic mute` / `unmute` / `toggle`. The headset's own flag and nothing else — this
+/// command has never reported the Windows capture level alongside it.
+/// </summary>
+public sealed record MicMuteReport(MicVolume Mic) : IReport;
+
+/// <summary>`inzone mic 50` / `mic +5`. The Windows capture endpoint level on its own.</summary>
+public sealed record MicLevelReport(int Level) : IReport;
 
 public sealed record DeviceListReport(IReadOnlyList<HidDeviceInfo> Devices) : IReport;
 

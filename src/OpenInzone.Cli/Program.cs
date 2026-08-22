@@ -117,16 +117,19 @@ internal static class Program
     {
         if (args.Length == 0) return Show(renderer, MicNow(device));
 
+        // Each of these reports only what it changed, which is what the command has always
+        // printed. Muting is a headset flag; the level is a Windows setting. Reporting both
+        // together belongs to `inzone mic` with no arguments, not to these.
         switch (args[0].ToLowerInvariant())
         {
-            case "mute": return Show(renderer, new MicReport(device.SetMicMuted(true), MicLevel(device)));
-            case "unmute": return Show(renderer, new MicReport(device.SetMicMuted(false), MicLevel(device)));
-            case "toggle": return Show(renderer, new MicReport(device.ToggleMicMute(), MicLevel(device)));
+            case "mute": return Show(renderer, new MicMuteReport(device.SetMicMuted(true)));
+            case "unmute": return Show(renderer, new MicMuteReport(device.SetMicMuted(false)));
+            case "toggle": return Show(renderer, new MicMuteReport(device.ToggleMicMute()));
         }
 
         var (value, relative) = ParseAmount(args[0], "microphone level");
         int level = relative ? device.AdjustMicLevel(value) : device.SetMicLevel(value);
-        return Show(renderer, new MicReport(device.GetMicVolume(), level));
+        return Show(renderer, new MicLevelReport(level));
     }
 
     private static MicReport MicNow(InzoneDevice device)

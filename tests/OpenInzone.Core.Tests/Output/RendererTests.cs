@@ -3,6 +3,7 @@
 
 using OpenInzone.Cli.Output;
 using OpenInzone.Model;
+using OpenInzone.Protocol;
 
 namespace OpenInzone.Tests.Output;
 
@@ -51,5 +52,40 @@ public class TextRendererTests
 
         Assert.DoesNotContain("raw", Render(report));
         Assert.Contains("01 4C 00 FF 00 22", Render(report, raw: true));
+    }
+
+    // Muting is a headset flag. `inzone mic toggle` has always printed just that, never the
+    // Windows capture level alongside it — README.md shows `muted` on its own.
+    [Fact]
+    public void DrawsAMuteChangeWithoutTheWindowsLevel()
+    {
+        var muted = new MicVolume(true, 0xFF, 0xFF);
+
+        Assert.Equal("muted\n", Render(new MicMuteReport(muted)));
+    }
+
+    [Fact]
+    public void DrawsALevelChangeWithoutTheMuteFlag()
+    {
+        Assert.Equal("level 50%\n", Render(new MicLevelReport(50)));
+    }
+
+    // `inzone mic` with no arguments is the one that reports both.
+    [Fact]
+    public void DrawsBothWhenAskedForTheMicrophoneAsAWhole()
+    {
+        var mic = new MicVolume(false, 0xFF, 0xFF);
+
+        Assert.Equal("unmuted, level 95%\n", Render(new MicReport(mic, 95)));
+        Assert.Equal("unmuted\n", Render(new MicReport(mic, null)));
+    }
+
+    [Fact]
+    public void DrawsAWatchLineWithTheEventPaddedToTwentyTwo()
+    {
+        var report = new EventReport(
+            new DateTime(2026, 8, 23, 1, 20, 23), EventId.GameChatMixBalance, "60 (+1.0)");
+
+        Assert.Equal("01:20:23  GameChatMixBalance     60 (+1.0)\n", Render(report));
     }
 }

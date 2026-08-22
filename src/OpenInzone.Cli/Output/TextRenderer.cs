@@ -31,6 +31,12 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
             case MicReport mic:
                 output.WriteLine(Mic(mic));
                 break;
+            case MicMuteReport mute:
+                output.WriteLine(mute.Mic.ToString());
+                break;
+            case MicLevelReport level:
+                output.WriteLine($"level {level.Level}%");
+                break;
             case DeviceListReport devices:
                 foreach (var device in devices.Devices)
                 {
