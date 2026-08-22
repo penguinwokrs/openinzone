@@ -53,8 +53,8 @@ public sealed class HotkeyConfig
     public static HotkeyConfig FromJson(string json)
     {
         var config = Default();
-        var root = JsonNode.Parse(json)?.AsObject()
-                   ?? throw new InvalidDataException("The hotkey configuration is not a JSON object.");
+        if (JsonNode.Parse(json) is not JsonObject root)
+            throw new InvalidDataException("The hotkey configuration is not a JSON object.");
 
         if (root["autostart"] is JsonValue autostart) config.Autostart = autostart.GetValue<bool>();
 
@@ -69,6 +69,11 @@ public sealed class HotkeyConfig
                 foreach (var (id, value) in current)
                     if (HotkeyCommand.ById(id) is not null)
                         config.Bindings[id] = value?.GetValue<string>() ?? "";
+                break;
+
+            // A bindings value that is neither shape is treated like a missing one: every
+            // command keeps its default rather than the file failing to load altogether.
+            default:
                 break;
         }
 

@@ -98,6 +98,26 @@ public class HotkeyConfigTests
     }
 
     [Fact]
+    public void A_top_level_array_raises_invalid_data_exception()
+    {
+        Assert.Throws<InvalidDataException>(() => HotkeyConfig.FromJson("[]"));
+    }
+
+    [Fact]
+    public void A_top_level_scalar_raises_invalid_data_exception()
+    {
+        Assert.Throws<InvalidDataException>(() => HotkeyConfig.FromJson("42"));
+    }
+
+    [Fact]
+    public void A_bindings_value_of_the_wrong_shape_leaves_every_command_at_its_default()
+    {
+        var config = HotkeyConfig.FromJson("""{ "bindings": "oops" }""");
+
+        Assert.All(HotkeyCommand.All, c => Assert.Equal(c.DefaultCombo, config.Bindings[c.Id]));
+    }
+
+    [Fact]
     public void Round_trips_through_a_file()
     {
         var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}.json");
