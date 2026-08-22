@@ -125,8 +125,9 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     {
         var device = Device();
         // Ask the device again rather than trusting the answer taken at connect time: at logon the
-        // tray can win the race against Windows enumerating the capture endpoint, and carrying that
-        // "no microphone" forward would leave the slider reading 利用不可 for the whole session.
+        // tray can win the race against Windows enumerating the capture endpoint. InzoneDevice
+        // caches only a successful search, so asking here is what lets the slider come back to life
+        // instead of reading 利用不可 for the whole connection.
         bool micLevelAvailable = device.Microphone is not null;
         Mutate(state => state with
         {

@@ -27,15 +27,24 @@ public sealed class HotkeyConfig
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "openinzone", "hotkeys.json");
 
-    public static HotkeyConfig LoadOrCreate(string path)
+    public static HotkeyConfig LoadOrCreate(string path) => LoadOrCreate(path, out _);
+
+    /// <summary>
+    /// <paramref name="created"/> tells the caller this run is the one that wrote the file, so
+    /// nothing in it is the user's expressed intent yet. Settings that also live outside the file -
+    /// autostart does - need that distinction before they treat it as an instruction.
+    /// </summary>
+    public static HotkeyConfig LoadOrCreate(string path, out bool created)
     {
         if (!File.Exists(path))
         {
+            created = true;
             var fresh = Default();
             fresh.Save(path);
             return fresh;
         }
 
+        created = false;
         return FromJson(File.ReadAllText(path));
     }
 

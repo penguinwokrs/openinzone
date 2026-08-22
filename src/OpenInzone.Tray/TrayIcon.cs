@@ -14,6 +14,7 @@ namespace OpenInzone.Tray;
 public sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _icon;
+    private bool _disposed;
 
     public event EventHandler? LeftClicked;
     public event EventHandler? SettingsRequested;
@@ -50,6 +51,10 @@ public sealed class TrayIcon : IDisposable
     /// <summary>The tooltip is the only status a tray icon can show without being opened.</summary>
     public void Update(DeviceState state)
     {
+        // A state report marshalled onto the dispatcher can arrive after OnExit has torn the icon
+        // down; NotifyIcon appears to tolerate that, but nothing promises it will.
+        if (_disposed) return;
+
         // NotifyIcon.Text throws above 63 characters.
         string text = state.Connected
             ? $"{state.ModelName}\n音量 {state.Volume}\nバッテリー {state.Battery}"
@@ -63,6 +68,7 @@ public sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _icon.Visible = false;
         _icon.Dispose();
     }

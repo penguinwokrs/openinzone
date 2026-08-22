@@ -47,8 +47,8 @@ public partial class App : System.Windows.Application
 
         _controller.Refresh();
 
-        _config = LoadConfig();
-        ReconcileAutostart(_config);
+        _config = LoadConfig(out ConfigOrigin origin);
+        SettleAutostart(_config, origin);
         _hotkeys = new HotkeyHost(_controller);
         SurfaceRejected(_hotkeys.Apply(_config));
 
@@ -71,18 +71,34 @@ public partial class App : System.Windows.Application
         });
     }
 
+    /// <summary>Where the configuration in hand came from, which is what autostart has to know.</summary>
+    private enum ConfigOrigin
+    {
+        /// <summary>Read back from a file the user has saved at least once.</summary>
+        Loaded,
+
+        /// <summary>Written by this run, so nothing in it was chosen by anyone yet.</summary>
+        Created,
+
+        /// <summary>Stood in for a file that would not parse; it says nothing about the user.</summary>
+        Unreadable,
+    }
+
     /// <summary>
     /// A hand-edited or half-written configuration must not cost the user their tray icon: the
     /// defaults stand in and the balloon says which file to go and fix.
     /// </summary>
-    private HotkeyConfig LoadConfig()
+    private HotkeyConfig LoadConfig(out ConfigOrigin origin)
     {
         try
         {
-            return HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath);
+            var config = HotkeyConfig.LoadOrCreate(HotkeyConfig.DefaultPath, out bool created);
+            origin = created ? ConfigOrigin.Created : ConfigOrigin.Loaded;
+            return config;
         }
         catch (Exception ex)
         {
+            origin = ConfigOrigin.Unreadable;
             _tray?.ShowBalloon("設定ファイルを読み込めませんでした",
                 $"既定のホットキーで起動しました。{HotkeyConfig.DefaultPath} を修正してください: {ex.Message}");
             return HotkeyConfig.Default();
@@ -94,12 +110,31 @@ public partial class App : System.Windows.Application
     /// configuration's field is the user's expressed intent, and hand-editing it has to mean
     /// something. Whichever of the two was changed last is unknowable, so the file wins - it is
     /// the only one a person edits directly.
+    ///
+    /// That reasoning only holds for a file the user has actually saved. On the run that writes
+    /// the file there is no intent in it yet - the installer set the Run key moments ago for the
+    /// task the user ticked, and a freshly defaulted <see cref="HotkeyConfig.Autostart"/> would
+    /// quietly undo it - so the registry is read and recorded instead. A file that would not parse
+    /// says nothing either way, and leaves the Run key alone.
     /// </summary>
-    private void ReconcileAutostart(HotkeyConfig config)
+    private void SettleAutostart(HotkeyConfig config, ConfigOrigin origin)
     {
         try
         {
-            if (Autostart.IsEnabled != config.Autostart) Autostart.Set(config.Autostart);
+            switch (origin)
+            {
+                case ConfigOrigin.Created:
+                    config.Autostart = Autostart.IsEnabled;
+                    config.Save(HotkeyConfig.DefaultPath);
+                    break;
+
+                case ConfigOrigin.Loaded:
+                    if (Autostart.IsEnabled != config.Autostart) Autostart.Set(config.Autostart);
+                    break;
+
+                case ConfigOrigin.Unreadable:
+                    break;
+            }
         }
         catch (Exception ex)
         {

@@ -131,7 +131,6 @@ public sealed class InzoneDevice : IDisposable
     private const int MicMuteTimeoutMs = 2000;
 
     private MicEndpoint? _micEndpoint;
-    private bool _micEndpointSearched;
 
     public MicVolume GetMicVolume() => MicVolume.Parse(_session.Get(EventId.MicVolume));
 
@@ -164,13 +163,17 @@ public sealed class InzoneDevice : IDisposable
         }
     }
 
-    /// <summary>The headset's capture endpoint, or null when Windows is not exposing one.</summary>
+    /// <summary>
+    /// The headset's capture endpoint, or null when Windows is not exposing one. Only a successful
+    /// search is remembered: at logon the dongle can be open before Windows has enumerated the
+    /// capture endpoint, and caching that "no microphone" would leave the level unusable for the
+    /// whole connection. A later access searches again, so it heals once the endpoint appears.
+    /// </summary>
     public MicEndpoint? Microphone
     {
         get
         {
-            if (_micEndpointSearched) return _micEndpoint;
-            _micEndpointSearched = true;
+            if (_micEndpoint is not null) return _micEndpoint;
             _micEndpoint = MicEndpoint.FindForUsbDevice(DeviceInfo.VendorId, DeviceInfo.ProductId);
             return _micEndpoint;
         }

@@ -184,6 +184,70 @@ public class HotkeyConfigTests
         }
     }
 
+    // Autostart also lives in the registry, where the installer writes it before the application
+    // has ever run. The run that creates the file has to adopt what is there rather than reconcile
+    // against a default nobody chose, and this flag is how it tells the difference.
+    [Fact]
+    public void Reports_that_it_created_the_file()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
+        try
+        {
+            HotkeyConfig.LoadOrCreate(path, out bool created);
+
+            Assert.True(created);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Reports_that_it_read_a_file_it_did_not_create()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
+        try
+        {
+            HotkeyConfig.Default().Save(path);
+
+            HotkeyConfig.LoadOrCreate(path, out bool created);
+
+            Assert.False(created);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The file the first run writes must not claim autostart is off: reconciling that against the
+    /// registry is what would delete the Run key the installer had just written.
+    /// </summary>
+    [Fact]
+    public void The_file_it_creates_can_be_given_the_autostart_state_it_found_elsewhere()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
+        try
+        {
+            var config = HotkeyConfig.LoadOrCreate(path, out bool created);
+            Assert.True(created);
+
+            // Stands in for Autostart.IsEnabled, which needs a registry these tests do not have.
+            config.Autostart = true;
+            config.Save(path);
+
+            var reread = HotkeyConfig.LoadOrCreate(path, out bool createdAgain);
+            Assert.False(createdAgain);
+            Assert.True(reread.Autostart);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
     [Fact]
     public void Writes_the_defaults_when_there_is_no_file_yet()
     {
