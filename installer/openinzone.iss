@@ -27,7 +27,13 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ; The HID and audio paths this drives need Windows 10 1809 or later.
 MinVersion=10.0.17763
 LicenseFile=..\LICENSE
-PrivilegesRequired=admin
+; This installs per-user, not machine-wide, because the [Registry] autostart entry is written to
+; HKCU. If PrivilegesRequired were admin, a standard user installing via an administrator's
+; credentials would run the installer as that administrator, making HKCU the administrator's
+; hive: the autostart entry would land on an account nobody logs into with the headset, and the
+; person who actually installed the tray would get no autostart at all. Keep this at "lowest" so
+; the installer never elevates and HKCU always belongs to the person running it.
+PrivilegesRequired=lowest
 
 [Languages]
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"

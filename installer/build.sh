@@ -24,7 +24,10 @@ find_iscc() {
   fi
 
   local local_appdata
-  local_appdata="$(powershell.exe -NoProfile -Command "[Environment]::GetFolderPath('LocalApplicationData')" 2>/dev/null | tr -d '\r')"
+  # A failure here (powershell.exe missing or erroring) must not abort the script under -e; it's
+  # distinct from Inno Setup simply not being installed, and either way this function should fall
+  # through to `return 1` so the caller prints the friendly "not found" message.
+  local_appdata="$(powershell.exe -NoProfile -Command "[Environment]::GetFolderPath('LocalApplicationData')" 2>/dev/null | tr -d '\r')" || true
   if [ -n "$local_appdata" ]; then
     candidate="$(wslpath -u "$local_appdata")/Programs/Inno Setup 6/ISCC.exe"
     if [ -x "$candidate" ]; then
