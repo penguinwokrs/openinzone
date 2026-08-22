@@ -348,13 +348,16 @@ VID_054C&PID_0EC2 UsagePage=0xFF04 Usage=0x0001 In=64 Out=64 "Hid Interface"
 す。ケースから出して `inzone status` をもう一度試してください。
 
 **「WindowsによってPCが保護されました」が出る、exe が起動しない**
-ダウンロード時の印が残っています。
-`Get-ChildItem $env:LOCALAPPDATA\OpenInzone -Recurse | Unblock-File` を実行してください。コード
-署名はしていないので、それでも SmartScreen が出る場合は**詳細情報 → 実行**が必要です。
+ダウンロード時の印が残っています。置いた場所に応じて `Unblock-File` を再帰的に実行してください。
+インストーラーなら `$env:LOCALAPPDATA\Programs\OpenInzone`、この README の手順で zip を展開した
+場合は `$env:LOCALAPPDATA\OpenInzone` です。コード署名はしていないので、それでも SmartScreen が
+出る場合は**詳細情報 → 実行**が必要です。
 
 **`inzone` がコマンドとして認識されない**
 PATH の手順を飛ばしたか、ターミナルがそれより前から開いています。新しいターミナルを開くか、パスを
-指定して実行してください: `& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status`
+指定して実行してください: インストーラーなら
+`& "$env:LOCALAPPDATA\Programs\OpenInzone\inzone.exe" status`、zip 展開なら
+`& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status` です。
 
 **ホットキーを登録できなかった、とバルーンが出る**
 別の何かがその組み合わせを先に登録しています。グラフィックスドライバやチャットアプリがよくある

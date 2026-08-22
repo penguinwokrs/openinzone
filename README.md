@@ -347,13 +347,15 @@ The dongle is there but the earbuds are not reachable — still in the case, out
 powered off. Take them out and try `inzone status` again.
 
 **"Windows protected your PC", or the exe will not start.**
-The download still carries its mark of the web. Run
-`Get-ChildItem $env:LOCALAPPDATA\OpenInzone -Recurse | Unblock-File`. Nothing here is code-signed,
-so SmartScreen may still want **More info → Run anyway**.
+The download still carries its mark of the web. Run `Unblock-File` recursively over wherever you
+put it — `$env:LOCALAPPDATA\Programs\OpenInzone` for the installer, `$env:LOCALAPPDATA\OpenInzone`
+for a zip unpacked as this README suggests. Nothing here is code-signed, so SmartScreen may still
+want **More info → Run anyway**.
 
 **`inzone` is not recognised as a command.**
 The PATH step was skipped, or the terminal predates it. Open a new terminal, or run the executable
-by path: `& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status`.
+by path: `& "$env:LOCALAPPDATA\Programs\OpenInzone\inzone.exe" status` for the installer,
+`& "$env:LOCALAPPDATA\OpenInzone\inzone.exe" status` for a zip unpack.
 
 **A balloon says a hotkey could not be registered.**
 Something else registered that combination first; graphics drivers and chat applications are the
