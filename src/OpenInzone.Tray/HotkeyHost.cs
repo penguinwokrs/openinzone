@@ -76,7 +76,12 @@ public sealed class HotkeyHost : IDisposable
         _suspended = true;
     }
 
-    /// <summary>Re-registers the configuration last given to <see cref="Apply"/>, undoing a Suspend.</summary>
+    /// <summary>
+    /// Re-registers the configuration last given to <see cref="Apply"/>, undoing a Suspend. A call
+    /// with nothing suspended makes no sense - Apply already holds the registrations, so redoing
+    /// the unregister-and-register cycle would only repeat whatever rejections it just reported -
+    /// so this is a no-op in that case.
+    /// </summary>
     public IReadOnlyList<string> Resume()
     {
         if (_appliedConfig is null)
@@ -87,6 +92,8 @@ public sealed class HotkeyHost : IDisposable
             _suspended = false;
             return [];
         }
+
+        if (!_suspended) return [];
 
         return Apply(_appliedConfig);
     }

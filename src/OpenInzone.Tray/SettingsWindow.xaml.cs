@@ -17,6 +17,7 @@ public sealed class HotkeyRow(HotkeyCommand command, string combo) : INotifyProp
 {
     private string _combo = combo;
     private bool _conflict;
+    private bool _capturing;
 
     public string Id => command.Id;
     public string DisplayName => command.DisplayName;
@@ -34,7 +35,18 @@ public sealed class HotkeyRow(HotkeyCommand command, string combo) : INotifyProp
         set { _conflict = value; Changed(nameof(Conflict)); Changed(nameof(Display)); Changed(nameof(Brush)); }
     }
 
-    public string Display => Conflict ? $"{Combo}（使用中）" : Combo.Length == 0 ? "未割り当て" : Combo;
+    /// <summary>
+    /// Whether this row is the one currently waiting for a key press. Display-only: capturing
+    /// never touches <see cref="Combo"/>, so abandoning it - by starting another row's capture or
+    /// closing the window - leaves the row's actual key untouched.
+    /// </summary>
+    public bool Capturing
+    {
+        get => _capturing;
+        set { _capturing = value; Changed(nameof(Capturing)); Changed(nameof(Display)); }
+    }
+
+    public string Display => Capturing ? "キーを押してください" : Conflict ? $"{Combo}（使用中）" : Combo.Length == 0 ? "未割り当て" : Combo;
     public System.Windows.Media.Brush Brush =>
         Conflict ? System.Windows.Media.Brushes.IndianRed : System.Windows.Media.Brushes.White;
 
@@ -65,8 +77,9 @@ public partial class SettingsWindow : Window
 
     private void OnCaptureClick(object sender, RoutedEventArgs e)
     {
+        if (_capturing is not null) _capturing.Capturing = false;
         _capturing = _rows.Single(r => r.Id == (string)((System.Windows.Controls.Button)sender).Tag);
-        _capturing.Combo = "キーを押してください";
+        _capturing.Capturing = true;
     }
 
     protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
@@ -83,6 +96,7 @@ public partial class SettingsWindow : Window
         {
             _capturing.Combo = "";
             _capturing.Conflict = false;
+            _capturing.Capturing = false;
             _capturing = null;
             return;
         }
@@ -109,6 +123,7 @@ public partial class SettingsWindow : Window
         // application's own registrations, so CanRegister here is answering truthfully: a
         // rejection means some other application holds the combination right now.
         _capturing.Conflict = !HotkeyHost.CanRegister(combo);
+        _capturing.Capturing = false;
         _capturing = null;
     }
 
