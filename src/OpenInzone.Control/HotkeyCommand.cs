@@ -14,7 +14,6 @@ public interface IDeviceActions
     void AdjustBalance(int delta);
     void SetBalance(int value);
     void AdjustVolume(int delta);
-    void ToggleVolumeMute();
     void ToggleMicMute();
     void AdjustMicLevel(int delta);
 }
@@ -31,7 +30,6 @@ public sealed record HotkeyCommand(string Id, string DisplayName, string Default
     [
         new("volume-up",      "音量を上げる",             "Ctrl+Alt+Right",     d => d.AdjustVolume(+1)),
         new("volume-down",    "音量を下げる",             "Ctrl+Alt+Left",      d => d.AdjustVolume(-1)),
-        new("volume-mute",    "音量ミュート切り替え",     "Ctrl+Alt+Shift+V",   d => d.ToggleVolumeMute()),
         new("balance-game",   "バランスをゲーム寄りに",   "Ctrl+Alt+Up",        d => d.AdjustBalance(+MixBalance.HubStep)),
         new("balance-chat",   "バランスをチャット寄りに", "Ctrl+Alt+Down",      d => d.AdjustBalance(-MixBalance.HubStep)),
         new("balance-centre", "バランスを中央に",         "Ctrl+Alt+Home",      d => d.SetBalance(MixBalance.Centre)),

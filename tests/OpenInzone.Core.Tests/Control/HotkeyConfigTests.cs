@@ -58,7 +58,8 @@ public class HotkeyConfigTests
         Assert.Equal("Ctrl+Alt+PageDown", config.Bindings["mic-down"]);
     }
 
-    /// <summary>The daemon left volume mute unbound; migration must still produce its default.</summary>
+    /// <summary>An old file that only migrates one binding must still leave every command the
+    /// migration did not touch at its default, rather than losing them.</summary>
     [Fact]
     public void Migration_fills_commands_the_old_file_never_had()
     {
@@ -66,7 +67,7 @@ public class HotkeyConfigTests
             { "bindings": [ { "keys": "Ctrl+Alt+Up", "action": "balance", "delta": 10 } ] }
             """);
 
-        Assert.Equal("Ctrl+Alt+Shift+V", config.Bindings["volume-mute"]);
+        Assert.Equal("Ctrl+Alt+Shift+M", config.Bindings["mic-mute"]);
     }
 
     [Fact]

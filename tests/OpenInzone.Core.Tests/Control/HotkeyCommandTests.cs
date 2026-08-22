@@ -14,7 +14,6 @@ public class HotkeyCommandTests
         public void AdjustBalance(int delta) => Calls.Add($"balance {delta:+#;-#;0}");
         public void SetBalance(int value) => Calls.Add($"balance = {value}");
         public void AdjustVolume(int delta) => Calls.Add($"volume {delta:+#;-#;0}");
-        public void ToggleVolumeMute() => Calls.Add("volume mute");
         public void ToggleMicMute() => Calls.Add("mic mute");
         public void AdjustMicLevel(int delta) => Calls.Add($"mic level {delta:+#;-#;0}");
     }
@@ -55,7 +54,6 @@ public class HotkeyCommandTests
     [Theory]
     [InlineData("volume-up", "volume +1")]
     [InlineData("volume-down", "volume -1")]
-    [InlineData("volume-mute", "volume mute")]
     [InlineData("balance-game", "balance +10")]
     [InlineData("balance-chat", "balance -10")]
     [InlineData("balance-centre", "balance = 50")]
@@ -74,6 +72,6 @@ public class HotkeyCommandTests
     [Fact]
     public void Covers_every_command_the_settings_window_lists()
     {
-        Assert.Equal(9, HotkeyCommand.All.Count);
+        Assert.Equal(8, HotkeyCommand.All.Count);
     }
 }

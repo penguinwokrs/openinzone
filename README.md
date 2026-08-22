@@ -225,19 +225,18 @@ This is what makes a status bar or stream overlay possible: pipe it somewhere an
 
 ### Settings and hotkeys
 
-The tray holds nine global hotkeys. They work from any application, including from inside a
+The tray holds eight global hotkeys. They work from any application, including from inside a
 full-screen game:
 
 | Command | Default |
 |---|---|
 | 音量を上げる / 下げる (volume up / down) | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
-| 音量ミュート切り替え (toggle volume mute) | `Ctrl+Alt+Shift+V` |
 | バランスをゲーム寄りに / チャット寄りに (balance towards game / chat) | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
 | バランスを中央に (balance to the middle) | `Ctrl+Alt+Home` |
 | マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
 | マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
 
-**設定** in the right-click menu opens a window listing all nine with the key each one holds.
+**設定** in the right-click menu opens a window listing all eight with the key each one holds.
 Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
 another application already holds is marked as in use the moment you press it, so you find out
 there rather than by pressing it later and getting nothing. The same window has a checkbox for
@@ -257,7 +256,6 @@ The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id
   "bindings": {
     "volume-up": "Ctrl+Alt+Right",
     "volume-down": "Ctrl+Alt+Left",
-    "volume-mute": "Ctrl+Alt+Shift+V",
     "balance-game": "Ctrl+Alt+Up",
     "balance-chat": "Ctrl+Alt+Down",
     "balance-centre": "Ctrl+Alt+Home",

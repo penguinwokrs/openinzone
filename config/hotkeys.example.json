@@ -2,7 +2,6 @@
   "bindings": {
     "volume-up": "Ctrl+Alt+Right",
     "volume-down": "Ctrl+Alt+Left",
-    "volume-mute": "Ctrl+Alt+Shift+V",
     "balance-game": "Ctrl+Alt+Up",
     "balance-chat": "Ctrl+Alt+Down",
     "balance-centre": "Ctrl+Alt+Home",

@@ -33,13 +33,8 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="70" />
         </Grid.ColumnDefinitions>
-        <Button x:Name="VolumeMuteButton" Style="{StaticResource IconButton}" ToolTip="音量ミュート">
-          <Grid>
-            <Path Data="{StaticResource SpeakerGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6" Fill="#FFE8EAED" />
-            <Path x:Name="VolumeMutedSlash" Data="{StaticResource MutedSlashGeometry}"
-                  Stroke="#FFE06C75" StrokeThickness="2" Visibility="Collapsed" />
-          </Grid>
-        </Button>
+        <Path Data="{StaticResource SpeakerGeometry}" Stroke="#FFE8EAED" StrokeThickness="1.6" Fill="#FFE8EAED"
+              Width="28" Height="28" Stretch="Uniform" ToolTip="音量" />
         <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="30" Margin="10,0"
                 IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" />
         <TextBlock x:Name="VolumeText" Grid.Column="2" Text="--" HorizontalAlignment="Right" />

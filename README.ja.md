@@ -227,19 +227,18 @@ Watching INZONE Buds. Press Ctrl+C to stop.
 
 ### 設定とホットキー
 
-トレイは 9 つのグローバルホットキーを持っています。どのアプリケーションからでも——フルスクリーンの
+トレイは 8 つのグローバルホットキーを持っています。どのアプリケーションからでも——フルスクリーンの
 ゲーム中でも——効きます。
 
 | コマンド | 既定のキー |
 |---|---|
 | 音量を上げる / 下げる | `Ctrl+Alt+Right` / `Ctrl+Alt+Left` |
-| 音量ミュート切り替え | `Ctrl+Alt+Shift+V` |
 | バランスをゲーム寄りに / チャット寄りに | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
 | バランスを中央に | `Ctrl+Alt+Home` |
 | マイクミュート切り替え | `Ctrl+Alt+Shift+M` |
 | マイクレベルを上げる / 下げる | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
 
-右クリックメニューの**設定**を選ぶと、9 つすべてと、それぞれに割り当たっているキーが並んだ
+右クリックメニューの**設定**を選ぶと、8 つすべてと、それぞれに割り当たっているキーが並んだ
 ウィンドウが開きます。行を選んで組み合わせを押せば割り当て、`Esc` を押せば未割り当てに戻ります。
 他のアプリケーションが既に取得している組み合わせは、押した時点で「使用中」と表示されるので、
 あとで押してみて無反応で気づく、ということになりません。同じウィンドウに Windows の起動時に常駐
@@ -259,7 +258,6 @@ Watching INZONE Buds. Press Ctrl+C to stop.
   "bindings": {
     "volume-up": "Ctrl+Alt+Right",
     "volume-down": "Ctrl+Alt+Left",
-    "volume-mute": "Ctrl+Alt+Shift+V",
     "balance-game": "Ctrl+Alt+Up",
     "balance-chat": "Ctrl+Alt+Down",
     "balance-centre": "Ctrl+Alt+Home",

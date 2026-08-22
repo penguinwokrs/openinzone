@@ -37,7 +37,6 @@ public partial class FlyoutWindow : Window
         MicSlider.ValueChanged += (_, e) => Queue("mic", () => _controller.SetMicLevel((int)e.NewValue));
         BalanceSlider.ValueChanged += (_, e) => Queue("balance", () => _controller.SetBalance((int)e.NewValue));
 
-        VolumeMuteButton.Click += (_, _) => _controller.ToggleVolumeMute();
         MicMuteButton.Click += (_, _) => _controller.ToggleMicMute();
 
         _controller.StateChanged += OnStateChanged;
@@ -81,8 +80,6 @@ public partial class FlyoutWindow : Window
             VolumeRow.IsEnabled = state.Connected;
             VolumeSlider.Value = state.Volume.Value;
             VolumeText.Text = state.Connected ? $"{state.Volume.Value}/{HeadphoneVolume.Max}" : "--";
-            VolumeMutedSlash.Visibility = state.Volume.Muted ? Visibility.Visible : Visibility.Collapsed;
-            VolumeSlider.Opacity = state.Volume.Muted ? 0.4 : 1.0;
 
             // The level is the Windows capture endpoint; the mute flag is on the headset. Only the
             // slider goes away when Windows exposes no endpoint.

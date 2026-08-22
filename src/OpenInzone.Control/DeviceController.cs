@@ -164,12 +164,6 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         Mutate(state => state with { MicLevel = result });
     });
 
-    public void ToggleVolumeMute() => Post(_ =>
-    {
-        var result = Device().ToggleHeadphoneMute();
-        Mutate(state => state with { Volume = result });
-    });
-
     public void ToggleMicMute() => Post(_ =>
     {
         var result = Device().ToggleMicMute();

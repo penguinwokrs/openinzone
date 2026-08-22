@@ -117,7 +117,6 @@ public sealed class HotkeyConfig
                 "balance" when delta < 0 => "balance-chat",
                 "volume" when delta > 0 => "volume-up",
                 "volume" when delta < 0 => "volume-down",
-                "volume-mute" => "volume-mute",
                 "mic-mute" => "mic-mute",
                 "mic-level" when delta > 0 => "mic-up",
                 "mic-level" when delta < 0 => "mic-down",
