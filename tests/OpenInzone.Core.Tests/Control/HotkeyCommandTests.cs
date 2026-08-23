@@ -54,8 +54,9 @@ public class HotkeyCommandTests
     [Theory]
     [InlineData("volume-up", "volume +1")]
     [InlineData("volume-down", "volume -1")]
-    [InlineData("balance-game", "balance +10")]
-    [InlineData("balance-chat", "balance -10")]
+    // Game is the low end of the scale, so the key named after it steps down.
+    [InlineData("balance-game", "balance -10")]
+    [InlineData("balance-chat", "balance +10")]
     [InlineData("balance-centre", "balance = 50")]
     [InlineData("mic-mute", "mic mute")]
     [InlineData("mic-up", "mic level +5")]

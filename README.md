@@ -166,7 +166,7 @@ page:
 |---|---|
 | headphone volume | the headset's own volume, 0–30 — not the Windows playback volume |
 | microphone level | the Windows capture endpoint for the headset, 0–100 |
-| game/chat balance | 0–100, shown on the -5.0 to +5.0 scale INZONE Hub uses |
+| game/chat balance | 0–100. **0 is all game, 100 is all chat**; the reading names the side it leans to |
 
 Clicking the microphone icon toggles the headset's microphone mute, and the icon gets a red slash
 while it is muted. The speaker and the game/chat icons are labels rather than buttons; the
@@ -279,7 +279,7 @@ why running `inzone` while the tray is open is safe. The channel is documented i
 | Action | On a key | On a dial | Shows |
 |---|---|---|---|
 | Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
-| Game / chat balance | Steps | Turn to adjust, press to centre | `CHAT -1.0`, `CENTRE`, `GAME +2.0` |
+| Game / chat balance | Steps | Turn to adjust, press to centre | `GAME 1.0`, `CENTRE`, `CHAT 2.0` |
 | Microphone mute | Toggles | Press to toggle | `MUTED` or `LIVE` |
 | Microphone level | Steps | Turn to adjust, press to mute | `75 %` |
 | Battery | Press to re-read | Press to re-read | `L 97` and `R 94` |
@@ -471,10 +471,12 @@ PS> inzone balance +10
 70 (+2.0)
 
 PS> inzone balance centre
-50 (0.0)
+50 (centre)
 ```
 
-The number in brackets is the scale INZONE Hub shows, -5.0 to +5.0.
+0 is all game and 100 is all chat, and the bracket names the side the mix leans to and by how many
+of the steps INZONE Hub moves in. It is not a signed number: a sign only means something once you
+know which end is which, and that is what this project had wrong.
 
 The headphone volume and the microphone work the same way:
 
@@ -530,7 +532,7 @@ inzone status                 Show everything at once
 inzone devices                List the control interfaces found
 
 inzone balance                Show the game/chat balance
-inzone balance 70             Set it (0 = all chat, 100 = all game)
+inzone balance 70             Set it (0 = all game, 100 = all chat)
 inzone balance +10 | -10      Move it by a step
 inzone balance centre         Back to the middle
 

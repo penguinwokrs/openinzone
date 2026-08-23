@@ -44,7 +44,7 @@ function Set-Slider($name, $value) {
 Set-Text 'ModelText' 'INZONE Buds'
 Set-Slider 'VolumeSlider' 15;  Set-Text 'VolumeText' '15/30'
 Set-Slider 'MicSlider' 100;    Set-Text 'MicText' '100%'
-Set-Slider 'BalanceSlider' 50; Set-Text 'BalanceText' '50 (0.0)'
+Set-Slider 'BalanceSlider' 50; Set-Text 'BalanceText' '中央'
 Set-Text 'BatteryText' 'L 36%   R 59%   ケース 42%'
 
 # Render the panel itself. The Window is chromeless and transparent, so its content is the picture.

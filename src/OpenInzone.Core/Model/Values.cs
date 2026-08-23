@@ -14,9 +14,16 @@ public static class Unknown
 
 /// <summary>
 /// Balance between the game audio endpoint and the chat audio endpoint.
-/// 0 is fully chat, 100 is fully game, 50 is centred. INZONE Hub moves in steps of 10
-/// and labels the result -5.0 to +5.0.
+/// 0 is all game, 100 is all chat, 50 is centred. INZONE Hub moves in steps of 10.
 /// </summary>
+/// <remarks>
+/// The direction was recorded the wrong way round for a long time - as 0 being chat - and every
+/// description of it followed. It was heard, not deduced: raising the value makes chat louder.
+/// The tray's own panel has always had it right, with the game icon at the low end of its slider.
+///
+/// Which is why nothing here reports a signed number to a person any more. "+2.0" only means
+/// something once you know which way the scale runs, and that was exactly what was wrong.
+/// </remarks>
 public readonly record struct MixBalance(byte Value)
 {
     public const byte Min = 0;
@@ -24,12 +31,27 @@ public readonly record struct MixBalance(byte Value)
     public const byte Centre = 50;
     public const byte HubStep = 10;
 
-    /// <summary>The same value on the -5.0 to +5.0 scale INZONE Hub shows.</summary>
+    /// <summary>
+    /// The value on the -5.0 to +5.0 scale INZONE Hub shows. Negative favours game, positive
+    /// favours chat. Kept as it was so that anything reading the JSON keeps reading the same
+    /// numbers; people are shown <see cref="ToString"/> instead.
+    /// </summary>
     public double Notch => (Value - (double)Centre) / HubStep;
+
+    public bool IsCentred => Value == Centre;
+
+    /// <summary>True when the mix leans towards game, which is the low end of the scale.</summary>
+    public bool FavoursGame => Value < Centre;
+
+    /// <summary>How far from centre, in the steps INZONE Hub moves by, without a direction.</summary>
+    public double Notches => Math.Abs(Notch);
 
     public static byte Clamp(int value) => (byte)Math.Clamp(value, Min, Max);
 
-    public override string ToString() => $"{Value} ({Notch:+0.0;-0.0;0.0})";
+    /// <summary>Names the side rather than signing a number: "40 (game 1.0)".</summary>
+    public override string ToString() => IsCentred
+        ? $"{Value} (centre)"
+        : $"{Value} ({(FavoursGame ? "game" : "chat")} {Notches:0.0})";
 }
 
 /// <summary>Headphone volume as tracked by the headset itself, independent of the Windows mixer.</summary>

@@ -30,9 +30,9 @@ public class TextRendererTests
     }
 
     [Fact]
-    public void DrawsBalanceWithTheHubScale()
+    public void DrawsBalanceByNamingTheSideItLeansTo()
     {
-        Assert.Equal("60 (+1.0)\n", Render(new BalanceReport(new MixBalance(60))));
+        Assert.Equal("60 (chat 1.0)\n", Render(new BalanceReport(new MixBalance(60))));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class TextRendererTests
             new BalanceReport(new MixBalance(60)),
             "3C");
 
-        Assert.Equal("01:20:23  GameChatMixBalance     60 (+1.0)\n", Render(report));
+        Assert.Equal("01:20:23  GameChatMixBalance     60 (chat 1.0)\n", Render(report));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class TextRendererTests
             "Device       INZONE Buds\n" +
             "Serial       L 3015430 / R 3015430 / dongle 3015430\n" +
             "Battery      L 97%  R 97%  case 34%\n" +
-            "Balance      50 (0.0)\n" +
+            "Balance      50 (centre)\n" +
             "Volume       15/30\n" +
             "Microphone   unmuted, level 100%\n" +
             "Sidetone     0\n",
@@ -192,7 +192,7 @@ public class TextRendererTests
         Assert.Equal(
             "Device       INZONE H9\n" +
             "Battery      62%\n" +
-            "Balance      60 (+1.0)\n" +
+            "Balance      60 (chat 1.0)\n" +
             "Volume       19/30\n" +
             "Microphone   unmuted, level 95%\n" +
             "Sidetone     0\n",

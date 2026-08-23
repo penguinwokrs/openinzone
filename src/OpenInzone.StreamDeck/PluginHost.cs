@@ -168,8 +168,8 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
             ActionIds.Volume => new FeedbackPayload(Title(actionId), $"{state.Volume} / {state.VolumeMax}",
                 new Indicator(Percentage(state.Volume, state.VolumeMax))),
 
-            ActionIds.Balance => new FeedbackPayload(Title(actionId),
-                $"{(state.Balance - 50) / 10.0:+0.0;-0.0;0.0}", new Indicator(state.Balance)),
+            ActionIds.Balance => new FeedbackPayload(Title(actionId), KeyFace.Lean(state.Balance),
+                new Indicator(state.Balance)),
 
             ActionIds.MicMute => new FeedbackPayload(Title(actionId), state.MicMuted ? "MUTED" : "LIVE",
                 new Indicator(state.MicMuted ? 0 : 100)),

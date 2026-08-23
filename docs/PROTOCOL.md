@@ -152,8 +152,12 @@ Read from INZONE Hub but not exercised here: `0x01` link status, `0x03` firmware
 
 ### Game/chat balance, `0x22`
 
-One byte, 0–100. 0 is all chat, 100 is all game, 50 is centred. INZONE Hub moves in steps of 10
-and displays the result as -5.0 to +5.0, i.e. `(value - 50) / 10`.
+One byte, 0–100. **0 is all game, 100 is all chat**, 50 is centred. INZONE Hub moves in steps of
+10 and displays the result as -5.0 to +5.0, i.e. `(value - 50) / 10`.
+
+This document had the two ends the wrong way round until it was listened to: raising the value
+makes chat louder, not game. Every description in the project followed the mistake, and the
+hotkeys named after each side moved towards the other one.
 
 ### Headphone volume, `0x21`
 

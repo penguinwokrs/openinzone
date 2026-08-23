@@ -30,12 +30,17 @@ public class SnapshotTextTests
         Assert.Equal("16/30（ミュート）", SnapshotText.VolumeWithMute(Live with { VolumeMuted = true }));
     }
 
+    /// <summary>
+    /// Game is the low end of the scale. The side is named rather than signed: a reader of
+    /// "+2.0" has to already know which way the scale runs, and every description of that was
+    /// wrong until someone listened to it.
+    /// </summary>
     [Fact]
-    public void The_balance_carries_the_scale_INZONE_Hub_shows()
+    public void The_balance_names_the_side_it_leans_to()
     {
-        Assert.Equal("40 (-1.0)", SnapshotText.Balance(Live));
-        Assert.Equal("50 (0.0)", SnapshotText.Balance(Live with { Balance = 50 }));
-        Assert.Equal("70 (+2.0)", SnapshotText.Balance(Live with { Balance = 70 }));
+        Assert.Equal("ゲーム寄り 1.0", SnapshotText.Balance(Live));
+        Assert.Equal("中央", SnapshotText.Balance(Live with { Balance = 50 }));
+        Assert.Equal("チャット寄り 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
     }
 
     [Fact]

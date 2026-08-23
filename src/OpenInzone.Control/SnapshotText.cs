@@ -28,11 +28,19 @@ public static class SnapshotText
         : state.VolumeMuted ? $"{Volume(state)}（ミュート）"
         : Volume(state);
 
-    /// <summary>The balance on the -5.0 to +5.0 scale INZONE Hub shows beside the raw value.</summary>
-    public static string Balance(DeviceSnapshot state) =>
-        state.Connected
-            ? new MixBalance(MixBalance.Clamp(state.Balance)).ToString()
-            : Unavailable;
+    /// <summary>
+    /// Which side the mix leans to, said in words. A signed number needs the reader to know which
+    /// way the scale runs, and for a long time every description of that was wrong.
+    /// </summary>
+    public static string Balance(DeviceSnapshot state)
+    {
+        if (!state.Connected) return Unavailable;
+
+        var balance = new MixBalance(MixBalance.Clamp(state.Balance));
+        return balance.IsCentred
+            ? "中央"
+            : $"{(balance.FavoursGame ? "ゲーム" : "チャット")}寄り {balance.Notches:0.0}";
+    }
 
     public static string MicLevel(DeviceSnapshot state) =>
         !state.Connected ? Unavailable

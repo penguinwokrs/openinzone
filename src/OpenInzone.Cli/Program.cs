@@ -273,7 +273,7 @@ internal static class Program
               inzone devices                List the control interfaces found
 
               inzone balance                Show the game/chat balance
-              inzone balance 70             Set it (0 = all chat, 100 = all game)
+              inzone balance 70             Set it (0 = all game, 100 = all chat)
               inzone balance +10 | -10      Move it by a step
               inzone balance centre         Back to the middle
 

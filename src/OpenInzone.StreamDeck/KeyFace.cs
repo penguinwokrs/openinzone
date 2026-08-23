@@ -40,22 +40,26 @@ internal static class KeyFace
     {
         if (!state.Connected) return Reading("GAME / CHAT", null, null);
 
-        // The same -5.0 to +5.0 scale INZONE Hub shows, so a value read here matches what the
-        // application the user already knows would have shown for the same setting.
-        double notch = (state.Balance - 50) / 10.0;
-        string label = notch switch
-        {
-            0 => "CENTRE",
-            > 0 => $"GAME +{notch:0.0}",
-            _ => $"CHAT {notch:0.0}",
-        };
+        // Game is the low end of the scale: raising the value makes chat louder. This read the
+        // other way round, so a key that said GAME was making chat louder.
+        //
+        // The side is named rather than signed. A reader of "+2.0" has to already know which way
+        // the scale runs, which is the very thing that was wrong.
+        string label = Lean(state.Balance);
         return Frame($"""
             <text x="72" y="40" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(label)}</text>
             <rect x="18" y="62" width="108" height="8" rx="4" fill="#2c2c33"/>
             <rect x="{18 + state.Balance * 108 / 100 - 4}" y="56" width="8" height="20" rx="3" fill="{Accent}"/>
-            <text x="18" y="106" fill="{Dim}" font-size="15">CHAT</text>
-            <text x="126" y="106" fill="{Dim}" font-size="15" text-anchor="end">GAME</text>
+            <text x="18" y="106" fill="{Dim}" font-size="15">GAME</text>
+            <text x="126" y="106" fill="{Dim}" font-size="15" text-anchor="end">CHAT</text>
             """);
+    }
+
+    /// <summary>Which side the mix leans to, and by how much, with no sign to misread.</summary>
+    internal static string Lean(int balance)
+    {
+        double notches = Math.Abs(balance - 50) / 10.0;
+        return balance == 50 ? "CENTRE" : $"{(balance < 50 ? "GAME" : "CHAT")} {notches:0.0}";
     }
 
     private static string MicMute(DeviceSnapshot state)

@@ -30,8 +30,10 @@ public sealed record HotkeyCommand(string Id, string DisplayName, string Default
     [
         new("volume-up",      "音量を上げる",             "Ctrl+Alt+Right",     d => d.AdjustVolume(+1)),
         new("volume-down",    "音量を下げる",             "Ctrl+Alt+Left",      d => d.AdjustVolume(-1)),
-        new("balance-game",   "バランスをゲーム寄りに",   "Ctrl+Alt+Up",        d => d.AdjustBalance(+MixBalance.HubStep)),
-        new("balance-chat",   "バランスをチャット寄りに", "Ctrl+Alt+Down",      d => d.AdjustBalance(-MixBalance.HubStep)),
+        // Game is the low end of the scale, so moving towards it is a step down. These were the
+        // other way round, which made both keys do the opposite of what they are named.
+        new("balance-game",   "バランスをゲーム寄りに",   "Ctrl+Alt+Up",        d => d.AdjustBalance(-MixBalance.HubStep)),
+        new("balance-chat",   "バランスをチャット寄りに", "Ctrl+Alt+Down",      d => d.AdjustBalance(+MixBalance.HubStep)),
         new("balance-centre", "バランスを中央に",         "Ctrl+Alt+Home",      d => d.SetBalance(MixBalance.Centre)),
         new("mic-mute",       "マイクミュート切り替え",   "Ctrl+Alt+Shift+M",   d => d.ToggleMicMute()),
         new("mic-up",         "マイクレベルを上げる",     "Ctrl+Alt+PageUp",    d => d.AdjustMicLevel(+5)),

@@ -56,12 +56,26 @@ public class KeyFaceTests
         Assert.DoesNotContain(">0<", svg, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Raising the value makes chat louder, so the low end is game. The key said the opposite for
+    /// a while, and named the side with a sign that only meant something if you already knew.
+    /// </summary>
     [Fact]
-    public void The_balance_key_speaks_the_scale_INZONE_Hub_uses()
+    public void The_balance_key_names_the_side_it_leans_to()
     {
-        Assert.Contains("CHAT -1.0", Svg(ActionIds.Balance, Live with { Balance = 40 }), StringComparison.Ordinal);
-        Assert.Contains("GAME +2.0", Svg(ActionIds.Balance, Live with { Balance = 70 }), StringComparison.Ordinal);
+        Assert.Contains("GAME 1.0", Svg(ActionIds.Balance, Live with { Balance = 40 }), StringComparison.Ordinal);
+        Assert.Contains("CHAT 2.0", Svg(ActionIds.Balance, Live with { Balance = 70 }), StringComparison.Ordinal);
         Assert.Contains("CENTRE", Svg(ActionIds.Balance, Live with { Balance = 50 }), StringComparison.Ordinal);
+    }
+
+    /// <summary>The ends of the track have to agree with the direction the value runs in.</summary>
+    [Fact]
+    public void The_balance_track_has_game_at_the_low_end()
+    {
+        string svg = Svg(ActionIds.Balance, Live);
+
+        Assert.True(svg.IndexOf(">GAME<", StringComparison.Ordinal)
+            < svg.IndexOf(">CHAT<", StringComparison.Ordinal));
     }
 
     [Fact]

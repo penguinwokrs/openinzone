@@ -57,11 +57,11 @@ public class FeedbackTests
     }
 
     [Fact]
-    public void The_balance_readout_carries_its_sign()
+    public void The_balance_readout_names_the_side_it_leans_to()
     {
-        Assert.Equal("-1.0", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 40 }).Value);
-        Assert.Equal("+2.0", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 70 }).Value);
-        Assert.Equal("0.0", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 50 }).Value);
+        Assert.Equal("GAME 1.0", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 40 }).Value);
+        Assert.Equal("CHAT 2.0", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 70 }).Value);
+        Assert.Equal("CENTRE", PluginHost.Feedback(ActionIds.Balance, Live with { Balance = 50 }).Value);
     }
 
     [Fact]
