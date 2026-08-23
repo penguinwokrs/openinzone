@@ -144,11 +144,11 @@ Confirmed on INZONE Buds:
 | `0x23` | sidetone volume | `[value, percent]` |
 | `0x24` | microphone | `[mute, value, percent]` |
 
-Read from INZONE Hub but not exercised here: `0x01` link status, `0x03` firmware version,
-`0x05` host select, `0x06`–`0x08` bulk setting reads, `0x09` boot status, `0x25` surround,
-`0x42`–`0x43` noise cancelling toggle and startup mode, `0x61`–`0x63` Bluetooth,
-`0x81`–`0x8F` various (auto power off, LED, voice prompts, wearing detection, assignable buttons,
-mic attach state), `0xA0` firmware update.
+Read from INZONE Hub but not driven from here: `0x01` link status, `0x03` firmware version,
+`0x09` boot status, `0x42`–`0x43` noise cancelling toggle and startup mode, `0x85`–`0x89`
+connection destination and wearing detection, `0x8C`–`0x8D` assignable buttons, `0xA0` firmware
+update. Asked for once and answered by nothing on this model: `0x05` host select, `0x25` surround,
+`0x61`–`0x63` Bluetooth, `0x82` LED, `0x88`, `0x8A`–`0x8B`, `0x8F` mic attach state.
 
 **Spatial sound is not on this channel.** Toggling it in INZONE Hub produces nothing here at all,
 while every other setting in Hub's window does - so on INZONE Buds it is either a PC-side feature
@@ -156,6 +156,32 @@ or lives on one of the collections this project does not open.
 
 **INZONE Hub polls.** With Hub open, the balance, volume, microphone and battery are re-read about
 once a minute, which shows up as unsolicited notifications to anything else listening.
+
+### The headset publishes its own capability map, `0x06`–`0x08`
+
+`AllFunctionSettingsPart1`–`3` return every setting in event-id order, with `0xFF` where the model
+does not have one. Read from INZONE Buds on 2026-08-24, beside a GET of each id on its own:
+
+```
+0x06   04 | 00 44 00 43 FF 61 | 00 15 FF | 32 | 00 FF
+0x07   00 FF FF | 02 14 FF 00 | 01 01 01
+0x08   03 | FF FF FF FF | 0F | FF | 01 | 01 | 00
+```
+
+Part 3 reads as `0x43` noise cancelling startup mode, four ids this model does not have, `0x81`
+auto power off, `0x82` LED which it also does not have, `0x83` language, `0x84` voice guidance and
+`0x85` connection destination. Part 2 is `0x24` microphone, `0x41` ambient and `0x42`. Part 1 is
+battery, volume, balance and sidetone behind one leading byte not yet accounted for.
+
+Every `FF` sits where an id timed out when asked for on its own, and every value equals that id's
+own answer. One read therefore says what a model has, where asking setting by setting takes 1.5
+seconds per absent one and cannot tell an absent setting from a bad moment on the link.
+
+`0x7F` and `0xF0`, which nothing has, time out exactly as `0x05` and `0x25` do: an unsupported id
+is answered with silence rather than an error, so nothing else about a timeout can be read into.
+
+This is the ground for [#3](https://github.com/penguinwokrs/openinzone/issues/3), which is where
+supporting a second model starts.
 
 ### Game/chat balance, `0x22`
 
@@ -206,7 +232,7 @@ One byte. `00` off, `01` on.
 One byte. `00` English, `01` Chinese, `02` Japanese - read back in that order while INZONE Hub was
 driven through English, Japanese and Chinese, so the pairing is the naming, not the sequence.
 
-### Bluetooth automatic connection switching, `0x61`
+### Bluetooth automatic connection switching, `0x8E`
 
 One byte. `00` off, `01` on. INZONE Hub calls it switching the connection automatically when a
 call starts or ends.
