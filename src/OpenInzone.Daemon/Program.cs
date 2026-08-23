@@ -25,7 +25,12 @@ internal static class Program
     /// <summary>How long to keep the headset open after the last client has gone.</summary>
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(30);
 
-    private static readonly TimeSpan IdleCheckInterval = TimeSpan.FromSeconds(5);
+    /// <summary>
+    /// Checked every second rather than every few: the last client's departure is only noticed at
+    /// a checkpoint, so a coarser interval would have the daemon stopping measurably sooner than
+    /// the timeout it documents.
+    /// </summary>
+    private static readonly TimeSpan IdleCheckInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>Long enough for a client that started us to finish connecting.</summary>
     private static readonly TimeSpan GracePeriod = TimeSpan.FromSeconds(20);
