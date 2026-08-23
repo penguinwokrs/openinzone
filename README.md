@@ -241,7 +241,7 @@ The settings INZONE Hub offers besides the three on the panel, except the equali
 | サイドトーン | How much of your own voice comes back, 0–10 |
 | 自動電源オフ | Power off when taken off and left |
 | Bluetooth | Switch the connection on an incoming or outgoing call |
-| 音声ガイド | Spoken prompts, in English, Chinese or Japanese |
+| 音声ガイド | Spoken prompts, in English, Japanese or Chinese |
 
 Each one is written as you change it and then read back, so what you see is what the headset says
 rather than what it was asked for — change the mode and the level it kept comes back with it. A

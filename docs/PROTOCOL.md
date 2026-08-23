@@ -229,8 +229,15 @@ One byte. `00` off, `01` on.
 
 ### Voice guidance language, `0x83`
 
-One byte. `00` English, `01` Chinese, `02` Japanese - read back in that order while INZONE Hub was
-driven through English, Japanese and Chinese, so the pairing is the naming, not the sequence.
+One byte. `00` English, `01` Japanese, `02` Chinese.
+
+**Japanese and Chinese were recorded the wrong way round here** until 2026-08-24. The first reading
+drove INZONE Hub through English, Japanese and Chinese and wrote down the answers `00`, `02`, `01`;
+the answers had not arrived in the order they were asked for, and nothing in the reading could tell.
+
+Settled by writing and listening instead. A headset whose owner had it speaking Japanese reported
+`01`; written to `02`, it spoke Chinese; put back to `01`, Japanese. Three languages, two of them
+pinned by ear, and the third by there being nothing else left.
 
 ### Bluetooth automatic connection switching, `0x8E`
 

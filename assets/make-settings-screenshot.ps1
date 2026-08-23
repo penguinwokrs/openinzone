@@ -65,7 +65,9 @@ $rows = @(
 (Find 'AutoPowerOffBox').IsChecked = $true
 (Find 'BluetoothAutoSwitchBox').IsChecked = $true
 (Find 'VoiceGuidanceBox').IsChecked = $true
-(Find 'LanguageBox').SelectedIndex = 2
+# By tag rather than by position, as the window itself does: the list is in byte order, and
+# 0x01 is Japanese.
+(Find 'LanguageBox').SelectedItem = (Find 'LanguageBox').Items | Where-Object { $_.Tag -eq '1' }
 
 # A Window has no visual tree until it is shown, so its content is taken out and rendered on a
 # surface of the window's own colour instead.

@@ -590,12 +590,25 @@ public partial class SettingsWindow : Window
             VoiceGuidanceBox.IsChecked = settings.VoiceGuidance == true;
 
             Show(LanguageRow, settings.VoiceGuidanceLanguage is not null);
-            LanguageBox.SelectedIndex = settings.VoiceGuidanceLanguage ?? 0;
+            SelectLanguage(settings.VoiceGuidanceLanguage);
         }
         finally
         {
             _showingSettings = false;
         }
+    }
+
+    /// <summary>
+    /// Picks the item whose Tag is the byte the headset sent, rather than the item at that index.
+    /// The two agree only while the list happens to be written in value order, and a list that is
+    /// reordered for reading - or a value this build does not know - would otherwise silently
+    /// select the wrong language.
+    /// </summary>
+    private void SelectLanguage(int? value)
+    {
+        LanguageBox.SelectedItem = LanguageBox.Items
+            .OfType<System.Windows.Controls.ComboBoxItem>()
+            .FirstOrDefault(item => int.Parse((string)item.Tag) == value);
     }
 
     /// <summary>

@@ -110,7 +110,7 @@ other way round.
 | `set-voice-focus` | 0 or 1 | Voice focus within ambient sound |
 | `set-auto-power-off` | 0 or 1 | Power off when taken off and left |
 | `set-voice-guidance` | 0 or 1 | Spoken prompts |
-| `set-voice-guidance-language` | 0, 1, 2 | English, Chinese, Japanese |
+| `set-voice-guidance-language` | 0, 1, 2 | English, Japanese, Chinese |
 | `set-bluetooth-auto-switch` | 0 or 1 | Switch connection on an incoming or outgoing call |
 
 Anything else is answered with an `error` and not acted on.

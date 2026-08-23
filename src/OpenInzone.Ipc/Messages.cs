@@ -118,7 +118,7 @@ public sealed record DeviceSettings(
     [property: JsonPropertyName("voiceFocus")] bool? VoiceFocus,
     [property: JsonPropertyName("autoPowerOff")] bool? AutoPowerOff,
     [property: JsonPropertyName("voiceGuidance")] bool? VoiceGuidance,
-    /// 0 English, 1 Chinese, 2 Japanese.
+    /// 0 English, 1 Japanese, 2 Chinese.
     [property: JsonPropertyName("voiceGuidanceLanguage")] int? VoiceGuidanceLanguage,
     [property: JsonPropertyName("bluetoothAutoSwitch")] bool? BluetoothAutoSwitch)
 {

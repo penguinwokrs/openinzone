@@ -141,11 +141,17 @@ public readonly record struct AmbientSetting(AmbientMode Mode, byte Level, bool 
 }
 
 /// <summary>Which language the earbuds speak their prompts in.</summary>
+/// <remarks>
+/// Japanese and Chinese were the wrong way round here until 2026-08-24, when the headset was
+/// written to and listened to: 0x01 is what a headset speaking Japanese reports, and 0x02 made it
+/// speak Chinese. The earlier pairing came from replaying an observation whose answers had not
+/// arrived in the order they were asked for, which is exactly what listening cannot get wrong.
+/// </remarks>
 public enum VoiceGuidanceLanguage : byte
 {
     English = 0,
-    Chinese = 1,
-    Japanese = 2,
+    Japanese = 1,
+    Chinese = 2,
 }
 
 /// <summary>
