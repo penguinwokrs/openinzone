@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Daemon</RootNamespace>
+    <AssemblyName>inzoned</AssemblyName>
+    <AssemblyTitle>OpenInzone</AssemblyTitle>
+    <Product>OpenInzone</Product>
+    <Company>penguinwokrs</Company>
+    <Description>Owns the connection to the headset on behalf of the tray, the CLI and the Stream Deck plugin</Description>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <Version>0.1.0</Version>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- Started with no window, so nothing is ever printed anywhere a person can see. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenInzone.Control\OpenInzone.Control.csproj" />
+    <ProjectReference Include="..\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
+  </ItemGroup>
+</Project>

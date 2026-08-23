@@ -4,15 +4,15 @@
 using OpenInzone.Control;
 using OpenInzone.Ipc;
 
-namespace OpenInzone.Tray;
+namespace OpenInzone.Daemon;
 
 /// <summary>
-/// Lets other local processes - the Stream Deck plugin - drive the headset through this tray.
+/// Serves the headset to every local client: the tray's panel, the CLI, the Stream Deck plugin.
 /// </summary>
 /// <remarks>
 /// The translation in both directions lives here rather than in OpenInzone.Ipc so that the wire
-/// format stays independent of <see cref="DeviceState"/>: the plugin ships as its own executable
-/// and may be an older build than the tray it is talking to.
+/// format stays independent of <see cref="DeviceState"/>: clients ship as their own executables
+/// and may be older builds than the daemon they are talking to.
 /// </remarks>
 internal sealed class IpcHost : IDisposable
 {
@@ -35,6 +35,9 @@ internal sealed class IpcHost : IDisposable
     }
 
     public void Start() => _server.Start();
+
+    /// <summary>How many clients are connected, which is what decides when the daemon may stop.</summary>
+    public int ClientCount => _server.ClientCount;
 
     /// <summary>
     /// Commands are queued onto the controller's worker like any other request, so a client cannot

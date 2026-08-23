@@ -19,7 +19,16 @@ public sealed class IpcClient : IDisposable
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
     private const int ConnectTimeoutMilliseconds = 1000;
 
+    /// <summary>
+    /// How long to leave a daemon we started to come up before starting another. A daemon takes
+    /// its own single-instance lock, so a second copy costs nothing but a process that exits
+    /// immediately - but there is no reason to keep making them.
+    /// </summary>
+    private static readonly TimeSpan LaunchInterval = TimeSpan.FromSeconds(10);
+
     private readonly string _pipeName;
+    private readonly bool _startDaemonIfMissing;
+    private DateTime _nextLaunchAttempt = DateTime.MinValue;
     private readonly CancellationTokenSource _stopping = new();
     private NamedPipeClientStream? _pipe;
     private LineChannel? _channel;
@@ -35,7 +44,22 @@ public sealed class IpcClient : IDisposable
     /// <summary>Raised when the link comes up and when it goes down, so a client can grey itself out.</summary>
     public event EventHandler<bool>? ConnectionChanged;
 
-    public IpcClient(string? pipeName = null) => _pipeName = pipeName ?? IpcProtocol.PipeName();
+    /// <summary>
+    /// Raised when there is no daemon to connect to and none could be started, with a message fit
+    /// to show a person: on a machine where OpenInzone is not installed, that is the whole story.
+    /// </summary>
+    public event EventHandler<string>? DaemonUnavailable;
+
+    /// <param name="pipeName">Defaults to the channel this build speaks.</param>
+    /// <param name="startDaemonIfMissing">
+    /// Start the daemon when nothing is listening. Clients want this; tests do not, because a test
+    /// serving its own pipe must never reach for the installed copy.
+    /// </param>
+    public IpcClient(string? pipeName = null, bool startDaemonIfMissing = false)
+    {
+        _pipeName = pipeName ?? IpcProtocol.PipeName();
+        _startDaemonIfMissing = startDaemonIfMissing;
+    }
 
     public bool IsConnected => _channel is not null;
 
@@ -61,6 +85,7 @@ public sealed class IpcClient : IDisposable
         {
             if (!await ConnectAsync().ConfigureAwait(false))
             {
+                StartDaemonIfNeeded();
                 try { await Task.Delay(RetryDelay, _stopping.Token).ConfigureAwait(false); }
                 catch (Exception) { return; }
                 continue;
@@ -83,6 +108,22 @@ public sealed class IpcClient : IDisposable
             try { await Task.Delay(RetryDelay, _stopping.Token).ConfigureAwait(false); }
             catch (Exception) { return; }
         }
+    }
+
+    /// <summary>
+    /// Nothing was listening, so start the owner ourselves. Throttled: a daemon that is starting
+    /// takes a moment to open its pipe, and the connect loop runs faster than that.
+    /// </summary>
+    private void StartDaemonIfNeeded()
+    {
+        if (!_startDaemonIfMissing || DateTime.UtcNow < _nextLaunchAttempt) return;
+        _nextLaunchAttempt = DateTime.UtcNow + LaunchInterval;
+
+        if (DaemonLauncher.TryStart()) return;
+
+        DaemonUnavailable?.Invoke(this, DaemonLauncher.Find() is null
+            ? $"{DaemonLauncher.ExecutableName} was not found. Is OpenInzone installed?"
+            : $"{DaemonLauncher.ExecutableName} could not be started.");
     }
 
     private async Task<bool> ConnectAsync()

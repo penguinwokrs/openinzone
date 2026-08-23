@@ -15,4 +15,9 @@
     <IsAotCompatible>true</IsAotCompatible>
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The search order is worth exercising without an installed copy to find. -->
+    <InternalsVisibleTo Include="OpenInzone.Core.Tests" />
+  </ItemGroup>
 </Project>
