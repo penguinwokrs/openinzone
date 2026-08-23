@@ -46,6 +46,14 @@ internal static class Program
             return 0;
         }
 
+        // Belt as well as braces: a daemon started just before setup took its mutex would still
+        // be holding the file setup is about to replace.
+        if (OpenInzone.Ipc.DaemonLauncher.SetupIsRunning())
+        {
+            Log("an installer is running; standing down");
+            return 0;
+        }
+
         bool stayResident = args.Contains("--resident");
 
         using var controller = new DeviceController();

@@ -17,6 +17,13 @@ public static class DaemonLauncher
 {
     public const string ExecutableName = "inzoned.exe";
 
+    /// <summary>
+    /// Held by the installer while it runs. Starting a daemon during an upgrade puts the file
+    /// setup is about to replace back into use, which is how an upgrade came to remove the tray
+    /// and the CLI and then fail on the daemon.
+    /// </summary>
+    internal const string SetupMutexName = "OpenInzone.Setup";
+
     private const string UninstallKey =
         @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\{8E1C6B4A-3F2D-4A77-9C55-1B7E9D0A6F31}_is1";
 
@@ -81,8 +88,28 @@ public static class DaemonLauncher
     /// Starts the daemon if a copy can be found. Returns false when there is none to start, or
     /// when starting it failed - in both cases the caller carries on showing an unavailable state.
     /// </summary>
+    /// <summary>True while an installer is running, and nothing should be started.</summary>
+    public static bool SetupIsRunning()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+
+        try
+        {
+            bool exists = System.Threading.Mutex.TryOpenExisting(SetupMutexName, out var mutex);
+            mutex?.Dispose();
+            return exists;
+        }
+        catch (Exception)
+        {
+            // Denied, or a name this build cannot open: not a reason to refuse to run.
+            return false;
+        }
+    }
+
     public static bool TryStart()
     {
+        if (SetupIsRunning()) return false;
+
         string? executable = Find();
         if (executable is null) return false;
 

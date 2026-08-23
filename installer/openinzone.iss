@@ -35,6 +35,13 @@ LicenseFile=..\LICENSE
 ; the installer never elevates and HKCU always belongs to the person running it.
 PrivilegesRequired=lowest
 
+; Setup holds this while it runs, and the daemon launcher refuses to start one while it exists.
+; Without it, killing the daemon is not enough: any client still running - a Stream Deck plugin,
+; most likely - notices the channel has gone and starts a new daemon within seconds, which is then
+; holding its own executable open when setup reaches the file it is replacing. Observed exactly
+; that way: an upgrade that removed the tray and the CLI and then failed on inzoned.exe.
+SetupMutex=OpenInzone.Setup
+
 [Languages]
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -116,6 +123,24 @@ begin
   Result := True;
 end;
 
+{ Runs immediately before any file is written, which is the last moment anything can be holding one
+  open. InitializeSetup already cleared the field, but a wizard the user left sitting there gives a
+  client all the time it needs to have brought something back - and SetupMutex only stops the
+  daemon, not a tray someone started by hand in the meantime. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzone.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  { Killing returns before the handles are all closed. A moment here costs nothing and is the
+    difference between replacing a file and failing on it. }
+  Sleep(700);
+  Result := '';
+end;
+
 { True when Dir holds files that mark it as a previous OpenInzone install: our own executable, or
   an Inno-generated uninstaller. Anything else -- an empty directory, or a path the user repointed
   the install to that happens to hold unrelated files -- must not match, because ClearOldInstall
@@ -191,4 +216,22 @@ begin
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
+end;
+
+{ Runs immediately before any file is written, which is the last moment anything can be holding one
+  open. InitializeSetup already cleared the field, but a wizard the user left sitting there gives a
+  client all the time it needs to have brought something back - and SetupMutex only stops the
+  daemon, not a tray someone started by hand in the meantime. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzone.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  { Killing returns before the handles are all closed. A moment here costs nothing and is the
+    difference between replacing a file and failing on it. }
+  Sleep(700);
+  Result := '';
 end;

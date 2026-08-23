@@ -33,6 +33,20 @@ public class DaemonLauncherTests
             text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Setup holds this mutex and the launcher refuses to start a daemon while it exists. The two
+    /// names are written in different languages in different files, and a rename on one side would
+    /// only show up as an upgrade that removes the tray and then fails on the daemon.
+    /// </summary>
+    [Fact]
+    public void The_mutex_it_stands_down_for_is_the_one_setup_holds()
+    {
+        string script = File.ReadAllText(
+            Path.Combine(RepositoryRoot(), "installer", "openinzone.iss"));
+
+        Assert.Contains($"SetupMutex={DaemonLauncher.SetupMutexName}", script, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Nothing_is_found_where_there_is_nothing()
     {
