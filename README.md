@@ -241,7 +241,10 @@ tray reads it, so an upgrade keeps the keys you chose.
 
 Starting with Windows is a `Run` entry under `HKCU`, written either by that checkbox or by the
 installer's optional task. Both mean the same thing, so setting it in one place and clearing it in
-the other is not a conflict.
+the other is not a conflict. Windows keeps a separate enabled/disabled flag for the entry, set by
+Task Manager's Startup tab rather than by this application; the checkbox reflects that too, so an
+entry someone disabled there shows as off here even though the `Run` value itself is still present,
+and ticking the checkbox again clears the flag along with writing the value.
 
 ## Troubleshooting
 
