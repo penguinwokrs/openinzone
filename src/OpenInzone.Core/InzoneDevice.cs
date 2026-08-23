@@ -199,9 +199,78 @@ public sealed class InzoneDevice : IDisposable
         return endpoint.Level;
     }
 
-    // ---- Status --------------------------------------------------------------
+    // ---- Sidetone ------------------------------------------------------------
 
     public SidetoneVolume GetSidetoneVolume() => SidetoneVolume.Parse(_session.Get(EventId.SidetoneVolume));
+
+    /// <summary>
+    /// Sets how much of your own voice comes back, 0-10. The second byte is whatever the headset
+    /// last reported - 0xFF on INZONE Buds - and goes back untouched, as the volume's does.
+    /// </summary>
+    public SidetoneVolume SetSidetoneVolume(int value)
+    {
+        var current = GetSidetoneVolume();
+        var wanted = current with { Value = SidetoneVolume.Clamp(value) };
+        _session.Set(EventId.SidetoneVolume, wanted.ToParam());
+        return wanted;
+    }
+
+    // ---- Ambient sound and noise cancelling ----------------------------------
+
+    public AmbientSetting GetAmbientSetting() =>
+        AmbientSetting.Parse(_session.Get(EventId.AmbientSetting));
+
+    /// <summary>
+    /// Writes mode, level and voice focus together, because the headset carries them together.
+    /// Callers change one field of a reading rather than composing one, so the level survives a
+    /// mode change and voice focus survives a level change.
+    /// </summary>
+    public AmbientSetting SetAmbientSetting(AmbientSetting setting)
+    {
+        var wanted = setting with { Level = AmbientSetting.ClampLevel(setting.Level) };
+        _session.Set(EventId.AmbientSetting, wanted.ToParam());
+        return wanted;
+    }
+
+    // ---- One-byte settings ---------------------------------------------------
+    // Each carries its own byte for on: auto power off answers 0x0F, the others 0x01. The value
+    // is read before it is written so the headset's own byte goes back rather than an assumed one.
+
+    private const byte AutoPowerOffOn = 0x0F;
+
+    public DeviceToggle GetAutoPowerOff() =>
+        DeviceToggle.Parse(_session.Get(EventId.AutoPowerOff), AutoPowerOffOn);
+
+    public DeviceToggle SetAutoPowerOff(bool on) => SetToggle(EventId.AutoPowerOff, AutoPowerOffOn, on);
+
+    public DeviceToggle GetVoiceGuidance() => DeviceToggle.Parse(_session.Get(EventId.Guidance), 1);
+
+    public DeviceToggle SetVoiceGuidance(bool on) => SetToggle(EventId.Guidance, 1, on);
+
+    public DeviceToggle GetBluetoothAutoSwitch() =>
+        DeviceToggle.Parse(_session.Get(EventId.IncomingPermission), 1);
+
+    public DeviceToggle SetBluetoothAutoSwitch(bool on) => SetToggle(EventId.IncomingPermission, 1, on);
+
+    private DeviceToggle SetToggle(EventId eventId, byte onValue, bool on)
+    {
+        var wanted = new DeviceToggle(on ? onValue : (byte)0, onValue);
+        _session.Set(eventId, wanted.ToParam());
+        return wanted;
+    }
+
+    // ---- Voice guidance language ---------------------------------------------
+
+    public VoiceGuidanceLanguage GetVoiceGuidanceLanguage() =>
+        (VoiceGuidanceLanguage)_session.Get(EventId.VoicePromptLanguage)[0];
+
+    public VoiceGuidanceLanguage SetVoiceGuidanceLanguage(VoiceGuidanceLanguage language)
+    {
+        _session.Set(EventId.VoicePromptLanguage, [(byte)language]);
+        return language;
+    }
+
+    // ---- Status --------------------------------------------------------------
 
     public BatteryInfo GetBattery() => BatteryInfo.Parse(_session.Get(EventId.BatteryInfo));
 

@@ -85,13 +85,88 @@ public readonly record struct MicVolume(bool Muted, byte Value, byte Percent)
         SupportsLevel ? $"{Value}{(Muted ? " (muted)" : "")}" : Muted ? "muted" : "unmuted";
 }
 
+/// <summary>
+/// How much of your own voice comes back. 0-10, not a percentage - INZONE Hub's slider runs the
+/// same range, and the second byte reads back as <see cref="Unknown"/> on INZONE Buds exactly as
+/// the headphone volume's does.
+/// </summary>
 public readonly record struct SidetoneVolume(byte Value, byte Percent)
 {
+    public const byte Min = 0;
+    public const byte Max = 10;
+
+    public static byte Clamp(int value) => (byte)Math.Clamp(value, Min, Max);
+
     public static SidetoneVolume Parse(byte[] param) => new(param[0], param[1]);
 
     public byte[] ToParam() => [Value, Percent];
 
     public override string ToString() => Value.ToString();
+}
+
+/// <summary>What the earbuds do with the world outside them.</summary>
+public enum AmbientMode : byte
+{
+    Off = 0,
+    NoiseCancelling = 1,
+    Ambient = 2,
+}
+
+/// <summary>
+/// Noise cancelling, ambient sound and voice focus, which INZONE Buds carries in one packet.
+/// </summary>
+/// <remarks>
+/// The level travels in every mode, including the ones that do not use it, so it is kept rather
+/// than folded away: writing a mode change would otherwise silently reset it.
+/// </remarks>
+public readonly record struct AmbientSetting(AmbientMode Mode, byte Level, bool VoiceFocus)
+{
+    public const byte MinLevel = 1;
+    public const byte MaxLevel = 20;
+
+    public static byte ClampLevel(int level) => (byte)Math.Clamp(level, MinLevel, MaxLevel);
+
+    /// <summary>Four bytes: mode, level, a byte the earbuds do not report, and voice focus.</summary>
+    public static AmbientSetting Parse(byte[] param) =>
+        new((AmbientMode)param[0], param[1], param.Length > 3 && param[3] == 1);
+
+    public byte[] ToParam() => [(byte)Mode, Level, Unknown.Byte, VoiceFocus ? (byte)1 : (byte)0];
+
+    public override string ToString() => Mode switch
+    {
+        AmbientMode.Off => VoiceFocus ? "off (voice focus)" : "off",
+        AmbientMode.NoiseCancelling => VoiceFocus ? "noise cancelling (voice focus)" : "noise cancelling",
+        _ => VoiceFocus ? $"ambient {Level} (voice focus)" : $"ambient {Level}",
+    };
+}
+
+/// <summary>Which language the earbuds speak their prompts in.</summary>
+public enum VoiceGuidanceLanguage : byte
+{
+    English = 0,
+    Chinese = 1,
+    Japanese = 2,
+}
+
+/// <summary>
+/// A setting the headset carries as one byte with a value for on that is not 1.
+/// </summary>
+/// <remarks>
+/// Auto power off answers 0x0F rather than 0x01, which reads like the minutes a headset with a
+/// choice of delays would carry - INZONE Buds offers only on and off, so this keeps whatever byte
+/// it was told rather than assuming every model means fifteen.
+/// </remarks>
+public readonly record struct DeviceToggle(byte Value, byte OnValue)
+{
+    public bool IsOn => Value == OnValue;
+
+    public static DeviceToggle Parse(byte[] param, byte onValue) => new(param[0], onValue);
+
+    public DeviceToggle With(bool on) => this with { Value = on ? OnValue : (byte)0 };
+
+    public byte[] ToParam() => [Value];
+
+    public override string ToString() => IsOn ? "on" : "off";
 }
 
 /// <summary>Whether a battery reading is a real value, withheld, or not applicable to this model.</summary>
