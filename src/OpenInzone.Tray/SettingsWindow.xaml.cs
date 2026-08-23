@@ -197,7 +197,17 @@ public partial class SettingsWindow : Window
             }
             else
             {
-                UpdateStatusText.Text = "最新バージョンです。";
+                // Collapsing these into 最新バージョンです。 told someone whose newer release had
+                // no installer attached that they were current, which is the one thing this
+                // button exists to tell them the truth about.
+                UpdateStatusText.Text = update.Reason switch
+                {
+                    UpdateUnavailableReason.NoInstaller =>
+                        "新しいバージョンが公開されていますが、インストーラーが見つかりません。",
+                    UpdateUnavailableReason.Unreadable =>
+                        "GitHub の応答を読み取れませんでした。",
+                    _ => "最新バージョンです。",
+                };
             }
         }
         catch (Exception ex)
@@ -222,48 +232,72 @@ public partial class SettingsWindow : Window
         // below can touch UpdateButton directly without a manual Dispatcher.Invoke.
         var progress = new Progress<int>(percent => UpdateButton.Content = $"ダウンロード中… {percent}%");
 
-        string path;
+        // Before the attempt, not from its return value: a download that throws halfway still
+        // leaves a fragment, and this is the only thing that knows where it is.
+        string path = UpdateInstaller.CreateStagingPath(_pendingUpdate);
+        FileStream? locked = null;
         try
         {
-            path = await UpdateInstaller.DownloadAsync(_pendingUpdate, progress);
+            await UpdateInstaller.DownloadAsync(_pendingUpdate, path, progress);
+
+            // The handle stays open until the installer has been started: verifying a file by name
+            // and then launching it by name again would only prove something about the file that
+            // was there in between.
+            var digest = UpdateInstaller.VerifyDigest(path, _pendingUpdate.Sha256, out locked);
+            if (digest == UpdateInstaller.DigestResult.Mismatch)
+            {
+                // This downloads an executable and runs it - a digest that does not match is a
+                // reason to stop, not a reason to ask.
+                UpdateStatusText.Text = "ダウンロードしたファイルの検証に失敗しました。実行を中止しました。";
+                Abandon(path, ref locked);
+                return;
+            }
+
+            if (digest == UpdateInstaller.DigestResult.Absent)
+            {
+                // No digest to check against is not the same as a failed check - it is the user's
+                // call, and it defaults to No: a file fetched by HttpClient carries no
+                // Mark-of-the-Web, so SmartScreen will not weigh in as a second opinion the way it
+                // would on a browser download. The digest and this prompt are the only two.
+                var choice = System.Windows.MessageBox.Show(this,
+                    "ダウンロードしたインストーラーの正当性を確認できません（SHA-256 が提供されていません）。実行しますか？",
+                    "OpenInzone", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                if (choice != MessageBoxResult.Yes)
+                {
+                    UpdateStatusText.Text = "更新を中止しました。";
+                    Abandon(path, ref locked);
+                    return;
+                }
+            }
+
+            // The installer stops this process itself, but that races the window still being open;
+            // exiting here is what actually lets it replace the running copy.
+            UpdateInstaller.Run(path);
+            System.Windows.Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
-            UpdateStatusText.Text = $"ダウンロードに失敗しました: {ex.Message}";
-            FinishBusyWithUpdateStillAvailable();
-            return;
+            // Verification and Process.Start throw as readily as the download does, and a failure
+            // that left the button disabled with no message was indistinguishable from a hang.
+            UpdateStatusText.Text = $"更新に失敗しました: {ex.Message}";
+            Abandon(path, ref locked);
         }
-
-        var digest = UpdateInstaller.VerifyDigest(path, _pendingUpdate.Sha256);
-        if (digest == UpdateInstaller.DigestResult.Mismatch)
+        finally
         {
-            // This downloads an executable and runs it - a digest that does not match is a reason
-            // to stop, not a reason to ask.
-            TryDelete(path);
-            UpdateStatusText.Text = "ダウンロードしたファイルの検証に失敗しました。実行を中止しました。";
-            FinishBusyWithUpdateStillAvailable();
-            return;
+            locked?.Dispose();
         }
+    }
 
-        if (digest == UpdateInstaller.DigestResult.Absent)
-        {
-            // No digest to check against is not the same as a failed check - it is the user's call.
-            var choice = System.Windows.MessageBox.Show(this,
-                "ダウンロードしたインストーラーの正当性を確認できません（SHA-256 が提供されていません）。実行しますか？",
-                "OpenInzone", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (choice != MessageBoxResult.Yes)
-            {
-                TryDelete(path);
-                UpdateStatusText.Text = "更新を中止しました。";
-                FinishBusyWithUpdateStillAvailable();
-                return;
-            }
-        }
-
-        // The installer stops this process itself, but that races the window still being open;
-        // exiting here is what actually lets it replace the running copy.
-        UpdateInstaller.Run(path);
-        System.Windows.Application.Current.Shutdown();
+    /// <summary>
+    /// Gives up on a downloaded installer: the handle first, because the file cannot be deleted
+    /// while it is held, then the file and the directory it was staged in, then the button.
+    /// </summary>
+    private void Abandon(string path, ref FileStream? locked)
+    {
+        locked?.Dispose();
+        locked = null;
+        UpdateInstaller.CleanUp(path);
+        FinishBusyWithUpdateStillAvailable();
     }
 
     private void FinishBusyWithUpdateStillAvailable()
@@ -271,12 +305,5 @@ public partial class SettingsWindow : Window
         UpdateButton.Content = "更新";
         UpdateButton.IsEnabled = true;
         _updateBusy = false;
-    }
-
-    private static void TryDelete(string path)
-    {
-        try { File.Delete(path); }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
     }
 }

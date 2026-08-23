@@ -28,8 +28,9 @@ public static class UpdateChecker
 
     // One instance for the process's whole lifetime: a fresh HttpClient per call would open a new
     // socket and TLS handshake for a check that runs at most once per login and once per button
-    // press. internal rather than private so UpdateInstaller's download reuses it too.
-    internal static readonly HttpClient Http = CreateClient();
+    // press. Private: the timeout below suits a small JSON body and nothing else, so the installer
+    // download brings its own client rather than borrowing this one.
+    private static readonly HttpClient Http = CreateClient();
 
     private static HttpClient CreateClient()
     {
