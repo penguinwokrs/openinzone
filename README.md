@@ -291,16 +291,22 @@ than the last value it saw, so a stale number is never left sitting there lookin
 
 ### Installing it
 
-Building it is the only way to get it at the moment — packaging it into a `.streamDeckPlugin`
-for the release downloads is not wired up yet.
+Releases carry a `.streamDeckPlugin` file: double-click it and Stream Deck installs it.
+
+To build it yourself:
 
 ```console
 $ ./plugin/build.sh 0.1.0
 ```
 
-That stages the plugin under `dist/streamdeck/`. Stream Deck loads an unpacked plugin straight out
-of its own plugins directory, so `./plugin/build.sh 0.1.0 --install` copies it there instead — quit
-Stream Deck first, since it holds the running plugin open.
+That stages the plugin under `dist/streamdeck/`, then checks the manifest with Elgato's own CLI
+and writes `dist/com.penguinwokrs.openinzone.streamDeckPlugin`. The CLI runs through `npx`, so
+nothing is installed, but it does need Node 20.1 or later on `PATH`; without Node the build stops
+after staging and says so.
+
+Stream Deck also loads an unpacked plugin straight out of its own plugins directory, so
+`./plugin/build.sh 0.1.0 --install` copies it there instead — quit Stream Deck first, since it
+holds the running plugin open.
 
 To check the plugin can reach the tray without a deck attached:
 

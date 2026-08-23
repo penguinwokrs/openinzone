@@ -275,13 +275,17 @@ daemon に届かないときはキーが警告を出し、表示は直前の値�
 
 ### インストール
 
-いまのところ入手方法はビルドのみです。`.streamDeckPlugin` としてリリースに添付する仕組みはまだ用意していません。
+リリースには `.streamDeckPlugin` が付いています。ダブルクリックすれば Stream Deck が取り込みます。
+
+自分でビルドする場合:
 
 ```console
 $ ./plugin/build.sh 0.1.0
 ```
 
-`dist/streamdeck/` に組み上がります。Stream Deck は展開したままのプラグインを自分のプラグインフォルダーから読むので、`./plugin/build.sh 0.1.0 --install` で直接そこへ入れられます。実行中のプラグインはファイルを掴んでいるので、先に Stream Deck を終了してください。
+`dist/streamdeck/` に組み上げたあと、Elgato 公式 CLI で manifest を検証し、`dist/com.penguinwokrs.openinzone.streamDeckPlugin` を書き出します。CLI は `npx` 経由なので何もインストールしませんが、Node 20.1 以上が `PATH` にある必要があります。Node がない場合は組み上げまでで止まり、その旨を表示します。
+
+Stream Deck は展開したままのプラグインを自分のプラグインフォルダーからも読むので、`./plugin/build.sh 0.1.0 --install` で直接そこへ入れることもできます。実行中のプラグインはファイルを掴んでいるので、先に Stream Deck を終了してください。
 
 デッキが手元になくても、トレイに届いているかは確認できます:
 

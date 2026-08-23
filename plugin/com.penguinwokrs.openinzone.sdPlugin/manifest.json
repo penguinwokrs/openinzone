@@ -3,6 +3,7 @@
   "Name": "OpenInzone",
   "Author": "penguinwokrs",
   "Description": "Control a Sony INZONE headset from the deck: volume, game/chat balance, microphone mute and level, and battery for each earbud. Requires the OpenInzone tray application, which owns the connection to the headset.",
+  "Category": "OpenInzone",
   "Version": "0.1.0.0",
   "URL": "https://github.com/penguinwokrs/openinzone",
   "Icon": "images/plugin",
@@ -24,7 +25,10 @@
       "Icon": "images/actions/volume",
       "Tooltip": "Steps the headset's own volume. Set a negative step for a key that turns it down.",
       "PropertyInspectorPath": "pi/step.html",
-      "Controllers": ["Keypad", "Encoder"],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -44,7 +48,10 @@
       "Icon": "images/actions/balance",
       "Tooltip": "Steps the balance between game audio and chat audio, on the same scale INZONE Hub shows.",
       "PropertyInspectorPath": "pi/step.html",
-      "Controllers": ["Keypad", "Encoder"],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -64,7 +71,10 @@
       "Name": "Microphone mute",
       "Icon": "images/actions/micmute",
       "Tooltip": "Mutes and unmutes the headset's microphone.",
-      "Controllers": ["Keypad", "Encoder"],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -84,7 +94,10 @@
       "Icon": "images/actions/miclevel",
       "Tooltip": "Steps the microphone's recording level. Set a negative step for a key that turns it down.",
       "PropertyInspectorPath": "pi/step.html",
-      "Controllers": ["Keypad", "Encoder"],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -104,7 +117,10 @@
       "Name": "Battery",
       "Icon": "images/actions/battery",
       "Tooltip": "Shows the charge of each earbud. Press to read the headset again.",
-      "Controllers": ["Keypad", "Encoder"],
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {

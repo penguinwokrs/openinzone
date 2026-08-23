@@ -116,6 +116,17 @@ public class ManifestTests
         }
     }
 
+    /// <summary>
+    /// Elgato's own validator warns when the category is not the plugin's name, and a warning is
+    /// the only notice anyone gets: Stream Deck itself loads the plugin either way and simply
+    /// files its actions somewhere unexpected.
+    /// </summary>
+    [Fact]
+    public void The_actions_are_filed_under_the_plugins_own_name()
+    {
+        Assert.Equal(Text(Manifest.RootElement, "Name"), Text(Manifest.RootElement, "Category"));
+    }
+
     [Fact]
     public void Every_action_can_be_placed_on_a_key_and_on_a_dial()
     {

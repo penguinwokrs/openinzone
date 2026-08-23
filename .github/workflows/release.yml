@@ -45,6 +45,15 @@ jobs:
           dotnet publish src/OpenInzone.Cli -c Release -r win-x64 --self-contained true \
             -p:PublishSingleFile=true -p:Version="$VERSION" -o dist/cli
 
+      # Runs Elgato's own CLI through npx, which is the only thing that can check a manifest the
+      # way Stream Deck will and the only thing that can write the .streamDeckPlugin container.
+      # Node is already on the runner, so nothing is installed.
+      - name: Build the Stream Deck plugin
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: bash plugin/build.sh "$VERSION"
+
       - name: Make sure Inno Setup is present
         shell: pwsh
         run: |
@@ -112,4 +121,5 @@ jobs:
             --generate-notes \
             dist/OpenInzone-*-setup.exe \
             dist/OpenInzone-*-win-x64.zip \
+            dist/*.streamDeckPlugin \
             dist/winget/*.yaml

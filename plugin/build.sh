@@ -13,6 +13,8 @@ VERSION="${1:?VERSION argument required (e.g., 0.1.0)}"
 INSTALL="${2:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN_ID="com.penguinwokrs.openinzone"
+# Pinned so a release is not at the mercy of whatever the CLI does next.
+ELGATO_CLI_VERSION="1.9.0"
 SOURCE="$ROOT/plugin/$PLUGIN_ID.sdPlugin"
 STAGE="$ROOT/dist/streamdeck/$PLUGIN_ID.sdPlugin"
 
@@ -30,14 +32,14 @@ rm -rf "$ROOT/dist/streamdeck"
 mkdir -p "$(dirname "$STAGE")"
 cp -r "$SOURCE" "$STAGE"
 
-# The version in the committed manifest is a placeholder; the released one carries the tag.
-python3 - "$STAGE/manifest.json" "$MANIFEST_VERSION" <<'PY'
-import json, sys, pathlib
-path, version = pathlib.Path(sys.argv[1]), sys.argv[2]
-manifest = json.loads(path.read_text(encoding="utf-8"))
-manifest["Version"] = version
-path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-PY
+# The version in the committed manifest is a placeholder; the released one carries the tag. Done
+# with sed rather than a JSON library so this runs the same on a CI runner, where python3 may not
+# be on PATH: "Version" appears once in the manifest, at the top level.
+sed -i "s|\"Version\": \"[^\"]*\"|\"Version\": \"$MANIFEST_VERSION\"|" "$STAGE/manifest.json"
+grep -q "\"Version\": \"$MANIFEST_VERSION\"" "$STAGE/manifest.json" || {
+  echo "Error: could not set the manifest version." >&2
+  exit 1
+}
 
 # Trimmed because CodePath must be one file and 14 MB beats 64. The plugin opens no COM of its
 # own - it asks the tray - so nothing here depends on built-in COM surviving the trimmer.
@@ -89,16 +91,34 @@ if [ "$INSTALL" = "--install" ]; then
   exit 0
 fi
 
-# .streamDeckPlugin is Elgato's own container format, so only their tool can write one.
-if command -v streamdeck.cmd >/dev/null 2>&1 || command -v streamdeck >/dev/null 2>&1; then
-  STREAMDECK="$(command -v streamdeck.cmd || command -v streamdeck)"
-  "$STREAMDECK" pack "$(wslpath -w "$STAGE" 2>/dev/null || echo "$STAGE")" \
-    --output "$(wslpath -w "$ROOT/dist/streamdeck" 2>/dev/null || echo "$ROOT/dist/streamdeck")" --force
-  echo "packed into $ROOT/dist/streamdeck"
-else
+# Elgato's own tool is the only thing that can read a manifest the way Stream Deck will, and the
+# only thing that can write the .streamDeckPlugin container. It needs Node; npx runs it without
+# installing anything, and a copy already on PATH is used in preference.
+streamdeck_cli() {
+  if command -v streamdeck >/dev/null 2>&1; then
+    streamdeck "$@"
+  elif command -v npx >/dev/null 2>&1; then
+    npx --yes "@elgato/cli@$ELGATO_CLI_VERSION" "$@"
+  else
+    return 127
+  fi
+}
+
+if ! streamdeck_cli -v >/dev/null 2>&1; then
   echo
-  echo "To package it for distribution, install Elgato's CLI and run:"
-  echo "  npm install -g @elgato/cli"
-  echo "  streamdeck pack $(wslpath -w "$STAGE" 2>/dev/null || echo "$STAGE")"
-  echo "To try it on this machine instead, re-run with --install."
+  echo "Node is not available, so the plugin was not validated or packaged."
+  echo "Install Node 20.1 or later and re-run to produce a .streamDeckPlugin."
+  exit 0
 fi
+
+# Validation is the part worth having even when not packaging: a manifest Stream Deck will not
+# accept is otherwise only discovered by installing the plugin and finding it does nothing.
+streamdeck_cli validate "$STAGE"
+
+streamdeck_cli pack "$STAGE" --output "$ROOT/dist" --force
+PACKAGE="$ROOT/dist/$PLUGIN_ID.streamDeckPlugin"
+if [ ! -f "$PACKAGE" ]; then
+  echo "Error: $PACKAGE was not produced." >&2
+  exit 1
+fi
+echo "packaged $PACKAGE ($(stat -c%s "$PACKAGE") bytes)"
