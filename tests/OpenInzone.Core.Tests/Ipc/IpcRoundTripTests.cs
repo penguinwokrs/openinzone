@@ -53,7 +53,7 @@ public class IpcRoundTripTests
         client.Start();
         await Within(connected);
 
-        await client.SendAsync(IpcCommands.AdjustVolume, -2);
+        Assert.True(client.Send(IpcCommands.AdjustVolume, -2));
 
         var message = await Within(received);
         Assert.Equal(IpcCommands.AdjustVolume, message.Command);
@@ -101,7 +101,7 @@ public class IpcRoundTripTests
         client.Start();
         await Within(connected);
 
-        await client.SendAsync("format-c");
+        Assert.True(client.Send("format-c"));
 
         Assert.Contains("format-c", await Within(complaint), StringComparison.Ordinal);
         Assert.False(seenByServer);
@@ -145,6 +145,73 @@ public class IpcRoundTripTests
         server.Start();
 
         Assert.Equal(Sample, await Within(arrived));
+    }
+
+    /// <summary>
+    /// Snapshots have to arrive in the order they were published: a client that receives an older
+    /// one last shows a stale reading until something else changes. A lock around the write would
+    /// stop them interleaving without keeping them in order.
+    /// </summary>
+    [Fact]
+    public async Task Snapshots_arrive_in_the_order_they_were_published()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => DeviceSnapshot.Disconnected, pipeName);
+        server.Start();
+
+        const int count = 40;
+        var seen = new List<int>();
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, snapshot) =>
+        {
+            if (!snapshot.Connected) return;   // the hello
+            lock (seen)
+            {
+                seen.Add(snapshot.Volume);
+                if (seen.Count == count) done.TrySetResult(true);
+            }
+        };
+        client.Start();
+
+        while (server.ClientCount == 0) await Task.Delay(20);
+        for (int i = 0; i < count; i++)
+            server.Publish(Sample with { Volume = i });
+
+        await Within(done);
+        lock (seen) Assert.Equal(Enumerable.Range(0, count), seen);
+    }
+
+    /// <summary>Commands are queued too: a turn then a press must not land the other way round.</summary>
+    [Fact]
+    public async Task Commands_reach_the_server_in_the_order_they_were_made()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => Sample, pipeName);
+
+        const int count = 30;
+        var seen = new List<int>();
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.CommandReceived += (_, message) =>
+        {
+            lock (seen)
+            {
+                seen.Add(message.Value);
+                if (seen.Count == count) done.TrySetResult(true);
+            }
+        };
+        server.Start();
+
+        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        client.Start();
+        await Within(connected);
+
+        for (int i = 0; i < count; i++) Assert.True(client.Send(IpcCommands.SetVolume, i));
+
+        await Within(done);
+        lock (seen) Assert.Equal(Enumerable.Range(0, count), seen);
     }
 
     [Fact]

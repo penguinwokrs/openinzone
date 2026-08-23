@@ -69,7 +69,7 @@ internal static class Program
 
         // The hello carries whatever the tray last knew. Asking it to read the headset again is
         // what distinguishes "the tray has not looked yet" from "the earbuds are not answering".
-        await tray.SendAsync(IpcCommands.Refresh).ConfigureAwait(false);
+        tray.Send(IpcCommands.Refresh);
         await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
 
         var state = latest ?? DeviceSnapshot.Disconnected;

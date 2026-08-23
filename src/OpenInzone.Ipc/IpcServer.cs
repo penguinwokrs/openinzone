@@ -87,7 +87,7 @@ public sealed class IpcServer : IDisposable
                 return;   // stopping, or the pipe broke before anyone arrived
             }
 
-            var client = new Client(pipe, this);
+            var client = new Client(pipe, this, _stopping.Token);
             _clients[client] = 0;
             _ = client.RunAsync(_stopping.Token);
         }
@@ -105,25 +105,39 @@ public sealed class IpcServer : IDisposable
         _stopping.Dispose();
     }
 
-    /// <summary>One connected client: a reader loop, and a write lock so pushes cannot interleave.</summary>
-    private sealed class Client(NamedPipeServerStream pipe, IpcServer server) : IDisposable
+    /// <summary>One connected client: a reader loop, and a queue that keeps pushes in order.</summary>
+    private sealed class Client : IDisposable
     {
-        private readonly LineChannel _channel = new(pipe);
-        private readonly SemaphoreSlim _writeLock = new(1, 1);
+        private readonly NamedPipeServerStream _pipe;
+        private readonly IpcServer _server;
+        private readonly LineChannel _channel;
+        private readonly OutboundQueue _outbound;
         private volatile bool _disposed;
+
+        public Client(NamedPipeServerStream pipe, IpcServer server, CancellationToken cancellation)
+        {
+            _pipe = pipe;
+            _server = server;
+            _channel = new LineChannel(pipe);
+            _outbound = new OutboundQueue(_channel, cancellation);
+            _outbound.Broken += (_, _) =>
+            {
+                server.Remove(this);
+                Dispose();
+            };
+        }
 
         public async Task RunAsync(CancellationToken cancellation)
         {
             try
             {
-                await SendAsync(new ServerMessage(ServerMessage.Hello, IpcProtocol.Version,
-                    server._currentState()), cancellation).ConfigureAwait(false);
+                Send(new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState()));
 
                 while (!cancellation.IsCancellationRequested)
                 {
                     string? line = await _channel.ReadLineAsync(cancellation).ConfigureAwait(false);
                     if (line is null) break;
-                    await HandleAsync(line, cancellation).ConfigureAwait(false);
+                    Handle(line);
                 }
             }
             catch (Exception)
@@ -132,12 +146,12 @@ public sealed class IpcServer : IDisposable
             }
             finally
             {
-                server.Remove(this);
+                _server.Remove(this);
                 Dispose();
             }
         }
 
-        private async Task HandleAsync(string line, CancellationToken cancellation)
+        private void Handle(string line)
         {
             ClientMessage? message;
             try
@@ -146,62 +160,35 @@ public sealed class IpcServer : IDisposable
             }
             catch (JsonException)
             {
-                await SendAsync(Error("that was not a command object"), cancellation).ConfigureAwait(false);
+                Send(Error("that was not a command object"));
                 return;
             }
 
             if (message is null || !IpcCommands.IsKnown(message.Command))
             {
-                await SendAsync(Error($"unknown command '{message?.Command}'"), cancellation).ConfigureAwait(false);
+                Send(Error($"unknown command '{message?.Command}'"));
                 return;
             }
 
-            server.CommandReceived?.Invoke(server, message);
+            _server.CommandReceived?.Invoke(_server, message);
         }
 
         private static ServerMessage Error(string message) =>
             new(ServerMessage.Error, IpcProtocol.Version, Message: message);
 
-        private Task SendAsync(ServerMessage message, CancellationToken cancellation) =>
-            WriteAsync(JsonSerializer.SerializeToUtf8Bytes(message, IpcJson.Default.ServerMessage), cancellation);
+        private void Send(ServerMessage message) =>
+            Post(JsonSerializer.SerializeToUtf8Bytes(message, IpcJson.Default.ServerMessage));
 
-        /// <summary>Fire-and-forget push, called by <see cref="Publish"/> from the caller's thread.</summary>
-        public void Post(byte[] line) => _ = WriteAsync(line, CancellationToken.None);
-
-        private async Task WriteAsync(byte[] line, CancellationToken cancellation)
-        {
-            if (_disposed) return;
-            try
-            {
-                await _writeLock.WaitAsync(cancellation).ConfigureAwait(false);
-            }
-            catch (Exception)
-            {
-                return;   // disposed or cancelled while queued
-            }
-
-            try
-            {
-                if (!_disposed) await _channel.WriteLineAsync(line, cancellation).ConfigureAwait(false);
-            }
-            catch (Exception)
-            {
-                server.Remove(this);
-                Dispose();   // a broken pipe: drop the client rather than retry
-                return;
-            }
-            finally
-            {
-                try { _writeLock.Release(); } catch (ObjectDisposedException) { /* disposed under us */ }
-            }
-        }
+        /// <summary>Queues a line behind whatever is already waiting, so order is preserved.</summary>
+        public void Post(byte[] line) => _outbound.Post(line);
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            _outbound.Dispose();
             _channel.Dispose();
-            try { pipe.Dispose(); } catch { /* already gone */ }
+            try { _pipe.Dispose(); } catch { /* already gone */ }
         }
     }
 }

@@ -21,9 +21,9 @@ public sealed class IpcClient : IDisposable
 
     private readonly string _pipeName;
     private readonly CancellationTokenSource _stopping = new();
-    private readonly SemaphoreSlim _writeLock = new(1, 1);
     private NamedPipeClientStream? _pipe;
     private LineChannel? _channel;
+    private OutboundQueue? _outbound;
     private Task? _loop;
 
     /// <summary>Raised for the hello snapshot and every push after it.</summary>
@@ -41,38 +41,18 @@ public sealed class IpcClient : IDisposable
 
     public void Start() => _loop ??= Task.Run(RunAsync);
 
-    /// <summary>Sends a command. Silently does nothing when the tray is not connected.</summary>
-    public void Send(string command, int value = 0) => _ = SendAsync(command, value);
-
-    public async Task SendAsync(string command, int value = 0)
+    /// <summary>
+    /// Sends a command, returning false when the tray is not connected. Commands are queued in
+    /// the order they are made: turning a dial and then pressing it must not arrive the other way
+    /// round, which would centre the balance and then move it off centre again.
+    /// </summary>
+    public bool Send(string command, int value = 0)
     {
-        var channel = _channel;
-        if (channel is null) return;
+        var outbound = _outbound;
+        if (outbound is null) return false;
 
-        byte[] line = JsonSerializer.SerializeToUtf8Bytes(
-            new ClientMessage(command, value), IpcJson.Default.ClientMessage);
-
-        try
-        {
-            await _writeLock.WaitAsync(_stopping.Token).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            return;
-        }
-
-        try
-        {
-            await channel.WriteLineAsync(line, _stopping.Token).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            Drop();   // the tray went away mid-write; the loop will reconnect
-        }
-        finally
-        {
-            try { _writeLock.Release(); } catch (ObjectDisposedException) { /* stopping */ }
-        }
+        return outbound.Post(JsonSerializer.SerializeToUtf8Bytes(
+            new ClientMessage(command, value), IpcJson.Default.ClientMessage));
     }
 
     private async Task RunAsync()
@@ -115,6 +95,7 @@ public sealed class IpcClient : IDisposable
 
         _pipe = pipe;
         _channel = new LineChannel(pipe);
+        _outbound = new OutboundQueue(_channel, _stopping.Token);
         return true;
     }
 
@@ -162,6 +143,8 @@ public sealed class IpcClient : IDisposable
 
     private void Drop()
     {
+        _outbound?.Dispose();
+        _outbound = null;
         _channel?.Dispose();
         _channel = null;
         try { _pipe?.Dispose(); } catch { /* already gone */ }
