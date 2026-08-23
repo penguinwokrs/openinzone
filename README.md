@@ -226,7 +226,6 @@ The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id
     "mic-up": "Ctrl+Alt+PageUp",
     "mic-down": "Ctrl+Alt+PageDown"
   },
-  "autostart": false,
   "checkForUpdatesAtStartup": false
 }
 ```

@@ -228,7 +228,6 @@ GitHub アカウントが必要で、ここまでは自動化していません�
     "mic-up": "Ctrl+Alt+PageUp",
     "mic-down": "Ctrl+Alt+PageDown"
   },
-  "autostart": false,
   "checkForUpdatesAtStartup": false
 }
 ```

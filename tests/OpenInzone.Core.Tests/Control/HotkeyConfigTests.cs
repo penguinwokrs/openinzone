@@ -20,12 +20,24 @@ public class HotkeyConfigTests
     public void Reads_the_current_format()
     {
         var config = HotkeyConfig.FromJson("""
-            { "bindings": { "volume-up": "Ctrl+F1", "mic-mute": "Win+M" }, "autostart": true }
+            { "bindings": { "volume-up": "Ctrl+F1", "mic-mute": "Win+M" } }
             """);
 
         Assert.Equal("Ctrl+F1", config.Bindings["volume-up"]);
         Assert.Equal("Win+M", config.Bindings["mic-mute"]);
-        Assert.True(config.Autostart);
+    }
+
+    // Autostart used to be a second copy of the Run key, kept in this file. It no longer is - the
+    // registry is the only place that state lives now, see Autostart's class comment - but someone
+    // upgrading has a file that still carries the key, and it must load exactly as if it did not.
+    [Fact]
+    public void An_autostart_key_left_over_from_an_older_version_is_ignored()
+    {
+        var config = HotkeyConfig.FromJson("""
+            { "bindings": { "volume-up": "Ctrl+F1" }, "autostart": true }
+            """);
+
+        Assert.Equal("Ctrl+F1", config.Bindings["volume-up"]);
     }
 
     /// <summary>
@@ -126,13 +138,11 @@ public class HotkeyConfigTests
         {
             var written = HotkeyConfig.Default();
             written.Bindings["volume-up"] = "Ctrl+F9";
-            written.Autostart = true;
             written.Save(path);
 
             var read = HotkeyConfig.LoadOrCreate(path);
 
             Assert.Equal("Ctrl+F9", read.Bindings["volume-up"]);
-            Assert.True(read.Autostart);
         }
         finally
         {
@@ -148,7 +158,6 @@ public class HotkeyConfigTests
     [InlineData("\"nope\"")]
     [InlineData("{\"bindings\":{\"volume-up\":7}}")]
     [InlineData("{\"bindings\":[{\"keys\":\"Ctrl+F9\",\"action\":\"volume\",\"delta\":\"lots\"}]}")]
-    [InlineData("{\"autostart\":\"yes\"}")]
     public void A_malformed_file_is_reported_rather_than_quietly_accepted(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}.json");
@@ -185,70 +194,6 @@ public class HotkeyConfigTests
         }
     }
 
-    // Autostart also lives in the registry, where the installer writes it before the application
-    // has ever run. The run that creates the file has to adopt what is there rather than reconcile
-    // against a default nobody chose, and this flag is how it tells the difference.
-    [Fact]
-    public void Reports_that_it_created_the_file()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
-        try
-        {
-            HotkeyConfig.LoadOrCreate(path, out bool created);
-
-            Assert.True(created);
-        }
-        finally
-        {
-            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
-        }
-    }
-
-    [Fact]
-    public void Reports_that_it_read_a_file_it_did_not_create()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
-        try
-        {
-            HotkeyConfig.Default().Save(path);
-
-            HotkeyConfig.LoadOrCreate(path, out bool created);
-
-            Assert.False(created);
-        }
-        finally
-        {
-            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
-        }
-    }
-
-    /// <summary>
-    /// The file the first run writes must not claim autostart is off: reconciling that against the
-    /// registry is what would delete the Run key the installer had just written.
-    /// </summary>
-    [Fact]
-    public void The_file_it_creates_can_be_given_the_autostart_state_it_found_elsewhere()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"openinzone-test-{Guid.NewGuid():N}", "hotkeys.json");
-        try
-        {
-            var config = HotkeyConfig.LoadOrCreate(path, out bool created);
-            Assert.True(created);
-
-            // Stands in for Autostart.IsEnabled, which needs a registry these tests do not have.
-            config.Autostart = true;
-            config.Save(path);
-
-            var reread = HotkeyConfig.LoadOrCreate(path, out bool createdAgain);
-            Assert.False(createdAgain);
-            Assert.True(reread.Autostart);
-        }
-        finally
-        {
-            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
-        }
-    }
-
     [Fact]
     public void Check_for_updates_at_startup_defaults_to_off()
     {
@@ -278,7 +223,8 @@ public class HotkeyConfigTests
     }
 
     // A file written before this setting existed has no key for it at all; that must read back as
-    // the default (off), the same as a file that never mentions it ever will again for autostart.
+    // the default (off) rather than throwing. The stray "autostart" key stands in for whatever
+    // else an older file might carry that this version no longer reads.
     [Fact]
     public void A_file_written_before_the_setting_existed_defaults_it_to_off()
     {

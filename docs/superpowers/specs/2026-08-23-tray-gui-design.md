@@ -168,8 +168,9 @@ Every command ships with a default, as asked. The daemon left volume mute unboun
 another application on the development machine already holds it, which is why the daemon's default
 moved to `Ctrl+Alt+Shift+M` in the first place.
 
-The window also carries the autostart checkbox. Saving rewrites the configuration and re-registers
-the hotkeys without a restart.
+The window also carries the autostart checkbox, which reads and writes the Run key directly and is
+not part of the saved configuration - the registry is the only place that state lives. Saving
+rewrites the configuration and re-registers the hotkeys without a restart.
 
 ## Installer
 

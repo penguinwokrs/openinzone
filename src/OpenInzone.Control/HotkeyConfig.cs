@@ -14,7 +14,6 @@ namespace OpenInzone.Control;
 public sealed class HotkeyConfig
 {
     public Dictionary<string, string> Bindings { get; init; } = [];
-    public bool Autostart { get; set; }
 
     // Off by default: reaching the network on every login is not something to switch on for
     // someone without asking.
@@ -31,24 +30,15 @@ public sealed class HotkeyConfig
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "openinzone", "hotkeys.json");
 
-    public static HotkeyConfig LoadOrCreate(string path) => LoadOrCreate(path, out _);
-
-    /// <summary>
-    /// <paramref name="created"/> tells the caller this run is the one that wrote the file, so
-    /// nothing in it is the user's expressed intent yet. Settings that also live outside the file -
-    /// autostart does - need that distinction before they treat it as an instruction.
-    /// </summary>
-    public static HotkeyConfig LoadOrCreate(string path, out bool created)
+    public static HotkeyConfig LoadOrCreate(string path)
     {
         if (!File.Exists(path))
         {
-            created = true;
             var fresh = Default();
             fresh.Save(path);
             return fresh;
         }
 
-        created = false;
         return FromJson(File.ReadAllText(path));
     }
 
@@ -59,7 +49,6 @@ public sealed class HotkeyConfig
         var json = new JsonObject
         {
             ["bindings"] = new JsonObject(Bindings.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
-            ["autostart"] = Autostart,
             ["checkForUpdatesAtStartup"] = CheckForUpdatesAtStartup,
         };
 
@@ -77,7 +66,9 @@ public sealed class HotkeyConfig
         if (JsonNode.Parse(json) is not JsonObject root)
             throw new InvalidDataException("The hotkey configuration is not a JSON object.");
 
-        if (root["autostart"] is JsonValue autostart) config.Autostart = autostart.GetValue<bool>();
+        // "autostart" may still be present in a file saved by an older version. It carries no
+        // meaning any more - see Autostart's class comment for why - and is left unread rather
+        // than parsed, so a stale or malformed value here is never a reason to refuse the file.
         if (root["checkForUpdatesAtStartup"] is JsonValue checkForUpdates)
             config.CheckForUpdatesAtStartup = checkForUpdates.GetValue<bool>();
 

@@ -158,10 +158,11 @@ public partial class SettingsWindow : Window
         }
 
         foreach (var row in _rows) _config.Bindings[row.Id] = row.Combo;
-        _config.Autostart = AutostartBox.IsChecked == true;
         _config.CheckForUpdatesAtStartup = CheckUpdatesBox.IsChecked == true;
         _config.Save(HotkeyConfig.DefaultPath);
-        Autostart.Set(_config.Autostart);
+        // Straight to the registry, not through the configuration - see Autostart's class comment
+        // for why a second copy there is what caused this in the first place.
+        Autostart.Set(AutostartBox.IsChecked == true);
 
         Saved?.Invoke(this, _config);
         Close();
