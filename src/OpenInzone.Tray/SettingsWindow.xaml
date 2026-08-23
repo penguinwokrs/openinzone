@@ -27,6 +27,15 @@
 
     <CheckBox x:Name="AutostartBox" Content="Windows の起動時に常駐する"
               Foreground="#FFE8EAED" Margin="0,16,0,0" />
+    <CheckBox x:Name="CheckUpdatesBox" Content="起動時に更新を確認する"
+              Foreground="#FFE8EAED" Margin="0,6,0,0" />
+
+    <TextBlock x:Name="VersionText" Foreground="#FF9AA0A6" FontSize="12" Margin="0,16,0,8" />
+    <StackPanel Orientation="Horizontal">
+      <Button x:Name="UpdateButton" Content="更新を確認" Click="OnUpdateClick" Width="140" Height="28" />
+      <TextBlock x:Name="UpdateStatusText" Foreground="#FF9AA0A6" FontSize="12"
+                 VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />
+    </StackPanel>
 
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
       <Button Content="既定に戻す" Click="OnResetClick" Width="110" Height="30" Margin="0,0,8,0" />

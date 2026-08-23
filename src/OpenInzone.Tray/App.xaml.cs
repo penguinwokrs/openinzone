@@ -52,6 +52,8 @@ public partial class App : System.Windows.Application
         _hotkeys = new HotkeyHost(_controller);
         SurfaceRejected(_hotkeys.Apply(_config));
 
+        if (_config.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
+
         _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() =>
         {
             if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
@@ -139,6 +141,30 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             _tray?.ShowBalloon("自動起動を設定できませんでした", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Off by default and, when on, silent on failure: nobody wants a warning at every login
+    /// because their wifi was slow or GitHub rate-limited them. A check the user asked for from the
+    /// settings window reports what went wrong instead - this path never does.
+    /// </summary>
+    private async Task CheckForUpdatesAtStartupAsync()
+    {
+        try
+        {
+            var update = await UpdateChecker.CheckAsync().ConfigureAwait(false);
+            if (!update.Available) return;
+
+            // Discarded: this async method has nothing further to do once the balloon is queued, so
+            // there is nothing to await the dispatcher operation for.
+            _ = Dispatcher.BeginInvoke(() => _tray?.ShowBalloon("アップデートがあります",
+                $"バージョン {update.Version} が利用可能です。設定から更新できます。"));
+        }
+        catch (Exception)
+        {
+            // No network, a rate limit, a malformed response - none of it is worth interrupting a
+            // login over.
         }
     }
 
