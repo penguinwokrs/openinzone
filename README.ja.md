@@ -289,7 +289,22 @@ $ ./plugin/build.sh 0.1.0
 
 Stream Deck は展開したままのプラグインを自分のプラグインフォルダーからも読むので、`./plugin/build.sh 0.1.0 --install` で直接そこへ入れることもできます。実行中のプラグインはファイルを掴んでいるので、先に Stream Deck を終了してください。
 
-デッキが手元になくても、トレイに届いているかは確認できます:
+### デッキなしで確認する
+
+`plugin/FakeStreamDeck` は Stream Deck 本体の代わりをします。実際のプラグインを Stream Deck と同じやり方で起動し、同じ WebSocket プロトコルで話し、返ってきたものを検査します。
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
+  [ok] turning the dial one tick moves it one step
+  [ok] pressing the volume dial changes nothing
+  [ok] turning the mute dial leaves the microphone alone
+```
+
+ダイヤルは Stream Deck + の実機なしには他に試しようがないため用意しました。Elgato のドキュメントは実機なしの開発に触れておらず、コミュニティのエミュレータはキーのみ、OpenDeck はエンコーダを実装しているものの HID 越しに実機を掴む作りで仮想デバイスがありません。見た目は確認できませんが、プラグインが下す判断はすべて確認できます。そのうち 2 つは実際に間違っていました。
+
+音量を 1 段上げて戻します。途中で失敗しても元の値に戻します。
+
+デッキが手元になくても、daemon に届いているかは確認できます:
 
 ```console
 PS> openinzone-streamdeck.exe --probe
@@ -703,6 +718,7 @@ tests/OpenInzone.Core.Tests
   Ipc/                    ワイヤフォーマットと、実パイプ越しの往復
   StreamDeck/             キーの描画、入力の意味づけ、manifest との突き合わせ
 plugin/                   .sdPlugin 一式と、それをビルドするスクリプト
+plugin/FakeStreamDeck     Stream Deck 本体の代わりをする治具
 installer/                Inno Setup のスクリプトと、それをコンパイルするスクリプト
 assets/                   アプリケーションアイコンと、それを生成するスクリプト
 docs/PROTOCOL.md          解析したワイヤフォーマット
@@ -710,7 +726,7 @@ docs/IPC.md               daemon とクライアントの間のチャネル
 config/                   ホットキー設定の例
 ```
 
-Visual Studio や Rider 用に、8 つのプロジェクトを `OpenInzone.sln` がまとめています。
+Visual Studio や Rider 用に、9 つのプロジェクトを `OpenInzone.sln` がまとめています。
 
 ### ライブラリとして使う
 

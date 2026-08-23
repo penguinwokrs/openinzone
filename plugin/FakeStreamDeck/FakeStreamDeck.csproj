@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.FakeStreamDeck</RootNamespace>
+    <AssemblyName>fake-streamdeck</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <AssemblyTitle>OpenInzone</AssemblyTitle>
+    <Product>OpenInzone</Product>
+    <Company>penguinwokrs</Company>
+    <Description>Stands in for the Stream Deck application so the plugin can be exercised without one</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>

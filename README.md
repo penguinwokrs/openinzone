@@ -311,7 +311,27 @@ Stream Deck also loads an unpacked plugin straight out of its own plugins direct
 `./plugin/build.sh 0.1.0 --install` copies it there instead — quit Stream Deck first, since it
 holds the running plugin open.
 
-To check the plugin can reach the tray without a deck attached:
+### Checking it without a deck
+
+`plugin/FakeStreamDeck` stands in for the Stream Deck application: it launches the real plugin the
+way Stream Deck does, speaks the same WebSocket protocol, and checks what comes back.
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
+  [ok] turning the dial one tick moves it one step
+  [ok] pressing the volume dial changes nothing
+  [ok] turning the mute dial leaves the microphone alone
+```
+
+It exists because a dial cannot otherwise be exercised without a Stream Deck +. Elgato's
+documentation says nothing about developing without the hardware, the community emulator handles
+keys only, and OpenDeck — which does implement encoders — reaches its devices over HID and has no
+virtual one. What it cannot check is how any of it looks; what it does check is every decision the
+plugin makes, and two of those were wrong once.
+
+It steps the volume up and back down, and puts it back even if a check fails part way through.
+
+To check the plugin can reach the daemon without a deck attached:
 
 ```console
 PS> openinzone-streamdeck.exe --probe
@@ -729,13 +749,14 @@ tests/OpenInzone.Core.Tests
   StreamDeck/             key faces, what each input means, and the manifest
 installer/                the Inno Setup script and the script that compiles it
 plugin/                   the .sdPlugin directory and the script that builds it
+plugin/FakeStreamDeck     stands in for Stream Deck so the plugin can be driven without one
 assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
 docs/IPC.md               the channel between the daemon and its clients
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the eight projects together for Visual Studio and Rider.
+`OpenInzone.sln` ties the nine projects together for Visual Studio and Rider.
 
 ### Using it as a library
 
