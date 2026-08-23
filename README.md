@@ -779,6 +779,36 @@ Discovery, report I/O, the Windows audio endpoint and the tray's own windows nee
 desktop, and are not covered. The device state, the hotkey catalogue and the configuration sit in
 `OpenInzone.Control`, which has no UI of its own — that is what leaves them testable.
 
+### Opening the settings window
+
+`tools/ShowSettings` builds the real settings window the way the tray does, against whatever daemon
+is running, and saves a picture of every tab:
+
+```console
+PS> dotnet run --project tools/ShowSettings -- out
+変更はその場で反映されます。
+ambient level: 20
+sidetone: 0
+ambient mode: ambient off
+auto power off: on
+language: 日本語 (1)
+```
+
+It exists because a window that could not be built at all once reached a release. A handler
+attached in markup runs while the window is still being read, and one of them reached for a label
+that did not exist yet. Nothing caught it: the tests never construct a window, and the screenshot
+script strips the handlers out before parsing, because it has no code-behind to resolve them
+against. Between them they covered the markup and the logic and left out the two being put
+together — which is what this runs.
+
+Because it fills from a real headset over the real channel, it also shows whether what a person is
+shown is what the device actually said. `--late-start` opens the window before the channel is up,
+as happens when the daemon is still starting, so that the window asking again can be checked rather
+than assumed.
+
+It takes no hotkeys, so running it cannot take a key away from a tray that is already running. It
+needs a desktop, so it does not run under WSL.
+
 ### Layout
 
 ```
@@ -804,13 +834,14 @@ tests/OpenInzone.Core.Tests
 installer/                the Inno Setup script and the script that compiles it
 plugin/                   the .sdPlugin directory and the script that builds it
 plugin/FakeStreamDeck     stands in for Stream Deck so the plugin can be driven without one
+tools/ShowSettings        opens the real settings window against a running daemon and photographs it
 assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
 docs/IPC.md               the channel between the daemon and its clients
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the nine projects together for Visual Studio and Rider.
+`OpenInzone.sln` ties the ten projects together for Visual Studio and Rider.
 
 ### Using it as a library
 

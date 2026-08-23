@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- No UseWindowsForms, though the tray uses it for the notify icon: both halves of the
+         desktop framework are there at run time either way, and switching it on here only makes
+         every control name ambiguous between the two. -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.ShowSettings</RootNamespace>
+    <AssemblyName>show-settings</AssemblyName>
+    <StartupObject>OpenInzone.ShowSettings.Program</StartupObject>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <AssemblyTitle>OpenInzone</AssemblyTitle>
+    <Product>OpenInzone</Product>
+    <Company>penguinwokrs</Company>
+    <Description>Opens the real settings window against a running daemon and photographs it</Description>
+    <IsPackable>false</IsPackable>
+    <!-- Required to build a desktop application from a non-Windows host. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenInzone.Tray\OpenInzone.Tray.csproj" />
+  </ItemGroup>
+</Project>

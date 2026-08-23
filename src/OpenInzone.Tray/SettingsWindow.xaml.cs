@@ -82,8 +82,15 @@ public partial class SettingsWindow : Window
     private readonly IpcDeviceSurface _headset;
     private HotkeyRow? _capturing;
 
-    /// <summary>Set while a reading is being copied into the controls, so echoes are not written back.</summary>
-    private bool _showingSettings;
+    /// <summary>
+    /// Set while a reading is being copied into the controls, so echoes are not written back. It
+    /// starts out set: anything a control raises while the window is still being built is not a
+    /// person changing a setting, and there is nothing to write it to yet either.
+    /// </summary>
+    private bool _showingSettings = true;
+
+    /// <summary>Whether the headset has answered about its settings even once.</summary>
+    private bool _settingsArrived;
 
     /// <summary>
     /// A slider raises a change per pixel of travel. Sending each one would flood the headset, so
@@ -152,6 +159,13 @@ public partial class SettingsWindow : Window
         // That crashed the window before it could open, and it reached a release, because neither
         // the tests nor the renderer that draws these tabs runs a handler at all.
         AttachDeviceHandlers();
+        _showingSettings = false;
+
+        // Asked for here and asked for again whenever the headset reports anything, until it
+        // answers. A request made while the channel is still coming up is simply lost - the daemon
+        // may be starting, or restarting - and without this the tab would then say it was asking
+        // for the rest of its life.
+        _headset.StateChanged += OnHeadsetStateChanged;
         _headset.RequestSettings();
     }
 
@@ -319,6 +333,7 @@ public partial class SettingsWindow : Window
         EndCapture();
         FlushSettingWrites();
         _headset.SettingsReceived -= OnSettingsReceived;
+        _headset.StateChanged -= OnHeadsetStateChanged;
         base.OnClosed(e);
     }
 
@@ -570,8 +585,24 @@ public partial class SettingsWindow : Window
     // arrives here. Nothing is composed locally: a mode change comes back with the level the
     // headset kept, and a failed write comes back as the value that is still in force.
 
-    private void OnSettingsReceived(object? sender, DeviceSettings settings) =>
+    private void OnSettingsReceived(object? sender, DeviceSettings settings)
+    {
+        _settingsArrived = true;
         Dispatcher.BeginInvoke(() => ShowSettings(settings));
+    }
+
+    /// <summary>
+    /// Raised on a background thread, on connect and on every change the headset reports. Nothing
+    /// here needs the state itself: it is the news that the channel is up, and therefore that a
+    /// request that went nowhere is worth making again.
+    /// </summary>
+    private void OnHeadsetStateChanged(object? sender, DeviceSnapshot state)
+    {
+        if (_settingsArrived) return;
+
+        if (state.Connected) _headset.RequestSettings();
+        else Dispatcher.BeginInvoke(() => ShowSettings(DeviceSettings.None));
+    }
 
     private void ShowSettings(DeviceSettings settings)
     {
