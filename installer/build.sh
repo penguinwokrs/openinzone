@@ -51,7 +51,9 @@ if [ -z "$ISCC" ] || [ ! -x "$ISCC" ]; then
   exit 1
 fi
 
-rm -rf "$ROOT/dist"
+# Only what this script owns. Clearing the whole of dist/ also took away the Stream Deck plugin
+# that plugin/build.sh had just staged there, which looked like the plugin build having failed.
+rm -rf "$ROOT/dist/tray" "$ROOT/dist/cli"
 dotnet publish "$ROOT/src/OpenInzone.Tray" -c Release -r win-x64 --self-contained true \
   -p:Version="$VERSION" -o "$ROOT/dist/tray"
 # Into the tray's own output on purpose. Both are self-contained win-x64 builds from the same SDK,
