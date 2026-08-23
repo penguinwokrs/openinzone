@@ -41,6 +41,7 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 - [Install](#install)
 - [Using the tray](#using-the-tray)
 - [Hotkeys and settings](#hotkeys-and-settings)
+- [Stream Deck](#stream-deck)
 - [Troubleshooting](#troubleshooting)
 - [Command line](#command-line)
 - [Scripting](#scripting)
@@ -56,6 +57,7 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 - Microphone mute and level
 - Battery for both earbuds and the case
 - Watch for changes made elsewhere, including from the earbuds themselves
+- Drive all of it from a [Stream Deck](#stream-deck), with the values on the keys
 
 ## Requirements
 
@@ -245,6 +247,64 @@ the other is not a conflict. Windows keeps a separate enabled/disabled flag for 
 Task Manager's Startup tab rather than by this application; the checkbox reflects that too, so an
 entry someone disabled there shows as off here even though the `Run` value itself is still present,
 and ticking the checkbox again clears the flag along with writing the value.
+
+## Stream Deck
+
+There is a plugin for Elgato Stream Deck. A key can do what a hotkey cannot: show the value it
+controls. Battery for each earbud, the balance as a number, whether the microphone is muted — all
+of it on the key, updated the moment anything changes, including when the change came from the
+tray's own panel or from the earbuds themselves. On a Stream Deck +, the same actions sit on the
+dials, which is the right control for a value that slides.
+
+**The tray has to be running.** The plugin opens nothing itself; it asks the tray, which owns the
+connection to the headset. Two processes can hold the HID interface at once, but not the
+conversation on top of it — replies are matched on a transaction number each process counts from
+one, so two conversations at the same time can claim each other's answers. Keeping one owner
+removes that, and it is also why a change made on the deck shows up in the tray's panel
+immediately. The channel between them is documented in [docs/IPC.md](docs/IPC.md).
+
+### Actions
+
+| Action | On a key | On a dial | Shows |
+|---|---|---|---|
+| Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
+| Game / chat balance | Steps | Turn to adjust, press to centre | `CHAT -1.0`, `CENTRE`, `GAME +2.0` |
+| Microphone mute | Toggles | Press to toggle | `MUTED` or `LIVE` |
+| Microphone level | Steps | Turn to adjust, press to mute | `75 %` |
+| Battery | Press to re-read | Press to re-read | `L 97` and `R 94` |
+
+Each stepping action has a **Step** setting. A negative step makes a key that turns the value
+down, so a pair of keys gives you up and down. A dial ignores the sign and takes its direction
+from the way it is turned. Left blank, volume moves by 1 of the headset's 30 notches, the balance
+by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level by 5 %.
+
+A key flashes a warning when the tray is not running, and every reading shows `--` rather than the
+last value it saw, so a stale number is never left sitting there looking current.
+
+### Installing it
+
+Releases carry a `.streamDeckPlugin` file: double-click it and Stream Deck installs it.
+
+To build it yourself:
+
+```console
+$ ./plugin/build.sh 0.1.0
+```
+
+That stages the plugin under `dist/streamdeck/`. Stream Deck loads an unpacked plugin straight out
+of its own plugins directory, so `./plugin/build.sh 0.1.0 --install` copies it there instead — quit
+Stream Deck first, since it holds the running plugin open.
+
+To check the plugin can reach the tray without a deck attached:
+
+```console
+PS> openinzone-streamdeck.exe --probe
+pipe: OpenInzone.Tray.owner.v1
+snapshots : 2
+connected : True
+model     : INZONE Buds
+volume    : 16/30
+```
 
 ## Troubleshooting
 
@@ -636,20 +696,26 @@ src/OpenInzone.Core       protocol and transport
   Audio/                  the headset's Windows capture endpoint
   Model/                  typed values for each setting
 src/OpenInzone.Control    device state, the hotkey catalogue and the configuration, with no UI
+src/OpenInzone.Ipc        the local channel other programs drive the tray through
 src/OpenInzone.Cli        inzone.exe
 src/OpenInzone.Tray       inzonetray.exe - the icon, the panel and the settings window
+src/OpenInzone.StreamDeck openinzone-streamdeck.exe - the Stream Deck plugin
 tests/OpenInzone.Core.Tests
   Protocol/               packet codec tests, checked against docs/PROTOCOL.md
   Model/                  the battery values and how they format
   Output/                 the CLI's text and JSON output
   Control/                device state, key parsing and the configuration, migration included
+  Ipc/                    the wire format and a round trip over a real pipe
+  StreamDeck/             key faces, what each input means, and the manifest
 installer/                the Inno Setup script and the script that compiles it
+plugin/                   the .sdPlugin directory and the script that builds it
 assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
+docs/IPC.md               the channel between the tray and the plugin
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the five projects together for Visual Studio and Rider.
+`OpenInzone.sln` ties the seven projects together for Visual Studio and Rider.
 
 ### Using it as a library
 
