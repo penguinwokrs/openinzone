@@ -275,23 +275,29 @@ public class UpdateInfoTests
     }
 
     [Fact]
-    public void The_storage_host_github_redirects_asset_downloads_to_is_accepted()
+    public void The_storage_host_github_redirects_asset_downloads_to_is_rejected()
     {
+        // objects.githubusercontent.com is not this project's to claim - it serves release assets
+        // for every public GitHub repository, so naming it in the allowlist would accept an
+        // installer from any of them. The redirect onto it is deliberately left unchecked instead;
+        // see the reasoning on IsTrustedDownloadUrl.
         const string url = "https://objects.githubusercontent.com/github-production-release-asset/1/2";
 
         var result = UpdateInfo.CheckRelease(
             Release("v1.5.0", assets: SetupAssetFor("1.5.0", url: url)), Current);
 
-        Assert.True(result.Available);
-        Assert.Equal(url, result.DownloadUrl);
+        AssertNothingToInstall(result, UpdateUnavailableReason.NoInstaller);
     }
 
     [Theory]
     [InlineData("https://github.com/penguinwokrs/openinzone/releases/download/v1.5.0/x.exe", true)]
-    [InlineData("https://objects.githubusercontent.com/x", true)]
+    [InlineData("https://objects.githubusercontent.com/x", false)]
     [InlineData("http://github.com/x", false)]
     [InlineData("https://githubusercontent.com.evil.example/x", false)]
     [InlineData("https://evil.example/x", false)]
+    // The right host, but someone else's repository - exactly what an allowlist keyed on host
+    // alone would have let through.
+    [InlineData("https://github.com/attacker/repo/releases/download/v1/x.exe", false)]
     [InlineData(null, false)]
     [InlineData("", false)]
     public void A_download_url_is_trusted_only_over_https_from_github(string? url, bool trusted)

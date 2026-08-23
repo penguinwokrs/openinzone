@@ -15,7 +15,8 @@ namespace OpenInzone.Tray;
 /// directory of this process's own making, verify the digest before anything runs, then hand off
 /// to the installer and get out of its way. A running executable cannot overwrite itself, so this
 /// is as far as the tray goes - Inno Setup already stops the tray and relaunches it once it is
-/// done.
+/// done. Because of that, a successful update's staging directory is never cleaned up by the run
+/// that created it - <see cref="SweepStaleStagingDirectories"/> is what a later run does about it.
 /// </summary>
 public static class UpdateInstaller
 {
@@ -81,14 +82,30 @@ public static class UpdateInstaller
     /// progress as a 0-100 percentage so a ~70 MB download does not look like a frozen window.
     /// Falls back to the release's own <see cref="UpdateInfo.SizeBytes"/> when the response carries
     /// no Content-Length, so progress still moves even when the server omits it.
+    ///
+    /// Returns the file open for read and write, positioned back at the start, with writers
+    /// excluded - the same handle <see cref="VerifyDigest"/> hashes from and <see cref="Run"/>
+    /// eventually launches by name. Opening it once here and carrying it forward is what keeps
+    /// download, verification and launch looking at the same bytes throughout; the caller owns it
+    /// from this point and must dispose it once the installer has been started, or hand it to
+    /// <see cref="CleanUp"/>'s caller first if it gives up instead.
     /// </summary>
-    public static async Task DownloadAsync(UpdateInfo update, string path, IProgress<int>? progress,
+    public static async Task<FileStream> DownloadAsync(UpdateInfo update, string path, IProgress<int>? progress,
         CancellationToken cancellationToken = default)
     {
         // Belt and braces: UpdateInfo.CheckRelease never reports an update without a URL that
         // passed this, but this is the last point before the bytes are fetched.
         if (!UpdateInfo.IsTrustedDownloadUrl(update.DownloadUrl))
             throw new InvalidOperationException("The release has no download URL this will fetch from.");
+
+        // A release that already declares more than the ceiling is refused before a single byte is
+        // requested. The ceiling exists to bound an otherwise-unbounded response, not to be
+        // quietly substituted for a number the release never claimed - installing a legitimate
+        // installer above it is not this method's decision to make by lying about the limit.
+        long? declared = update.SizeBytes is > 0 ? update.SizeBytes : null;
+        if (declared > MaxInstallerBytes)
+            throw new IOException(
+                $"The release declares {declared} bytes, over the {MaxInstallerBytes}-byte cap this installs up to.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(DownloadTimeout);
@@ -100,29 +117,45 @@ public static class UpdateInstaller
         response.EnsureSuccessStatusCode();
 
         long? total = response.Content.Headers.ContentLength ?? update.SizeBytes;
+        long limit = declared ?? MaxInstallerBytes;
 
-        // The release says how big its own installer is, so anything past that is not the
-        // installer; without that, the ceiling stands in.
-        long limit = update.SizeBytes is > 0 && update.SizeBytes.Value <= MaxInstallerBytes
-            ? update.SizeBytes.Value
-            : MaxInstallerBytes;
-
-        await using (Stream source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
-        await using (FileStream destination = File.Create(path))
+        // ReadWrite and FileShare.Read rather than File.Create's write-only, exclusive handle:
+        // this same handle is hashed in place once the loop below ends and then held open through
+        // the launch, so nothing else with read access to %TEMP% gets a window to swap the file
+        // between those steps.
+        var destination = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+        try
         {
-            byte[] buffer = new byte[81920];
-            long readSoFar = 0;
-            int read;
-            while ((read = await source.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
+            await using (Stream source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
             {
-                readSoFar += read;
-                if (readSoFar > limit)
-                    throw new IOException($"The download is larger than the {limit} bytes the release declares.");
+                byte[] buffer = new byte[81920];
+                long readSoFar = 0;
+                int read;
+                while ((read = await source.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
+                {
+                    readSoFar += read;
+                    if (readSoFar > limit)
+                        throw new IOException($"The download exceeded the {limit}-byte cap.");
 
-                await destination.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                // Clamped: a server sending more than it advertised must not report 143%.
-                if (total is > 0) progress?.Report((int)Math.Min(100, readSoFar * 100 / total.Value));
+                    await destination.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                    // Clamped: a server sending more than it advertised must not report 143%.
+                    if (total is > 0) progress?.Report((int)Math.Min(100, readSoFar * 100 / total.Value));
+                }
+
+                // read == 0 also means "the server closed early", not just "the body is complete" -
+                // without this, a truncated response with no digest to catch it hands the installer
+                // a partial .exe and calls it a success.
+                if (declared is not null && readSoFar != declared.Value)
+                    throw new IOException($"The download stopped after {readSoFar} of the {declared} bytes declared.");
             }
+
+            destination.Position = 0;
+            return destination;
+        }
+        catch
+        {
+            await destination.DisposeAsync().ConfigureAwait(false);
+            throw;
         }
     }
 
@@ -130,30 +163,24 @@ public static class UpdateInstaller
     /// This downloads an executable and runs it, so trusting the bytes matters more than trusting
     /// the connection they arrived over.
     ///
-    /// <paramref name="locked"/> comes back holding the file open with writers excluded, and the
-    /// caller must keep it that way until <see cref="Run"/> has started the process. Hashing a
-    /// file, closing it and re-opening it by name is a check of whatever was there at the time,
-    /// not of what runs: on the no-digest branch a modal dialog sits in that gap for as long as
-    /// the user takes to read it, and anything running as this user could replace the file
-    /// meanwhile. Absent gets the same handle as Verified - it is the branch that waits longest.
+    /// <paramref name="file"/> is the handle <see cref="DownloadAsync"/> returned - open with
+    /// writers excluded since before its first byte landed - and the caller must keep it open
+    /// until <see cref="Run"/> has started the process. Hashing it in place rather than closing it
+    /// and reopening the path by name is what makes that guarantee real: a name is only ever a
+    /// snapshot of whatever is there when it is resolved, and on the no-digest branch a modal
+    /// dialog sits open for as long as the user takes to read it, with anything else running as
+    /// this user free to replace the file underneath a closed handle in the meantime. Absent gets
+    /// the same handle as Verified - it is the branch that waits longest.
     /// </summary>
-    public static DigestResult VerifyDigest(string path, string? expectedSha256, out FileStream locked)
+    public static DigestResult VerifyDigest(FileStream file, string? expectedSha256)
     {
-        locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        try
-        {
-            if (expectedSha256 is null) return DigestResult.Absent;
+        if (expectedSha256 is null) return DigestResult.Absent;
 
-            string actual = Convert.ToHexString(SHA256.HashData(locked));
-            return string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase)
-                ? DigestResult.Verified
-                : DigestResult.Mismatch;
-        }
-        catch
-        {
-            locked.Dispose();
-            throw;
-        }
+        file.Position = 0;
+        string actual = Convert.ToHexString(SHA256.HashData(file));
+        return string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase)
+            ? DigestResult.Verified
+            : DigestResult.Mismatch;
     }
 
     /// <summary>
@@ -176,6 +203,50 @@ public static class UpdateInstaller
 
             string? directory = Path.GetDirectoryName(path);
             if (directory is not null) Directory.Delete(directory);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    /// <summary>
+    /// Deletes staging directories earlier runs left behind: <see cref="CleanUp"/> only ever runs
+    /// on a failed or abandoned update, so a <em>successful</em> one - by design, see the class
+    /// comment - leaves its ~70 MB installer in %TEMP% forever unless something later comes back
+    /// for it. Meant to be called once at startup, before anything else has a reason to care.
+    ///
+    /// <see cref="CreateStagingPath"/> names its directory with <see cref="Path.GetRandomFileName"/>,
+    /// which carries no prefix of this project's to search for - the file inside, not the
+    /// directory's name, is what marks a directory as ours. So this only ever touches a directory
+    /// holding exactly one entry named like the installer <see cref="CreateStagingPath"/> creates,
+    /// and leaves everything else in %TEMP% - including a directory some other process is using at
+    /// this exact moment - alone.
+    ///
+    /// Never throws and never reports: this runs ahead of the tray icon appearing, and a locked
+    /// file (a scan in progress, a directory another process happens to be touching right now) is
+    /// simply left for the next startup to try again, not worth a delay or a balloon over.
+    /// </summary>
+    public static void SweepStaleStagingDirectories()
+    {
+        try
+        {
+            foreach (string directory in Directory.EnumerateDirectories(Path.GetTempPath()))
+            {
+                try
+                {
+                    string[] entries = Directory.GetFileSystemEntries(directory);
+                    if (entries.Length != 1) continue;
+
+                    string name = Path.GetFileName(entries[0]);
+                    if (!name.StartsWith("OpenInzone-", StringComparison.OrdinalIgnoreCase)
+                        || !name.EndsWith("-setup.exe", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    File.Delete(entries[0]);
+                    Directory.Delete(directory);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }

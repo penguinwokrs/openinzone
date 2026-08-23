@@ -236,14 +236,19 @@ public partial class SettingsWindow : Window
         // leaves a fragment, and this is the only thing that knows where it is.
         string path = UpdateInstaller.CreateStagingPath(_pendingUpdate);
         FileStream? locked = null;
+
+        // Once Run has started the installer, the staged file is a running image, not a fragment -
+        // Shutdown throwing afterwards must not fall into the same catch that cleans one up, or it
+        // tries to delete a file Windows now refuses to give up.
+        bool launched = false;
         try
         {
-            await UpdateInstaller.DownloadAsync(_pendingUpdate, path, progress);
+            // The handle DownloadAsync returns stays open until the installer has been started:
+            // verifying a file by name and then launching it by name again would only prove
+            // something about the file that was there in between.
+            locked = await UpdateInstaller.DownloadAsync(_pendingUpdate, path, progress);
 
-            // The handle stays open until the installer has been started: verifying a file by name
-            // and then launching it by name again would only prove something about the file that
-            // was there in between.
-            var digest = UpdateInstaller.VerifyDigest(path, _pendingUpdate.Sha256, out locked);
+            var digest = UpdateInstaller.VerifyDigest(locked, _pendingUpdate.Sha256);
             if (digest == UpdateInstaller.DigestResult.Mismatch)
             {
                 // This downloads an executable and runs it - a digest that does not match is a
@@ -273,6 +278,8 @@ public partial class SettingsWindow : Window
             // The installer stops this process itself, but that races the window still being open;
             // exiting here is what actually lets it replace the running copy.
             UpdateInstaller.Run(path);
+            launched = true;
+            locked?.Dispose();
             System.Windows.Application.Current.Shutdown();
         }
         catch (Exception ex)
@@ -280,11 +287,10 @@ public partial class SettingsWindow : Window
             // Verification and Process.Start throw as readily as the download does, and a failure
             // that left the button disabled with no message was indistinguishable from a hang.
             UpdateStatusText.Text = $"更新に失敗しました: {ex.Message}";
-            Abandon(path, ref locked);
-        }
-        finally
-        {
-            locked?.Dispose();
+
+            // Only Shutdown can throw once launched is true - the handle is already closed and the
+            // installer is already the one running that file, so there is nothing left to abandon.
+            if (!launched) Abandon(path, ref locked);
         }
     }
 

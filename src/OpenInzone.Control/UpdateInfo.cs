@@ -48,19 +48,39 @@ public readonly record struct UpdateInfo(
 
     private static UpdateInfo No(UpdateUnavailableReason reason) => new(false, null, null, null, null, reason);
 
+    // The one substring every browser_download_url GitHub can issue for this project's own
+    // releases begins with - see IsTrustedDownloadUrl for what checking only this, and not the
+    // host it redirects to, is protecting against.
+    private const string ReleaseDownloadPathPrefix = "/penguinwokrs/openinzone/releases/download/";
+
     /// <summary>
     /// Whether a URL is one this is willing to hand to <see cref="System.Net.Http.HttpClient"/>.
     /// The response that carries it is not signed and is fetched over an unauthenticated endpoint,
-    /// so the host it names is the one thing about the download that has to be checked before
-    /// anything is fetched - a redirected or substituted URL would otherwise be downloaded, and
-    /// then run, on GitHub's word alone. Release assets live on github.com and are served from the
-    /// *.githubusercontent.com storage it redirects to; nothing else is a release of this project.
+    /// so this URL is the one thing standing between GitHub's word and an executable that gets
+    /// downloaded, then run. All three of the following are required: https; a host equal to
+    /// github.com, compared exactly rather than by suffix, because a suffix match also accepts
+    /// "github.com.evil.example" and, worse, every other host actually ending in
+    /// ".githubusercontent.com" - a wildcard that is not this project's to claim; and a path
+    /// beginning with this project's own release-download prefix, because github.com by itself is
+    /// still every repository on GitHub, and an attacker who can forge one API response can name
+    /// their own repository's asset just as easily as this one's.
+    ///
+    /// The CDN host this redirects to - some *.githubusercontent.com name, chosen by GitHub at
+    /// request time and serving every public repository's release assets, not just this one - is
+    /// deliberately absent from this check, and that is not an oversight to "fix" back in. Adding
+    /// it here would only make the allowlist accept a URL that names the CDN directly, which is
+    /// exactly the substitution this check exists to refuse. The redirect itself needs no
+    /// re-validation either: the first hop already has to land on a host and path this project
+    /// owns, and SocketsHttpHandler will not auto-follow an HTTPS redirect down to HTTP, so
+    /// nothing an attacker controls sits between here and the bytes. That is the actual reason the
+    /// CDN hop is safe to leave unchecked - not the digest, which verifies what the bytes are, not
+    /// who was allowed to hand them over.
     /// </summary>
     public static bool IsTrustedDownloadUrl(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
-        && (string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase));
+        && string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
+        && uri.AbsolutePath.StartsWith(ReleaseDownloadPathPrefix, StringComparison.Ordinal);
 
     /// <summary>
     /// Decides whether <paramref name="releaseJson"/> - the body GitHub returns from

@@ -33,6 +33,12 @@ public partial class App : System.Windows.Application
         _tray = new TrayIcon();
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        // Off the UI thread and unawaited: a successful update never gets to clean up its own
+        // staging directory (see UpdateInstaller's class comment), so each startup sweeps what
+        // earlier ones left behind. Must not delay the tray icon appearing, which is why this
+        // starts before anything below has had a chance to block on it.
+        _ = Task.Run(UpdateInstaller.SweepStaleStagingDirectories);
+
         _controller = new DeviceController();
 
         _controller.StateChanged += (_, state) => Dispatcher.BeginInvoke(() => _tray.Update(state));

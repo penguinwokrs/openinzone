@@ -74,6 +74,19 @@ The installer already satisfies what winget requires of it: it installs per-user
 and Inno Setup's `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` gives winget the unattended install it
 needs.
 
+## What this does not protect against
+
+An attacker who can forge the `releases/latest` response can only ever point at a genuine build of
+this project - the download URL has to name `github.com/penguinwokrs/openinzone/releases/download/`,
+and the digest has to match what actually got fetched from there. What that forged response can
+still do is answer with an older release than the one the attacker knows is current, as long as it
+is still newer than whatever the victim is running: someone on 0.1.0 told about 0.1.1 when 0.5.0 is
+out gets a real, correctly-signed-by-its-own-digest 0.1.1, and every check this design makes passes.
+It cannot be made to run anything this project did not itself publish, so the severity is low, but
+downgrading to a real older release - and whatever that release's own vulnerabilities are - is the
+honest residual of trusting GitHub's API response for "what is newest" rather than pinning against a
+signed, ordered manifest.
+
 ## Out of scope
 
 - Updating the CLI on its own. It ships in the same installer.
