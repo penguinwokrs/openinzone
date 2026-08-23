@@ -84,7 +84,11 @@ public sealed class IpcServer : IDisposable
             catch (Exception)
             {
                 await pipe.DisposeAsync().ConfigureAwait(false);
-                return;   // stopping, or the pipe broke before anyone arrived
+                // Only shutting down ends the loop. A pipe that broke before anyone arrived is
+                // one lost instance, not a reason for the tray to stop serving for the rest of
+                // the session - which is what returning unconditionally used to mean.
+                if (_stopping.IsCancellationRequested) return;
+                continue;
             }
 
             var client = new Client(pipe, this, _stopping.Token);

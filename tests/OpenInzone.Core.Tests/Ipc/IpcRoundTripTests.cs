@@ -214,6 +214,33 @@ public class IpcRoundTripTests
         lock (seen) Assert.Equal(Enumerable.Range(0, count), seen);
     }
 
+    /// <summary>
+    /// The tray outlives many clients: a Stream Deck restart, a plugin reinstall, a deck being
+    /// unplugged. Each one has to be served like the first.
+    /// </summary>
+    [Fact]
+    public async Task Clients_that_come_and_go_are_each_served()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => Sample, pipeName);
+        server.Start();
+
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            var arrived = new TaskCompletionSource<DeviceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var client = new IpcClient(pipeName);
+            client.SnapshotReceived += (_, snapshot) => arrived.TrySetResult(snapshot);
+            client.Start();
+
+            Assert.Equal(Sample, await Within(arrived));
+            client.Dispose();
+
+            // The server has to notice the client has gone before the next one connects, or the
+            // test proves only that several clients fit at once.
+            while (server.ClientCount > 0) await Task.Delay(20);
+        }
+    }
+
     [Fact]
     public async Task Several_clients_are_served_at_once()
     {

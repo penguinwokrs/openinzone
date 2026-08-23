@@ -76,6 +76,12 @@ public sealed class IpcClient : IDisposable
                 Drop();
                 ConnectionChanged?.Invoke(this, false);
             }
+
+            // Wait before trying again even though the link was up a moment ago. A connection
+            // that comes up and goes straight back down - a version this build cannot read, a
+            // tray shutting down - would otherwise be reconnected to as fast as the loop runs.
+            try { await Task.Delay(RetryDelay, _stopping.Token).ConfigureAwait(false); }
+            catch (Exception) { return; }
         }
     }
 
