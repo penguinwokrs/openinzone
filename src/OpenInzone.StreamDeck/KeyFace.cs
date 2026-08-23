@@ -96,15 +96,22 @@ internal static class KeyFace
     }
 
     /// <summary>
-    /// One earbud's charge, right-aligned, with the unit set smaller and quieter than the number -
-    /// the same treatment the microphone level gets, and the reason the number stays legible at
-    /// the size a key actually is. A part that is not reporting shows dashes and no unit: "-- %"
-    /// would read as a measurement.
+    /// One earbud's charge, centred, with the unit set smaller and quieter than the number - the
+    /// same treatment the microphone level gets, and the reason the number stays legible at the
+    /// size a key actually is. A part that is not reporting shows dashes and no unit: "-- %" would
+    /// read as a measurement.
     /// </summary>
+    /// <remarks>
+    /// Centred a little right of the key's own middle, which leaves the L and R at the edge where
+    /// they belong. They stay put as the reading changes - centring the whole row instead would
+    /// shuffle them sideways every time a charge crossed into three digits.
+    /// </remarks>
     private static string Charge(int y, int? percent) => percent is int value
-        ? $"""<text x="124" y="{y}" fill="{Foreground}" font-size="30" text-anchor="end">{value}""" +
+        ? $"""<text x="{ChargeCentre}" y="{y}" fill="{Foreground}" font-size="30" text-anchor="middle">{value}""" +
           $"""<tspan font-size="18" fill="{Dim}"> %</tspan></text>"""
-        : $"""<text x="124" y="{y}" fill="{Dim}" font-size="30" text-anchor="end">--</text>""";
+        : $"""<text x="{ChargeCentre}" y="{y}" fill="{Dim}" font-size="30" text-anchor="middle">--</text>""";
+
+    private const int ChargeCentre = 78;
 
     private static string? Percent(int? value) => value?.ToString();
 
