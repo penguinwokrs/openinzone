@@ -28,8 +28,9 @@ namespace OpenInzone.ShowSettings;
 /// So this constructs it for real. It also fills from a real headset over the real channel, which
 /// is the only way to see that what a person is shown is what the device actually said.
 ///
-/// It takes no hotkeys - an empty configuration - so that running it cannot take a key away from a
-/// tray that is already running.
+/// It is given an empty configuration and never applies one, so running it cannot take a key away
+/// from a tray that is already running. The hotkey tab still lists the default combinations, which
+/// is what a configuration with nothing in it means - they are shown, not held.
 /// </remarks>
 internal static class Program
 {
