@@ -191,6 +191,24 @@ for voice focus on. Voice focus is the only other control in that panel, so byte
 
 The level is carried in every mode, including the ones that do not use it.
 
+### Auto power off, `0x81`
+
+One byte. `00` off, `0x0F` on. INZONE Buds offers only those two in INZONE Hub, and 15 reads like
+the minutes a headset with a choice of delays would carry - but nothing here confirms that, and
+this model never sends another value.
+
+### Voice guidance, `0x84`
+
+One byte. `00` off, `01` on.
+
+### Assignable touch settings, `0x8B`
+
+Thirty-one bytes, undecoded. Seen once while INZONE Hub was open:
+
+```
+02 00 00 00 01 00 04 00 00 01 01 00 02 00 07 70 01 00 10 01 10 04 00 00 23 01 00 02 00 07 24
+```
+
 ### Headphone volume, `0x21`
 
 `[mute, value, percent]`. Mute is 1 or 0, value is 0–30. The percent byte reads back as `0xFF`
