@@ -1,25 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
-using System.Buffers;
 using System.Text;
 
 namespace OpenInzone.Ipc;
 
 /// <summary>
 /// Reads and writes newline-delimited UTF-8 over a stream, refusing lines beyond
-/// <see cref="IpcProtocol.MaxLineBytes"/>.
+/// <see cref="IpcProtocol.MaxLineBytes"/>. Owns nothing: the stream is the caller's to close.
 /// </summary>
 /// <remarks>
 /// StreamReader.ReadLineAsync would grow without bound on a peer that never sends a newline, so
 /// framing is done here instead: the cap turns that into a closed connection rather than memory
 /// the tray cannot reclaim.
 /// </remarks>
-internal sealed class LineChannel(Stream stream) : IDisposable
+internal sealed class LineChannel(Stream stream)
 {
-    private readonly byte[] _buffer = ArrayPool<byte>.Shared.Rent(8192);
+    // Not pooled. Disposing a channel while a read is outstanding would hand the buffer back
+    // while the pending ReadAsync can still write into it, and eight kilobytes per connection -
+    // with a handful of connections at most - is not worth that hazard.
+    private readonly byte[] _buffer = new byte[8192];
     private readonly List<byte> _pending = [];
-    private bool _disposed;
 
     /// <summary>The next line, or null when the peer has gone away or overran the cap.</summary>
     public async Task<string?> ReadLineAsync(CancellationToken cancellation)
@@ -67,11 +68,4 @@ internal sealed class LineChannel(Stream stream) : IDisposable
     }
 
     private static readonly byte[] Newline = "\n"u8.ToArray();
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        ArrayPool<byte>.Shared.Return(_buffer);
-    }
 }

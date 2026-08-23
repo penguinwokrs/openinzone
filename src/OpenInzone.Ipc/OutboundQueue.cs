@@ -31,9 +31,10 @@ internal sealed class OutboundQueue : IDisposable
         });
 
     private readonly Task _pump;
-    private bool _disposed;
+    private volatile bool _disposed;
+    private volatile bool _broken;
 
-    /// <summary>Raised once, off the caller's thread, when the peer can no longer be written to.</summary>
+    /// <summary>Raised once, on a thread of its own, when the peer can no longer be written to.</summary>
     public event EventHandler? Broken;
 
     public OutboundQueue(LineChannel channel, CancellationToken cancellation) =>
@@ -66,11 +67,19 @@ internal sealed class OutboundQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Handlers dispose this queue, and the pump itself is what usually discovers the break - so
+    /// raising the event inline would have Dispose waiting on the very task it is running on.
+    /// Handing it to the thread pool is what keeps that from stalling until the wait times out.
+    /// </summary>
     private void Fail()
     {
-        if (_disposed) return;
+        if (_broken) return;
+        _broken = true;
         _lines.Writer.TryComplete();
-        Broken?.Invoke(this, EventArgs.Empty);
+
+        var handler = Broken;
+        if (handler is not null) _ = Task.Run(() => handler(this, EventArgs.Empty));
     }
 
     public void Dispose()

@@ -187,7 +187,6 @@ public sealed class IpcServer : IDisposable
             if (_disposed) return;
             _disposed = true;
             _outbound.Dispose();
-            _channel.Dispose();
             try { _pipe.Dispose(); } catch { /* already gone */ }
         }
     }

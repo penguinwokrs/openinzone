@@ -145,7 +145,6 @@ public sealed class IpcClient : IDisposable
     {
         _outbound?.Dispose();
         _outbound = null;
-        _channel?.Dispose();
         _channel = null;
         try { _pipe?.Dispose(); } catch { /* already gone */ }
         _pipe = null;
