@@ -206,9 +206,23 @@ One byte. `00` off, `01` on.
 One byte. `00` English, `01` Chinese, `02` Japanese - read back in that order while INZONE Hub was
 driven through English, Japanese and Chinese, so the pairing is the naming, not the sequence.
 
+### Bluetooth automatic connection switching, `0x61`
+
+One byte. `00` off, `01` on. INZONE Hub calls it switching the connection automatically when a
+call starts or ends.
+
+Taken from a single change - set to on, answered `01`. Toggling it back and forth produced `01`
+then `00` whichever order the two steps were asked for, so the pairs said nothing; one action and
+one value did.
+
 ### Assignable touch settings, `0x8B`
 
-Thirty-one bytes, undecoded. Seen once while INZONE Hub was open:
+Thirty-one bytes, and **not the assignment**: it came back byte for byte identical three times,
+including after the right earbud was reassigned to playback control. It is a capability table or
+a fixed parameter block. Whatever carries the assignment is either another id or is written
+without being notified, so this is not something to drive from here.
+
+Seen while INZONE Hub was open:
 
 ```
 02 00 00 00 01 00 04 00 00 01 01 00 02 00 07 70 01 00 10 01 10 04 00 00 23 01 00 02 00 07 24
