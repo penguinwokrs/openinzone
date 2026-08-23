@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\OpenInzone.Core\OpenInzone.Core.csproj" />
     <ProjectReference Include="..\..\src\OpenInzone.Control\OpenInzone.Control.csproj" />
     <ProjectReference Include="..\..\src\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
+    <ProjectReference Include="..\..\src\OpenInzone.StreamDeck\OpenInzone.StreamDeck.csproj" />
   </ItemGroup>
 
   <ItemGroup>

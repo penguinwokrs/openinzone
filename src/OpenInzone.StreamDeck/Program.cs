@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 penguinwokrs
+
+using OpenInzone.Ipc;
+
+namespace OpenInzone.StreamDeck;
+
+internal static class Program
+{
+    private static async Task<int> Main(string[] args)
+    {
+        if (args.Contains("--probe")) return await ProbeAsync().ConfigureAwait(false);
+
+        var options = StreamDeckArguments.Parse(args);
+        if (options is null)
+        {
+            await Console.Error.WriteLineAsync(
+                "This is a Stream Deck plugin: the Stream Deck application starts it with -port, " +
+                "-pluginUUID, -registerEvent and -info. Run it with --probe to check that the " +
+                "OpenInzone tray is reachable.").ConfigureAwait(false);
+            return 2;
+        }
+
+        using var tray = new IpcClient();
+        using var deck = new StreamDeckConnection(options.Port, options.PluginUuid, options.RegisterEvent);
+        using var host = new PluginHost(deck, tray);
+
+        host.Start();
+        tray.Start();
+
+        // Ends when the Stream Deck application closes the socket, which is how a plugin is asked
+        // to quit; there is no other shutdown signal.
+        await deck.RunAsync(CancellationToken.None).ConfigureAwait(false);
+        return 0;
+    }
+
+    /// <summary>
+    /// Connects to the tray and prints the first snapshot. The plugin cannot be exercised without
+    /// a Stream Deck attached, but the half that talks to the tray can be, and that is the half
+    /// that carries the microphone level.
+    /// </summary>
+    private static async Task<int> ProbeAsync()
+    {
+        using var tray = new IpcClient();
+        var arrived = new TaskCompletionSource<DeviceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        tray.SnapshotReceived += (_, snapshot) => arrived.TrySetResult(snapshot);
+        tray.ServerError += (_, message) => Console.Error.WriteLine($"tray: {message}");
+        tray.Start();
+
+        Console.WriteLine($"pipe: {IpcProtocol.PipeName()}");
+        DeviceSnapshot state;
+        try
+        {
+            state = await arrived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            Console.Error.WriteLine("The OpenInzone tray did not answer. Is it running?");
+            return 1;
+        }
+
+        Console.WriteLine($"connected : {state.Connected}");
+        Console.WriteLine($"model     : {state.Model}");
+        Console.WriteLine($"volume    : {state.Volume}/{state.VolumeMax}");
+        Console.WriteLine($"balance   : {state.Balance}");
+        Console.WriteLine($"mic       : {(state.MicMuted ? "muted" : "live")}");
+        Console.WriteLine($"mic level : {(state.MicLevelAvailable ? $"{state.MicLevel}%" : "unavailable")}");
+        Console.WriteLine($"battery   : L {state.Battery.Left?.ToString() ?? "--"} " +
+                          $"R {state.Battery.Right?.ToString() ?? "--"} " +
+                          $"case {state.Battery.Case?.ToString() ?? "--"}");
+
+        foreach (string actionId in ActionIds.All)
+            Console.WriteLine($"  {actionId,-42} {KeyFace.For(actionId, state).Length} chars of SVG");
+
+        return 0;
+    }
+}
+
+/// <summary>The four arguments Stream Deck starts a native plugin with.</summary>
+internal sealed record StreamDeckArguments(int Port, string PluginUuid, string RegisterEvent)
+{
+    public static StreamDeckArguments? Parse(string[] args)
+    {
+        int port = 0;
+        string? uuid = null, registerEvent = null;
+
+        for (int i = 0; i + 1 < args.Length; i += 2)
+        {
+            switch (args[i])
+            {
+                case "-port": int.TryParse(args[i + 1], out port); break;
+                case "-pluginUUID": uuid = args[i + 1]; break;
+                case "-registerEvent": registerEvent = args[i + 1]; break;
+            }
+        }
+
+        return port > 0 && uuid is not null && registerEvent is not null
+            ? new StreamDeckArguments(port, uuid, registerEvent)
+            : null;
+    }
+}

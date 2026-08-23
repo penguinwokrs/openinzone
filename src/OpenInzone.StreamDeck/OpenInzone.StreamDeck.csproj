@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.StreamDeck</RootNamespace>
+    <!-- Stream Deck launches this by the path in manifest.json, which must be a single file. -->
+    <AssemblyName>openinzone-streamdeck</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <AssemblyTitle>OpenInzone for Stream Deck</AssemblyTitle>
+    <Product>OpenInzone</Product>
+    <Company>penguinwokrs</Company>
+    <Version>0.1.0</Version>
+
+    <!--
+      Published trimmed so the plugin is roughly 14 MB rather than 64. Trimming switches off the
+      reflection-based serialiser, so every payload goes through a source-generated context; the
+      analyser settings keep that from regressing quietly.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The key faces and the command mapping are worth testing; neither needs a Stream Deck. -->
+    <InternalsVisibleTo Include="OpenInzone.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The device is not touched from here: everything goes through the tray. -->
+    <ProjectReference Include="..\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
+  </ItemGroup>
+</Project>
