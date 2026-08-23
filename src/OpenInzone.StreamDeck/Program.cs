@@ -35,23 +35,31 @@ internal static class Program
     }
 
     /// <summary>
-    /// Connects to the tray and prints the first snapshot. The plugin cannot be exercised without
-    /// a Stream Deck attached, but the half that talks to the tray can be, and that is the half
-    /// that carries the microphone level.
+    /// Connects to the tray, asks it to re-read the headset, and prints what comes back. The
+    /// plugin cannot be exercised without a Stream Deck attached, but the half that talks to the
+    /// tray can be, and that is the half carrying the microphone level.
     /// </summary>
     private static async Task<int> ProbeAsync()
     {
         using var tray = new IpcClient();
-        var arrived = new TaskCompletionSource<DeviceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
-        tray.SnapshotReceived += (_, snapshot) => arrived.TrySetResult(snapshot);
+
+        var arrived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        DeviceSnapshot? latest = null;
+        int received = 0;
+
+        tray.SnapshotReceived += (_, snapshot) =>
+        {
+            Interlocked.Increment(ref received);
+            latest = snapshot;
+            arrived.TrySetResult(true);
+        };
         tray.ServerError += (_, message) => Console.Error.WriteLine($"tray: {message}");
         tray.Start();
 
         Console.WriteLine($"pipe: {IpcProtocol.PipeName()}");
-        DeviceSnapshot state;
         try
         {
-            state = await arrived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await arrived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -59,6 +67,13 @@ internal static class Program
             return 1;
         }
 
+        // The hello carries whatever the tray last knew. Asking it to read the headset again is
+        // what distinguishes "the tray has not looked yet" from "the earbuds are not answering".
+        await tray.SendAsync(IpcCommands.Refresh).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+
+        var state = latest ?? DeviceSnapshot.Disconnected;
+        Console.WriteLine($"snapshots : {received}");
         Console.WriteLine($"connected : {state.Connected}");
         Console.WriteLine($"model     : {state.Model}");
         Console.WriteLine($"volume    : {state.Volume}/{state.VolumeMax}");
@@ -68,6 +83,10 @@ internal static class Program
         Console.WriteLine($"battery   : L {state.Battery.Left?.ToString() ?? "--"} " +
                           $"R {state.Battery.Right?.ToString() ?? "--"} " +
                           $"case {state.Battery.Case?.ToString() ?? "--"}");
+
+        if (!state.Connected)
+            Console.WriteLine("The tray is reachable but the earbuds are not answering: in the " +
+                              "case, out of range, or off.");
 
         foreach (string actionId in ActionIds.All)
             Console.WriteLine($"  {actionId,-42} {KeyFace.For(actionId, state).Length} chars of SVG");
