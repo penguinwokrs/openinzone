@@ -126,6 +126,24 @@ INZONE Hub を閉じる必要はありません。制御インターフェース
 削除するときは**設定 → アプリ → インストールされているアプリ → OpenInzone → アンインストール**
 です。`%APPDATA%\openinzone` はそのまま残すので、選んだキー割り当ては入れ直しても失われません。
 
+### winget でインストールする
+
+```
+winget install penguinwokrs.OpenInzone
+```
+
+> **まだ利用できません。** OpenInzone は公開の winget リポジトリにまだ登録されていないため、この
+> コマンドは今のところ失敗します。それまでは上記のインストーラーをお使いください。
+
+メンテナー向け: リリースのたびに、`packaging/winget/` のテンプレートからそのリリースのバージョン・
+ダウンロード URL・SHA-256 を埋め込んだ 3 つの winget マニフェストファイル
+（`penguinwokrs.OpenInzone.yaml`、`.installer.yaml`、`.locale.en-US.yaml`）が **Assets** に添付
+されます。新しいバージョンを登録するには、ダウンロードしたフォルダーに対して `wingetcreate submit`
+を実行するか、その 3 ファイルを `manifests/p/penguinwokrs/OpenInzone/<version>/` に置いて
+[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) へ手動でプルリクエストを送るか
+のどちらかです。どちらの方法も、そのリポジトリをフォークしてプルリクエストを送る権限を持つ
+GitHub アカウントが必要で、ここまでは自動化していません。
+
 ## トレイアプリを使う
 
 まず起動するのは `inzonetray.exe` です。通知領域にアイコンを出したまま常駐します。インストーラー

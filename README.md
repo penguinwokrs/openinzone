@@ -125,6 +125,24 @@ in and the earbuds are out of the case, then see [Troubleshooting](#troubleshoot
 To remove it later: **Settings → Apps → Installed apps → OpenInzone → Uninstall**. That leaves
 `%APPDATA%\openinzone` alone, so the keys you chose survive a reinstall.
 
+### Installing with winget
+
+```
+winget install penguinwokrs.OpenInzone
+```
+
+> **Not yet available.** OpenInzone has not been submitted to the public winget repository, so
+> this command will fail until that happens. Use the installer above until then.
+
+For the maintainer: each release attaches three winget manifest files
+(`penguinwokrs.OpenInzone.yaml`, `.installer.yaml` and `.locale.en-US.yaml`) under
+**Assets**, generated from the templates in `packaging/winget/` with that release's version,
+download URL and SHA-256 already filled in. Submitting a version means either running
+`wingetcreate submit` against the downloaded folder, or opening a pull request by hand against
+[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) with those three files placed
+under `manifests/p/penguinwokrs/OpenInzone/<version>/`. Both routes need a GitHub account with
+permission to fork that repository; nothing here automates either one.
+
 ## Using the tray
 
 `inzonetray.exe` is the one to start. It puts an icon in the notification area and stays there:

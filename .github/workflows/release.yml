@@ -58,6 +58,32 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\openinzone.iss
 
+      - name: Fill in the winget manifests
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          $installerName = "OpenInzone-${env:VERSION}-setup.exe"
+          $url = "https://github.com/penguinwokrs/openinzone/releases/download/v${env:VERSION}/$installerName"
+          $sha256 = (Get-FileHash -Path "dist\$installerName" -Algorithm SHA256).Hash
+          $releaseDate = Get-Date -Format 'yyyy-MM-dd'
+
+          New-Item -ItemType Directory -Force -Path dist\winget | Out-Null
+
+          # The templates under packaging/winget carry everything that does not change between
+          # releases; only these four values are per-release, and they are what this fills in.
+          Get-ChildItem packaging\winget\*.yaml | ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
+            $content = $content -replace 'PackageVersion: 0\.0\.0.*', "PackageVersion: $env:VERSION"
+            $content = $content -replace 'PLACEHOLDER_INSTALLER_URL.*', $url
+            $content = $content -replace 'PLACEHOLDER_SHA256.*', $sha256
+            $content = $content -replace 'ReleaseDate: 2026-01-01.*', "ReleaseDate: $releaseDate"
+            Set-Content -Path (Join-Path dist\winget $_.Name) -Value $content -NoNewline
+          }
+
       # Through env, not interpolated into the script: a tag name may contain $, ( ) or a
       # backtick, all of which PowerShell would expand inside a double-quoted string.
       - name: Zip the portable build
@@ -80,4 +106,5 @@ jobs:
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
             dist/OpenInzone-*-setup.exe \
-            dist/OpenInzone-*-win-x64.zip
+            dist/OpenInzone-*-win-x64.zip \
+            dist/winget/*.yaml
