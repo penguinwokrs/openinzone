@@ -23,6 +23,22 @@ public class IpcRoundTripTests
     private static async Task<T> Within<T>(TaskCompletionSource<T> completion) =>
         await completion.Task.WaitAsync(Patience);
 
+    /// <summary>
+    /// Polls until something becomes true, and says what it was waiting for if it never does.
+    /// An unbounded spin here would turn a failure into a hung run with nothing to go on - which
+    /// matters because these tests exercise real pipes and real threads, where a rare stall is
+    /// exactly the thing worth being able to read afterwards.
+    /// </summary>
+    private static async Task WaitUntil(Func<bool> condition, string what)
+    {
+        var deadline = DateTime.UtcNow + Patience;
+        while (!condition())
+        {
+            if (DateTime.UtcNow > deadline) Assert.Fail($"Timed out waiting for {what}.");
+            await Task.Delay(20);
+        }
+    }
+
     [Fact]
     public async Task A_client_is_told_the_current_state_as_soon_as_it_connects()
     {
@@ -77,7 +93,7 @@ public class IpcRoundTripTests
         };
         client.Start();
 
-        while (server.ClientCount == 0) await Task.Delay(20);
+        await WaitUntil(() => server.ClientCount > 0, "the client to connect");
         server.Publish(Sample);
 
         Assert.Equal(Sample, await Within(pushed));
@@ -224,7 +240,7 @@ public class IpcRoundTripTests
         };
         client.Start();
 
-        while (server.ClientCount == 0) await Task.Delay(20);
+        await WaitUntil(() => server.ClientCount > 0, "the client to connect");
         for (int i = 0; i < count; i++)
             server.Publish(Sample with { Volume = i });
 
@@ -287,7 +303,7 @@ public class IpcRoundTripTests
 
             // The server has to notice the client has gone before the next one connects, or the
             // test proves only that several clients fit at once.
-            while (server.ClientCount > 0) await Task.Delay(20);
+            await WaitUntil(() => server.ClientCount == 0, $"the server to notice client {attempt} leaving");
         }
     }
 
@@ -312,7 +328,7 @@ public class IpcRoundTripTests
                 pushes.Add(pushed);
             }
 
-            while (server.ClientCount < 3) await Task.Delay(20);
+            await WaitUntil(() => server.ClientCount >= 3, "all three clients to connect");
             server.Publish(Sample);
 
             foreach (var pushed in pushes) Assert.Equal(Sample, await Within(pushed));
