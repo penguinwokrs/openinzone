@@ -824,6 +824,28 @@ model     : INZONE Buds
 volume    : 16/30
 ```
 
+### Releasing
+
+Pushing a tag of the form `v1.2.3` is the whole of it. The release workflow runs the tests,
+publishes the tray, the daemon and the CLI, builds the Stream Deck plugin and the installer, fills
+in the winget manifests, and creates the release with all of it attached.
+
+The notes are GitHub's own, generated from the pull requests merged since the last tag and sorted
+into the categories in [`.github/release.yml`](.github/release.yml) by label. That is why work goes
+in through a pull request rather than straight onto `main`: a commit pushed directly leaves nothing
+for the generator to say, and the release arrives with an empty body. The pull request's title
+becomes the line a reader sees, so it is written for them.
+
+```console
+$ git switch -c what-this-does
+$ gh pr create --label enhancement
+$ gh pr merge --squash
+$ git tag -a v1.2.3 -m "v1.2.3" && git push origin v1.2.3
+```
+
+Labels: `enhancement`, `bug`, `fix`, `protocol`, `documentation`. Anything else lands under other
+changes, and `ignore-for-release` leaves it out altogether.
+
 ### Layout
 
 ```
