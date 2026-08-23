@@ -4,6 +4,7 @@
 using System.Windows;
 using System.Windows.Forms;
 using OpenInzone.Control;
+using OpenInzone.Ipc;
 
 namespace OpenInzone.Tray;
 
@@ -49,7 +50,7 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>The tooltip is the only status a tray icon can show without being opened.</summary>
-    public void Update(DeviceState state)
+    public void Update(DeviceSnapshot state)
     {
         // A state report marshalled onto the dispatcher can arrive after OnExit has torn the icon
         // down; NotifyIcon appears to tolerate that, but nothing promises it will.
@@ -57,7 +58,8 @@ public sealed class TrayIcon : IDisposable
 
         // NotifyIcon.Text throws above 63 characters.
         string text = state.Connected
-            ? $"{state.ModelName}\n音量 {state.Volume}\nバッテリー {state.Battery}"
+            ? $"{state.Model}\n音量 {SnapshotText.VolumeWithMute(state)}\n" +
+              $"バッテリー {SnapshotText.Battery(state)}"
             : "OpenInzone - 未接続";
         _icon.Text = text.Length <= 63 ? text : text[..63];
     }

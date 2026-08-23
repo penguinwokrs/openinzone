@@ -9,13 +9,12 @@ namespace OpenInzone.Tray;
 public partial class App : System.Windows.Application
 {
     private Mutex? _instance;
-    private DeviceController? _controller;
+    private IpcDeviceSurface? _headset;
     private TrayIcon? _tray;
     private FlyoutWindow? _flyout;
     private HotkeyHost? _hotkeys;
     private HotkeyConfig _config = HotkeyConfig.Default();
     private SettingsWindow? _settings;
-    private IpcHost? _ipc;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -40,31 +39,28 @@ public partial class App : System.Windows.Application
         // starts before anything below has had a chance to block on it.
         _ = Task.Run(UpdateInstaller.SweepStaleStagingDirectories);
 
-        _controller = new DeviceController();
+        // The headset is held by inzoned, which is started on demand and stops once the last
+        // client goes. The tray is one client among several: the Stream Deck plugin and the CLI
+        // reach the same daemon, which is what keeps two processes from talking over each other.
+        _headset = new IpcDeviceSurface();
+        _headset.Unavailable += (_, message) => Dispatcher.BeginInvoke(() =>
+            _tray?.ShowBalloon("ヘッドセットに接続できません", message));
 
-        _controller.StateChanged += (_, state) => Dispatcher.BeginInvoke(() => _tray.Update(state));
+        _headset.StateChanged += (_, state) => Dispatcher.BeginInvoke(() => _tray.Update(state));
         _tray.ExitRequested += (_, _) => Shutdown();
 
-        _flyout = new FlyoutWindow(_controller);
+        _flyout = new FlyoutWindow(_headset);
         _tray.LeftClicked += (_, _) => Dispatcher.Invoke(() =>
         {
             if (_flyout.IsVisible) _flyout.HideAndFlush();
             else _flyout.ShowNearTray();
         });
 
-        _controller.Refresh();
+        _headset.Start();
 
         _config = LoadConfig();
-        _hotkeys = new HotkeyHost(_controller);
+        _hotkeys = new HotkeyHost(_headset);
         SurfaceRejected(_hotkeys.Apply(_config));
-
-        // Serves the local channel the Stream Deck plugin talks to. It is restricted to the
-        // current user and carries only what the panel already shows, so it needs no switch of its
-        // own; a failure to listen costs the deck, not the tray, and is reported rather than thrown.
-        _ipc = new IpcHost(_controller);
-        _ipc.Failed += (_, message) => Dispatcher.BeginInvoke(() =>
-            _tray?.ShowBalloon("Stream Deck 連携を開始できませんでした", message));
-        _ipc.Start();
 
         if (_config.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
 
@@ -158,11 +154,10 @@ public partial class App : System.Windows.Application
     {
         _flyout?.Close();
         _hotkeys?.Dispose();
-        _ipc?.Dispose();
-        // Before the tray icon: Dispose waits for the worker, and the worker reports its last
-        // state into the icon. Taking the icon away first would leave that report with nowhere
-        // to land while the UI thread is already blocked waiting for the worker to finish.
-        _controller?.Dispose();
+        // Before the tray icon: closing the channel reports a last state into the icon, and
+        // taking the icon away first would leave that report with nowhere to land while the UI
+        // thread is already blocked waiting for the reader to finish.
+        _headset?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);

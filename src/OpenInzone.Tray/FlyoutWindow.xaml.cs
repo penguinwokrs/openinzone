@@ -5,14 +5,14 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using OpenInzone.Control;
-using OpenInzone.Model;
+using OpenInzone.Ipc;
 using OpenInzone.Tray.Native;
 
 namespace OpenInzone.Tray;
 
 public partial class FlyoutWindow : Window
 {
-    private readonly DeviceController _controller;
+    private readonly IHeadset _headset;
 
     /// <summary>
     /// A slider raises a change per pixel of travel. Sending each one would flood the HID channel,
@@ -26,23 +26,23 @@ public partial class FlyoutWindow : Window
     /// <summary>Set while the state is being copied into the controls, so echoes are not written back.</summary>
     private bool _updating;
 
-    public FlyoutWindow(DeviceController controller)
+    public FlyoutWindow(IHeadset headset)
     {
         InitializeComponent();
-        _controller = controller;
+        _headset = headset;
 
         _writeTimer.Tick += (_, _) => Flush();
 
-        VolumeSlider.ValueChanged += (_, e) => Queue("volume", () => _controller.SetVolume((int)e.NewValue));
-        MicSlider.ValueChanged += (_, e) => Queue("mic", () => _controller.SetMicLevel((int)e.NewValue));
-        BalanceSlider.ValueChanged += (_, e) => Queue("balance", () => _controller.SetBalance((int)e.NewValue));
+        VolumeSlider.ValueChanged += (_, e) => Queue("volume", () => _headset.SetVolume((int)e.NewValue));
+        MicSlider.ValueChanged += (_, e) => Queue("mic", () => _headset.SetMicLevel((int)e.NewValue));
+        BalanceSlider.ValueChanged += (_, e) => Queue("balance", () => _headset.SetBalance((int)e.NewValue));
 
-        MicMuteButton.Click += (_, _) => _controller.ToggleMicMute();
+        MicMuteButton.Click += (_, _) => _headset.ToggleMicMute();
 
-        _controller.StateChanged += OnStateChanged;
+        _headset.StateChanged += OnStateChanged;
         Deactivated += (_, _) => Hide();
 
-        Render(_controller.State);
+        Render(_headset.State);
     }
 
     /// <summary>Replaces only that slider's pending write; a drag on one never cancels another's.</summary>
@@ -67,34 +67,34 @@ public partial class FlyoutWindow : Window
         foreach (var write in writes) write();
     }
 
-    private void OnStateChanged(object? sender, DeviceState state)
+    private void OnStateChanged(object? sender, DeviceSnapshot state)
         => Dispatcher.BeginInvoke(() => Render(state));
 
-    private void Render(DeviceState state)
+    private void Render(DeviceSnapshot state)
     {
         _updating = true;
         try
         {
-            ModelText.Text = state.Connected ? state.ModelName : "未接続";
+            ModelText.Text = state.Connected ? state.Model : "未接続";
 
             VolumeRow.IsEnabled = state.Connected;
-            VolumeSlider.Value = state.Volume.Value;
-            VolumeText.Text = state.Connected ? $"{state.Volume.Value}/{HeadphoneVolume.Max}" : "--";
+            VolumeSlider.Value = state.Volume;
+            VolumeText.Text = SnapshotText.Volume(state);
 
             // The level is the Windows capture endpoint; the mute flag is on the headset. Only the
             // slider goes away when Windows exposes no endpoint.
             MicRow.IsEnabled = state.Connected;
             MicSlider.IsEnabled = state.MicLevelAvailable;
             MicSlider.Value = state.MicLevel;
-            MicText.Text = !state.Connected ? "--" : state.MicLevelAvailable ? $"{state.MicLevel}%" : "利用不可";
-            MicMutedSlash.Visibility = state.Mic.Muted ? Visibility.Visible : Visibility.Collapsed;
-            MicSlider.Opacity = state.Mic.Muted ? 0.4 : 1.0;
+            MicText.Text = SnapshotText.MicLevel(state);
+            MicMutedSlash.Visibility = state.MicMuted ? Visibility.Visible : Visibility.Collapsed;
+            MicSlider.Opacity = state.MicMuted ? 0.4 : 1.0;
 
             BalanceRow.IsEnabled = state.Connected;
-            BalanceSlider.Value = state.Balance.Value;
-            BalanceText.Text = state.Connected ? state.Balance.ToString() : "--";
+            BalanceSlider.Value = state.Balance;
+            BalanceText.Text = SnapshotText.Balance(state);
 
-            BatteryText.Text = state.Connected ? Battery(state.Battery) : "--";
+            BatteryText.Text = SnapshotText.Battery(state);
         }
         finally
         {
@@ -102,18 +102,11 @@ public partial class FlyoutWindow : Window
         }
     }
 
-    private static string Battery(BatteryInfo battery)
-    {
-        static string Percent(byte value) => Unknown.Is(value) ? "--" : $"{value}%";
-        return battery.HasSeparateBuds
-            ? $"L {Percent(battery.LeftPercent)}   R {Percent(battery.RightPercent)}   ケース {Percent(battery.CasePercent)}"
-            : Percent(battery.LeftPercent);
-    }
 
     /// <summary>Places the panel at the corner the tray lives in, inside the working area.</summary>
     public void ShowNearTray()
     {
-        _controller.Refresh();
+        _headset.Refresh();
         Show();
         // The height is only known once the layout has run.
         UpdateLayout();
