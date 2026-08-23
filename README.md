@@ -186,7 +186,8 @@ same snapshot the command line reports: see [Battery](#battery) for why it can s
 hours, and for what charging does not tell you.
 
 The panel closes as soon as it loses focus. **Right click the icon** for a menu with 設定
-(settings) and 終了 (exit); hovering over it shows the model, the volume and the battery.
+(settings), ヘルプ (help, which opens this page) and 終了 (exit); hovering over it shows the model,
+the volume and the battery.
 
 ## Hotkeys and settings
 

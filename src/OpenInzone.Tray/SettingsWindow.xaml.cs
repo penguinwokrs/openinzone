@@ -343,18 +343,8 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void OnReleasesClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                "https://github.com/penguinwokrs/openinzone/releases/latest") { UseShellExecute = true });
-        }
-        catch (Exception)
-        {
-            // No browser, or one that refused. Nothing here is worth interrupting the window for.
-        }
-    }
+    private void OnReleasesClick(object sender, RoutedEventArgs e) =>
+        ProjectLinks.Open(ProjectLinks.LatestRelease);
 
     /// <summary>
     /// Doubles as "check now" and "install now": the button becomes 更新 the moment a check finds

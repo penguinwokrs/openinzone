@@ -25,6 +25,7 @@ public sealed class TrayIcon : IDisposable
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("設定", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add("ヘルプ", null, (_, _) => ProjectLinks.Open(ProjectLinks.Repository));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("終了", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
