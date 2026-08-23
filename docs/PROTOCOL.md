@@ -146,9 +146,16 @@ Confirmed on INZONE Buds:
 
 Read from INZONE Hub but not exercised here: `0x01` link status, `0x03` firmware version,
 `0x05` host select, `0x06`–`0x08` bulk setting reads, `0x09` boot status, `0x25` surround,
-`0x41`–`0x43` ambient and noise cancelling, `0x61`–`0x63` Bluetooth, `0x81`–`0x8F` various
-(auto power off, LED, voice prompts, wearing detection, assignable buttons, mic attach state),
-`0xA0` firmware update.
+`0x42`–`0x43` noise cancelling toggle and startup mode, `0x61`–`0x63` Bluetooth,
+`0x81`–`0x8F` various (auto power off, LED, voice prompts, wearing detection, assignable buttons,
+mic attach state), `0xA0` firmware update.
+
+**Spatial sound is not on this channel.** Toggling it in INZONE Hub produces nothing here at all,
+while every other setting in Hub's window does - so on INZONE Buds it is either a PC-side feature
+or lives on one of the collections this project does not open.
+
+**INZONE Hub polls.** With Hub open, the balance, volume, microphone and battery are re-read about
+once a minute, which shows up as unsolicited notifications to anything else listening.
 
 ### Game/chat balance, `0x22`
 
@@ -158,6 +165,31 @@ One byte, 0–100. **0 is all game, 100 is all chat**, 50 is centred. INZONE Hub
 This document had the two ends the wrong way round until it was listened to: raising the value
 makes chat louder, not game. Every description in the project followed the mistake, and the
 hotkeys named after each side moved towards the other one.
+
+### Sidetone, `0x23`
+
+`[value, percent]`. Value is **0-10**, not a percentage. The percent byte reads back as `0xFF` on
+INZONE Buds, exactly as the headphone volume's does; echo it back unchanged on a write.
+
+Observed by watching INZONE Hub drive the slider from end to end: `05 FF`, `0A FF`, `00 FF`.
+
+### Ambient sound and noise cancelling, `0x41`
+
+Four bytes. INZONE Buds carries all of it here; `0x42` and `0x43` were never seen.
+
+| Byte | Meaning |
+|---|---|
+| 0 | mode: `00` off, `01` noise cancelling, `02` ambient sound |
+| 1 | ambient level, `0x01`-`0x14` (1-20) |
+| 2 | `0xFF` on INZONE Buds, as elsewhere: not reported |
+| 3 | voice focus: `00` off, `01` on |
+
+Observed from INZONE Hub, each control named before it was touched and the answers read back in
+that order: `01 14 FF 00` for noise cancelling, `02 14 FF 00` for ambient sound, `00 14 FF 00` for
+off, `02 01 FF 00` and `02 14 FF 00` for the level at each end of its travel, and `02 14 FF 01`
+for voice focus on. Voice focus is the only other control in that panel, so byte 3 is its alone.
+
+The level is carried in every mode, including the ones that do not use it.
 
 ### Headphone volume, `0x21`
 
