@@ -201,6 +201,11 @@ this model never sends another value.
 
 One byte. `00` off, `01` on.
 
+### Voice guidance language, `0x83`
+
+One byte. `00` English, `01` Chinese, `02` Japanese - read back in that order while INZONE Hub was
+driven through English, Japanese and Chinese, so the pairing is the naming, not the sequence.
+
 ### Assignable touch settings, `0x8B`
 
 Thirty-one bytes, undecoded. Seen once while INZONE Hub was open:
