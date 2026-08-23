@@ -41,6 +41,9 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 
 ## Contents
 
+Everything up to the developer guide is for using it; building it and the tools that check it are
+in there.
+
 - [What it can do](#what-it-can-do)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -51,7 +54,7 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 - [Troubleshooting](#troubleshooting)
 - [Command line](#command-line)
 - [Scripting](#scripting)
-- [Developer guide](#developer-guide)
+- [Developer guide](#developer-guide) — building it, and the tools that check it
 - [Related projects](#related-projects)
 - [License](#license)
 - [Trademarks and scope](#trademarks-and-scope)
@@ -306,12 +309,9 @@ itself. It asks `inzoned.exe`, which owns the connection to the headset and is s
 by whichever client first needs it — so a deck key works with no window open, and the daemon stops
 thirty seconds after the last client goes.
 
-One owner is not an accident of who happened to start first. Two processes can hold the HID
-interface at once, but not the conversation on top of it: replies are matched on a transaction
-number each process counts from one, so two conversations at the same time can claim each other's
-answers. It is also why a change made on the deck shows up in the tray's panel immediately, and
-why running `inzone` while the tray is open is safe. The channel is documented in
-[docs/IPC.md](docs/IPC.md).
+Everything therefore agrees with everything else: a change made on the deck shows up in the tray's
+panel as it happens, and running `inzone` while the tray is open is safe. Why one process has to
+own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md).
 
 ### Actions
 
@@ -333,66 +333,22 @@ than the last value it saw, so a stale number is never left sitting there lookin
 
 ### Installing it
 
-Releases carry a `.streamDeckPlugin` file: double-click it and Stream Deck installs it.
+Two ways, both of which end with Stream Deck showing the actions in its list:
 
-To build it yourself:
+- **From the tray.** 設定 → プラグイン → ダウンロード saves the plugin where you choose, then
+  offers to open the folder. Double-click the file it saved.
+- **From a release.** Every release carries
+  [`com.penguinwokrs.openinzone.streamDeckPlugin`](https://github.com/penguinwokrs/openinzone/releases/latest).
+  Download it and double-click it.
 
-```console
-$ ./plugin/build.sh 0.1.0
-```
+Stream Deck asks once whether to install it, and the five actions appear under **OpenInzone**.
+Drag one onto a key, or onto a dial on a Stream Deck +.
 
-That stages the plugin under `dist/streamdeck/`, then checks the manifest with Elgato's own CLI
-and writes `dist/com.penguinwokrs.openinzone.streamDeckPlugin`. The CLI runs through `npx`, so
-nothing is installed, but it does need Node 20.1 or later on `PATH`; without Node the build stops
-after staging and says so.
+If Stream Deck says the plugin is invalid, the file did not download completely — it is around
+6.6 MB. Download it again rather than unpacking it by hand.
 
-Stream Deck also loads an unpacked plugin straight out of its own plugins directory, so
-`./plugin/build.sh 0.1.0 --install` copies it there instead — quit Stream Deck first, since it
-holds the running plugin open.
-
-### Checking it without a deck
-
-`plugin/FakeStreamDeck` stands in for the Stream Deck application: it launches the real plugin the
-way Stream Deck does, speaks the same WebSocket protocol, and checks what comes back.
-
-```console
-$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
-  [ok] turning the dial one tick moves it one step
-  [ok] pressing the volume dial changes nothing
-  [ok] turning the mute dial leaves the microphone alone
-```
-
-It exists because a dial cannot otherwise be exercised without a Stream Deck +. Elgato's
-documentation says nothing about developing without the hardware, the community emulator handles
-keys only, and OpenDeck — which does implement encoders — reaches its devices over HID and has no
-virtual one. What it cannot check is how any of it looks; what it does check is every decision the
-plugin makes, and two of those were wrong once.
-
-It steps the volume up and back down, and puts it back even if a check fails part way through.
-
-The settings panel has its own mode, because that page is ordinary HTML talking over the same
-socket — so standing in for the application is all it takes to exercise it in a real browser:
-
-```console
-$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
-```
-
-It prints a `connectElgatoStreamDeckSocket(...)` call to paste into the page's console, then
-reports what the page sends back.
-
-What none of this can check is how any of it looks. A key face and a dial's touch strip are drawn
-by Stream Deck, and only a deck will show whether they read well.
-
-To check the plugin can reach the daemon without a deck attached:
-
-```console
-PS> openinzone-streamdeck.exe --probe
-pipe: OpenInzone.Daemon.owner.v1
-snapshots : 2
-connected : True
-model     : INZONE Buds
-volume    : 16/30
-```
+Building the plugin, and driving it without a deck, are in the
+[developer guide](#building-the-stream-deck-plugin).
 
 ## Troubleshooting
 
@@ -445,7 +401,7 @@ If you ran the installer, it is already there, in `%LOCALAPPDATA%\Programs\OpenI
 tray. Skip to [Put it on PATH](#put-it-on-path).
 
 If you would rather not run an installer at all, `OpenInzone-<version>-win-x64.zip` on the
-[latest release](https://github.com/penguinwokrs/openinzone/releases/latest) carries the same two
+[latest release](https://github.com/penguinwokrs/openinzone/releases/latest) carries the same
 programs — `inzone.exe`, `inzonetray.exe` and the `inzoned.exe` they share, with `LICENSE` and
 the .NET runtime they need — and installs nothing. Unpack it somewhere permanent:
 
@@ -808,6 +764,65 @@ than assumed.
 
 It takes no hotkeys, so running it cannot take a key away from a tray that is already running. It
 needs a desktop, so it does not run under WSL.
+
+### Building the Stream Deck plugin
+
+```console
+$ ./plugin/build.sh 0.1.0
+```
+
+That stages the plugin under `dist/streamdeck/`, then checks the manifest with Elgato's own CLI
+and writes `dist/com.penguinwokrs.openinzone.streamDeckPlugin`. The CLI runs through `npx`, so
+nothing is installed, but it does need Node 20.1 or later on `PATH`; without Node the build stops
+after staging and says so.
+
+Stream Deck also loads an unpacked plugin straight out of its own plugins directory, so
+`./plugin/build.sh 0.1.0 --install` copies it there instead — quit Stream Deck first, since it
+holds the running plugin open.
+
+### Checking the plugin without a deck
+
+`plugin/FakeStreamDeck` stands in for the Stream Deck application: it launches the real plugin the
+way Stream Deck does, speaks the same WebSocket protocol, and checks what comes back.
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
+  [ok] turning the dial one tick moves it one step
+  [ok] pressing the volume dial changes nothing
+  [ok] turning the mute dial leaves the microphone alone
+```
+
+It exists because a dial cannot otherwise be exercised without a Stream Deck +. Elgato's
+documentation says nothing about developing without the hardware, the community emulator handles
+keys only, and OpenDeck — which does implement encoders — reaches its devices over HID and has no
+virtual one. What it cannot check is how any of it looks; what it does check is every decision the
+plugin makes, and two of those were wrong once.
+
+It steps the volume up and back down, and puts it back even if a check fails part way through.
+
+The settings panel has its own mode, because that page is ordinary HTML talking over the same
+socket — so standing in for the application is all it takes to exercise it in a real browser:
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
+```
+
+It prints a `connectElgatoStreamDeckSocket(...)` call to paste into the page's console, then
+reports what the page sends back.
+
+What none of this can check is how any of it looks. A key face and a dial's touch strip are drawn
+by Stream Deck, and only a deck will show whether they read well.
+
+To check the plugin can reach the daemon without a deck attached:
+
+```console
+PS> openinzone-streamdeck.exe --probe
+pipe: OpenInzone.Daemon.owner.v1
+snapshots : 2
+connected : True
+model     : INZONE Buds
+volume    : 16/30
+```
 
 ### Layout
 

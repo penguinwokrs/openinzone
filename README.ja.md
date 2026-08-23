@@ -36,6 +36,9 @@ INZONE Hub でもヘッドホン音量とゲーム/チャットバランスは�
 
 ## 目次
 
+開発者向けの前までが使う人のための説明です。ビルド方法と、それを確かめるためのツールはそちらに
+まとめてあります。
+
 - [できること](#できること)
 - [動作環境](#動作環境)
 - [インストール](#インストール)
@@ -46,7 +49,7 @@ INZONE Hub でもヘッドホン音量とゲーム/チャットバランスは�
 - [困ったときは](#困ったときは)
 - [コマンドライン](#コマンドライン)
 - [スクリプトから使う](#スクリプトから使う)
-- [開発者向け](#開発者向け)
+- [開発者向け](#開発者向け) — ビルドと、それを確かめるツール
 - [関連プロジェクト](#関連プロジェクト)
 - [ライセンス](#ライセンス)
 - [商標と適用範囲](#商標と適用範囲)
@@ -296,7 +299,7 @@ Elgato Stream Deck 用のプラグインがあります。ホットキーにで�
 
 **OpenInzone がインストールされていれば足り、何かを起動しておく必要はありません。** プラグイン自身はデバイスを開かず、接続を所有している `inzoned.exe` に依頼します。これは最初に必要としたクライアントが自動的に起動し、最後のクライアントが去って 30 秒で自分から終了します。ウィンドウを開かなくてもデッキのキーが効くのはこのためです。
 
-所有者が 1 つなのは、たまたま先に起動したからではありません。HID インターフェースは 2 プロセスから同時に開けますが、その上の会話は別です。返事は各プロセスが 1 から数える通番で照合しているため、同時に会話すると互いの返事を取り違えます。デッキで変えた値がトレイのパネルにも即座に出るのも、トレイを開いたまま `inzone` を叩いても安全なのも、同じ理由です。通信仕様は [docs/IPC.md](docs/IPC.md) にあります。
+そのため、どこで変えても表示は食い違いません。デッキで変えた値はトレイのパネルにも即座に出ますし、トレイを開いたまま `inzone` を叩いても安全です。なぜ 1 つのプロセスがヘッドセットを所有する必要があるのか、他のプロセスが何を話しているのかは [docs/IPC.md](docs/IPC.md) にあります。
 
 ### アクション
 
@@ -314,53 +317,21 @@ daemon に届かないときはキーが警告を出し、表示は直前の値�
 
 ### インストール
 
-リリースには `.streamDeckPlugin` が付いています。ダブルクリックすれば Stream Deck が取り込みます。
+方法は 2 つあります。どちらでも Stream Deck の一覧にアクションが並びます。
 
-自分でビルドする場合:
+- **トレイから。** 設定 → プラグイン → ダウンロード で保存先を選ぶと、そのフォルダーを開くところ
+  まで案内します。保存されたファイルをダブルクリックしてください。
+- **リリースから。** すべてのリリースに
+  [`com.penguinwokrs.openinzone.streamDeckPlugin`](https://github.com/penguinwokrs/openinzone/releases/latest)
+  が付いています。ダウンロードしてダブルクリックしてください。
 
-```console
-$ ./plugin/build.sh 0.1.0
-```
+Stream Deck が取り込むかどうかを一度尋ね、**OpenInzone** の下に 5 つのアクションが現れます。
+キーに、Stream Deck + ならダイヤルにドラッグしてください。
 
-`dist/streamdeck/` に組み上げたあと、Elgato 公式 CLI で manifest を検証し、`dist/com.penguinwokrs.openinzone.streamDeckPlugin` を書き出します。CLI は `npx` 経由なので何もインストールしませんが、Node 20.1 以上が `PATH` にある必要があります。Node がない場合は組み上げまでで止まり、その旨を表示します。
+「プラグインをインストールできませんでした」と出る場合は、ダウンロードが途中で切れています
+（約 6.6 MB）。手で展開せず、もう一度ダウンロードしてください。
 
-Stream Deck は展開したままのプラグインを自分のプラグインフォルダーからも読むので、`./plugin/build.sh 0.1.0 --install` で直接そこへ入れることもできます。実行中のプラグインはファイルを掴んでいるので、先に Stream Deck を終了してください。
-
-### デッキなしで確認する
-
-`plugin/FakeStreamDeck` は Stream Deck 本体の代わりをします。実際のプラグインを Stream Deck と同じやり方で起動し、同じ WebSocket プロトコルで話し、返ってきたものを検査します。
-
-```console
-$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
-  [ok] turning the dial one tick moves it one step
-  [ok] pressing the volume dial changes nothing
-  [ok] turning the mute dial leaves the microphone alone
-```
-
-ダイヤルは Stream Deck + の実機なしには他に試しようがないため用意しました。Elgato のドキュメントは実機なしの開発に触れておらず、コミュニティのエミュレータはキーのみ、OpenDeck はエンコーダを実装しているものの HID 越しに実機を掴む作りで仮想デバイスがありません。見た目は確認できませんが、プラグインが下す判断はすべて確認できます。そのうち 2 つは実際に間違っていました。
-
-音量を 1 段上げて戻します。途中で失敗しても元の値に戻します。
-
-設定パネル用のモードもあります。あのページは同じソケットで話す素の HTML なので、本体の代わりをするだけで本物のブラウザ上で動かせます。
-
-```console
-$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
-```
-
-ページのコンソールに貼る `connectElgatoStreamDeckSocket(...)` を表示し、ページから返ってきたものを報告します。
-
-これらで確認できないのは**見た目**です。キーの絵もダイヤルのタッチストリップも描くのは Stream Deck 側で、読みやすいかどうかは実機でしか分かりません。
-
-デッキが手元になくても、daemon に届いているかは確認できます:
-
-```console
-PS> openinzone-streamdeck.exe --probe
-pipe: OpenInzone.Daemon.owner.v1
-snapshots : 2
-connected : True
-model     : INZONE Buds
-volume    : 16/30
-```
+ビルド方法とデッキなしでの動作確認は[開発者向け](#stream-deck-プラグインをビルドする)にあります。
 
 ## 困ったときは
 
@@ -770,6 +741,53 @@ language: 日本語 (1)
 
 ホットキーは 1 つも取らないので、既に動いているトレイからキーを奪うことはありません。デスクトップ
 が必要なので WSL では動きません。
+
+### Stream Deck プラグインをビルドする
+
+```console
+$ ./plugin/build.sh 0.1.0
+```
+
+`dist/streamdeck/` に組み上げたあと、Elgato 公式 CLI で manifest を検証し、`dist/com.penguinwokrs.openinzone.streamDeckPlugin` を書き出します。CLI は `npx` 経由なので何もインストールしませんが、Node 20.1 以上が `PATH` にある必要があります。Node がない場合は組み上げまでで止まり、その旨を表示します。
+
+Stream Deck は展開したままのプラグインを自分のプラグインフォルダーからも読むので、`./plugin/build.sh 0.1.0 --install` で直接そこへ入れることもできます。実行中のプラグインはファイルを掴んでいるので、先に Stream Deck を終了してください。
+
+### デッキなしでプラグインを確認する
+
+`plugin/FakeStreamDeck` は Stream Deck 本体の代わりをします。実際のプラグインを Stream Deck と同じやり方で起動し、同じ WebSocket プロトコルで話し、返ってきたものを検査します。
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.exe
+  [ok] turning the dial one tick moves it one step
+  [ok] pressing the volume dial changes nothing
+  [ok] turning the mute dial leaves the microphone alone
+```
+
+ダイヤルは Stream Deck + の実機なしには他に試しようがないため用意しました。Elgato のドキュメントは実機なしの開発に触れておらず、コミュニティのエミュレータはキーのみ、OpenDeck はエンコーダを実装しているものの HID 越しに実機を掴む作りで仮想デバイスがありません。見た目は確認できませんが、プラグインが下す判断はすべて確認できます。そのうち 2 つは実際に間違っていました。
+
+音量を 1 段上げて戻します。途中で失敗しても元の値に戻します。
+
+設定パネル用のモードもあります。あのページは同じソケットで話す素の HTML なので、本体の代わりをするだけで本物のブラウザ上で動かせます。
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
+```
+
+ページのコンソールに貼る `connectElgatoStreamDeckSocket(...)` を表示し、ページから返ってきたものを報告します。
+
+これらで確認できないのは**見た目**です。キーの絵もダイヤルのタッチストリップも描くのは Stream Deck 側で、読みやすいかどうかは実機でしか分かりません。
+
+デッキが手元になくても、daemon に届いているかは確認できます:
+
+```console
+PS> openinzone-streamdeck.exe --probe
+pipe: OpenInzone.Daemon.owner.v1
+snapshots : 2
+connected : True
+model     : INZONE Buds
+volume    : 16/30
+```
+
 
 ### 構成
 
