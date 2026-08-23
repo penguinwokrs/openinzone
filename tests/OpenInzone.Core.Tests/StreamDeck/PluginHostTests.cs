@@ -85,7 +85,7 @@ public class FeedbackTests
     [Fact]
     public void The_battery_dial_shows_both_earbuds()
     {
-        Assert.Equal("L 97  R 94", PluginHost.Feedback(ActionIds.Battery, Live).Value);
+        Assert.Equal("L 97%  R 94%", PluginHost.Feedback(ActionIds.Battery, Live).Value);
     }
 
     [Fact]

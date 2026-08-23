@@ -89,11 +89,22 @@ internal static class KeyFace
         return Frame($"""
             <text x="72" y="32" fill="{Dim}" font-size="16" text-anchor="middle">BATTERY</text>
             <text x="20" y="70" fill="{Dim}" font-size="18">L</text>
-            <text x="124" y="70" fill="{Foreground}" font-size="30" text-anchor="end">{Escape(Percent(state.Battery.Left) ?? "--")}</text>
+            {Charge(70, state.Battery.Left)}
             <text x="20" y="108" fill="{Dim}" font-size="18">R</text>
-            <text x="124" y="108" fill="{Foreground}" font-size="30" text-anchor="end">{Escape(Percent(state.Battery.Right) ?? "--")}</text>
+            {Charge(108, state.Battery.Right)}
             """);
     }
+
+    /// <summary>
+    /// One earbud's charge, right-aligned, with the unit set smaller and quieter than the number -
+    /// the same treatment the microphone level gets, and the reason the number stays legible at
+    /// the size a key actually is. A part that is not reporting shows dashes and no unit: "-- %"
+    /// would read as a measurement.
+    /// </summary>
+    private static string Charge(int y, int? percent) => percent is int value
+        ? $"""<text x="124" y="{y}" fill="{Foreground}" font-size="30" text-anchor="end">{value}""" +
+          $"""<tspan font-size="18" fill="{Dim}"> %</tspan></text>"""
+        : $"""<text x="124" y="{y}" fill="{Dim}" font-size="30" text-anchor="end">--</text>""";
 
     private static string? Percent(int? value) => value?.ToString();
 

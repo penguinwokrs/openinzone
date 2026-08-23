@@ -185,8 +185,10 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     }
 
     private static string BatteryLine(DeviceSnapshot state) => state.Battery.HasSeparateBuds
-        ? $"L {state.Battery.Left?.ToString() ?? "--"}  R {state.Battery.Right?.ToString() ?? "--"}"
-        : state.Battery.Left is int only ? $"{only}%" : "--";
+        ? $"L {Charge(state.Battery.Left)}  R {Charge(state.Battery.Right)}"
+        : Charge(state.Battery.Left);
+
+    private static string Charge(int? percent) => percent is int value ? $"{value}%" : "--";
 
     private static int Percentage(int value, int max) =>
         max <= 0 ? 0 : Math.Clamp(value * 100 / max, 0, 100);
