@@ -6,12 +6,13 @@ using System.Text;
 namespace OpenInzone.Ipc;
 
 /// <summary>
-/// The contract between the tray and anything that drives it - today the Stream Deck plugin.
+/// The contract between the daemon that owns the headset and everything that drives it: the
+/// tray's panel, the CLI, the Stream Deck plugin.
 /// </summary>
 /// <remarks>
 /// Messages are UTF-8 JSON, one object per line, over a named pipe. Commands are not acknowledged:
-/// the tray answers every change by pushing a whole snapshot, so a client never has to correlate a
-/// reply with a request, and a client that misses a push still converges on the next one.
+/// the daemon answers every change by pushing a whole snapshot, so a client never has to correlate
+/// a reply with a request, and a client that misses a push still converges on the next one.
 /// </remarks>
 public static class IpcProtocol
 {
@@ -27,7 +28,7 @@ public static class IpcProtocol
     /// </summary>
     public static string PipeName(string? userName = null)
     {
-        var name = new StringBuilder("OpenInzone.Tray.");
+        var name = new StringBuilder("OpenInzone.Daemon.");
         foreach (char c in userName ?? Environment.UserName)
             name.Append(char.IsLetterOrDigit(c) ? c : '_');
         return name.Append(".v").Append(Version).ToString();

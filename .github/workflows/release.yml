@@ -37,6 +37,11 @@ jobs:
         run: |
           dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true \
             -p:Version="$VERSION" -o dist/tray
+          # Into the tray's own output: both are self-contained win-x64 builds from the same SDK,
+          # so the runtime already there is the one the daemon needs. Publishing it separately
+          # would put a second complete copy of .NET in the installer and the zip.
+          dotnet publish src/OpenInzone.Daemon -c Release -r win-x64 --self-contained true \
+            -p:Version="$VERSION" -o dist/tray
           dotnet publish src/OpenInzone.Cli -c Release -r win-x64 --self-contained true \
             -p:PublishSingleFile=true -p:Version="$VERSION" -o dist/cli
 

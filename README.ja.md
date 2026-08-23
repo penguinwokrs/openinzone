@@ -255,7 +255,9 @@ Windows の起動時に常駐する設定は、`HKCU` の `Run` エントリで�
 
 Elgato Stream Deck 用のプラグインがあります。ホットキーにできないこと、つまり**操作している値をキーに表示する**のがこれの持ち味です。左右それぞれのバッテリー、バランスの数値、マイクがミュートかどうか。どこで変わっても即座に反映されるので、トレイのパネルで動かしても、イヤホン側で操作しても、キーの表示が追随します。Stream Deck + ならダイヤルに割り当てられ、連続値にはこちらのほうが向いています。
 
-**トレイアプリが起動している必要があります。** プラグイン自身はデバイスを開かず、接続を所有しているトレイに依頼します。HID インターフェースは 2 プロセスから同時に開けますが、その上の会話は別です。返事は各プロセスが 1 から数える通番で照合しているため、同時に会話すると互いの返事を取り違えます。所有者を 1 つに保つとこれが原理的に起きず、デッキで変えた値がトレイのパネルにも即座に出るのも同じ理由です。両者の間の通信は [docs/IPC.md](docs/IPC.md) に書いてあります。
+**OpenInzone がインストールされていれば足り、何かを起動しておく必要はありません。** プラグイン自身はデバイスを開かず、接続を所有している `inzoned.exe` に依頼します。これは最初に必要としたクライアントが自動的に起動し、最後のクライアントが去って 30 秒で自分から終了します。ウィンドウを開かなくてもデッキのキーが効くのはこのためです。
+
+所有者が 1 つなのは、たまたま先に起動したからではありません。HID インターフェースは 2 プロセスから同時に開けますが、その上の会話は別です。返事は各プロセスが 1 から数える通番で照合しているため、同時に会話すると互いの返事を取り違えます。デッキで変えた値がトレイのパネルにも即座に出るのも、トレイを開いたまま `inzone` を叩いても安全なのも、同じ理由です。通信仕様は [docs/IPC.md](docs/IPC.md) にあります。
 
 ### アクション
 
@@ -269,13 +271,11 @@ Elgato Stream Deck 用のプラグインがあります。ホットキーにで�
 
 増減するアクションには **Step** 設定があります。負の値にすると下げるキーになるので、2 つ並べれば上げ下げが揃います。ダイヤルは符号を無視し、回した向きを使います。空欄のままなら、音量はヘッドセット側 30 段階の 1 段、バランスは INZONE Hub と同じ −5.0〜+5.0 スケールの 1 目盛り、マイクレベルは 5 % ずつ動きます。
 
-トレイが起動していないときはキーが警告を出し、表示は直前の値ではなく `--` になります。古い数字がそのまま残って現在値のように見えることはありません。
+daemon に届かないときはキーが警告を出し、表示は直前の値ではなく `--` になります。古い数字がそのまま残って現在値のように見えることはありません。
 
 ### インストール
 
-リリースには `.streamDeckPlugin` が付いています。ダブルクリックすれば Stream Deck が取り込みます。
-
-自分でビルドする場合:
+いまのところ入手方法はビルドのみです。`.streamDeckPlugin` としてリリースに添付する仕組みはまだ用意していません。
 
 ```console
 $ ./plugin/build.sh 0.1.0
@@ -287,7 +287,7 @@ $ ./plugin/build.sh 0.1.0
 
 ```console
 PS> openinzone-streamdeck.exe --probe
-pipe: OpenInzone.Tray.owner.v1
+pipe: OpenInzone.Daemon.owner.v1
 snapshots : 2
 connected : True
 model     : INZONE Buds
@@ -608,7 +608,8 @@ git clone https://github.com/penguinwokrs/openinzone.git
 cd openinzone
 
 dotnet publish src\OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src\OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish\tray
+dotnet publish src\OpenInzone.Tray   -c Release -r win-x64 --self-contained true -o publish\tray
+dotnet publish src\OpenInzone.Daemon -c Release -r win-x64 --self-contained true -o publish\tray
 ```
 
 `publish\` に `inzone.exe`、`publish\tray\` に `inzonetray.exe` ができます。実行する PC には何も
@@ -683,7 +684,8 @@ src/OpenInzone.Core       プロトコルとトランスポート
   Audio/                  ヘッドセットの Windows キャプチャ端点
   Model/                  各設定の型付きの値
 src/OpenInzone.Control    デバイスの状態、ホットキーのカタログと設定。UI は持たない
-src/OpenInzone.Ipc        他のプログラムがトレイを操作するためのローカルチャネル
+src/OpenInzone.Ipc        各クライアントがヘッドセットを操作するためのローカルチャネル
+src/OpenInzone.Daemon     inzoned.exe。ヘッドセットを開く唯一のプロセス
 src/OpenInzone.Cli        inzone.exe
 src/OpenInzone.Tray       inzonetray.exe。アイコン、パネル、設定ウィンドウ
 src/OpenInzone.StreamDeck openinzone-streamdeck.exe。Stream Deck プラグイン
@@ -698,11 +700,11 @@ plugin/                   .sdPlugin 一式と、それをビルドするスク�
 installer/                Inno Setup のスクリプトと、それをコンパイルするスクリプト
 assets/                   アプリケーションアイコンと、それを生成するスクリプト
 docs/PROTOCOL.md          解析したワイヤフォーマット
-docs/IPC.md               トレイとプラグインの間のチャネル
+docs/IPC.md               daemon とクライアントの間のチャネル
 config/                   ホットキー設定の例
 ```
 
-Visual Studio や Rider 用に、7 つのプロジェクトを `OpenInzone.sln` がまとめています。
+Visual Studio や Rider 用に、8 つのプロジェクトを `OpenInzone.sln` がまとめています。
 
 ### ライブラリとして使う
 

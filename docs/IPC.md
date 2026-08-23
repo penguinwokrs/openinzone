@@ -1,40 +1,58 @@
 # The local channel
 
-The tray serves a small channel that other programs on the same machine can use to read the
-headset's state and ask for changes. The Stream Deck plugin is the only client today; the
-format is written down here because anything else that wants to drive the headset should use
-it rather than opening the device a second time.
+One process opens the headset: `inzoned.exe`. Everything else — the tray's panel, the CLI, the
+Stream Deck plugin — asks it over a named pipe. The format is written down here because anything
+else that wants to drive the headset should use it rather than opening the device a second time.
 
-## Why a channel rather than opening the device
+## Why one owner
 
 The control interface is opened with sharing enabled, so two processes can hold it at once and
-both receive every notification. That much works. What does not is the conversation on top of
-it: `HciSession` matches a reply to its request on `(event id, transaction id)`, and each
-process numbers its own transactions from one. Two processes talking at the same time can
-therefore claim each other's answers — the same event id and the same small transaction number
-are likely to collide, and each process serialises only its own requests.
+both receive every notification. That much works. What does not is the conversation on top of it:
+`HciSession` matches a reply to its request on `(event id, transaction id)`, and each process
+numbers its own transactions from one. Two processes talking at the same time can therefore claim
+each other's answers — the same event id and the same small transaction number are likely to
+collide, and each process serialises only its own requests.
 
-So the tray stays the only owner of the device, and everything else asks it.
+Sharing the handle is not the same as sharing the conversation. So there is one owner, and it is
+not the tray: a deck key should work without a window being open, and the CLI should be safe to
+run while the tray is up.
+
+## Lifetime
+
+The daemon is started by whichever client first needs it and stops thirty seconds after the last
+one disconnects. Nothing is running when nothing is being controlled, and no client has to be told
+to start it.
+
+It is started with `CREATE_BREAKAWAY_FROM_JOB`. Without that it joins its launcher's job object,
+and a launcher whose job kills on close takes the daemon with it — measured with a PowerShell
+pipeline and with WSL's interop, both of which did exactly that. A job may refuse, in which case
+the daemon is started tied to its launcher rather than not at all.
+
+It holds no hotkeys. Those are registered first come, first served; a second holder is what
+retired this project's earlier console daemon, and they stay with the tray.
+
+Clients find it by widening the search: beside the caller (the tray and the CLI sit next to it),
+then `InstallLocation` from setup's own uninstall key, then the path in the autostart entry, then
+where a per-user install lands by default. The last hops are what let the Stream Deck plugin,
+which lives inside Stream Deck's plugins folder, find it at all.
 
 ## Shape
 
-A named pipe carrying UTF-8 JSON, one object per line.
-
 | | |
 |---|---|
-| Pipe | `OpenInzone.Tray.<user>.v<version>`, e.g. `OpenInzone.Tray.owner.v1` |
-| Framing | one JSON object per line, `\n` |
+| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v1` |
+| Framing | one JSON object per line, `\n`, UTF-8 |
 | Access | `PipeOptions.CurrentUserOnly` — the same user, on the same machine |
 | Line limit | 64 KiB; a longer line drops the connection |
 
-The user is part of the pipe name because pipe names are machine-wide on Windows: without it
-the first user to log in would own the name and every other session would fail to serve. The
-protocol version is part of it too, so a client built against an incompatible version fails to
-connect rather than misreading the traffic.
+The user is part of the pipe name because pipe names are machine-wide on Windows: without it the
+first user to log in would own the name and every other session would fail to serve. The protocol
+version is part of it too, so a client built against an incompatible version fails to connect
+rather than misreading the traffic.
 
 ## Conversation
 
-The tray speaks first, and keeps speaking. Commands are not acknowledged: every change is
+The daemon speaks first, and keeps speaking. Commands are not acknowledged: every change is
 answered by a whole snapshot pushed to every client, so a client never correlates a reply with a
 request, and one that misses a push converges on the next.
 
@@ -44,7 +62,7 @@ On connect:
 {"type":"hello","version":1,"state":{ ... }}
 ```
 
-After every change, from any source — the deck, the tray's own panel, the earbuds themselves:
+After every change, from any source — a deck key, the tray's panel, the earbuds themselves:
 
 ```json
 {"type":"state","version":1,"state":{ ... }}
@@ -61,6 +79,9 @@ From the client:
 ```json
 {"command":"adjust-volume","value":-2}
 ```
+
+Messages keep their order in both directions: a dial turned and then pressed must not arrive the
+other way round.
 
 ## Commands
 
@@ -99,16 +120,16 @@ has not been docked recently, or a model that has no such part. It is never `0` 
 means a flat battery. `hasSeparateBuds` says whether `right` and `case` mean anything at all;
 headset models report a single level in `left`.
 
-`micLevelAvailable` is false on models whose microphone level is not adjustable, and while
-nothing is connected.
+`micLevelAvailable` is false on models whose microphone level is not adjustable, and while nothing
+is connected.
 
-`connected` false means the tray is running but the earbuds are not answering: in the case, out
+`connected` false means the daemon is running but the earbuds are not answering: in the case, out
 of range, or off. Every reading alongside it is at its resting value and should be drawn as no
 reading rather than as a number.
 
 ## Versioning
 
-`IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot
-read. Because the version is in the pipe name, an older client then simply finds nothing to
-connect to. Adding a field to the snapshot does not require a new version: clients ignore what
-they do not know.
+`IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
+Because the version is in the pipe name, an older client then simply finds nothing to connect to.
+Adding a field to the snapshot does not require a new version: clients ignore what they do not
+know.

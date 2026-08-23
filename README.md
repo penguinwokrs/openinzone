@@ -20,12 +20,15 @@ window. This talks to the dongle directly over the same HID channel, so the same
 reached from a panel in the notification area, bound to a key, scripted, or read from a status
 bar.
 
-There are two programs, and one download carries both:
+There are two programs to run, and one download carries both:
 
 | | |
 |---|---|
 | `inzonetray.exe` | the tray application — an icon in the notification area, a panel and global hotkeys. **This is the one most people want.** |
 | `inzone.exe` | the command line tool — the same settings from a terminal, with JSON for scripting |
+
+A third, `inzoned.exe`, is never started by hand: it owns the connection to the headset, and
+whichever of the others needs it starts it and lets it stop again thirty seconds later.
 
 One left click on the tray icon opens this:
 
@@ -256,12 +259,17 @@ of it on the key, updated the moment anything changes, including when the change
 tray's own panel or from the earbuds themselves. On a Stream Deck +, the same actions sit on the
 dials, which is the right control for a value that slides.
 
-**The tray has to be running.** The plugin opens nothing itself; it asks the tray, which owns the
-connection to the headset. Two processes can hold the HID interface at once, but not the
-conversation on top of it — replies are matched on a transaction number each process counts from
-one, so two conversations at the same time can claim each other's answers. Keeping one owner
-removes that, and it is also why a change made on the deck shows up in the tray's panel
-immediately. The channel between them is documented in [docs/IPC.md](docs/IPC.md).
+**OpenInzone has to be installed, but nothing has to be running.** The plugin opens nothing
+itself. It asks `inzoned.exe`, which owns the connection to the headset and is started on demand
+by whichever client first needs it — so a deck key works with no window open, and the daemon stops
+thirty seconds after the last client goes.
+
+One owner is not an accident of who happened to start first. Two processes can hold the HID
+interface at once, but not the conversation on top of it: replies are matched on a transaction
+number each process counts from one, so two conversations at the same time can claim each other's
+answers. It is also why a change made on the deck shows up in the tray's panel immediately, and
+why running `inzone` while the tray is open is safe. The channel is documented in
+[docs/IPC.md](docs/IPC.md).
 
 ### Actions
 
@@ -278,14 +286,13 @@ down, so a pair of keys gives you up and down. A dial ignores the sign and takes
 from the way it is turned. Left blank, volume moves by 1 of the headset's 30 notches, the balance
 by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level by 5 %.
 
-A key flashes a warning when the tray is not running, and every reading shows `--` rather than the
-last value it saw, so a stale number is never left sitting there looking current.
+A key flashes a warning when the daemon cannot be reached, and every reading shows `--` rather
+than the last value it saw, so a stale number is never left sitting there looking current.
 
 ### Installing it
 
-Releases carry a `.streamDeckPlugin` file: double-click it and Stream Deck installs it.
-
-To build it yourself:
+Building it is the only way to get it at the moment — packaging it into a `.streamDeckPlugin`
+for the release downloads is not wired up yet.
 
 ```console
 $ ./plugin/build.sh 0.1.0
@@ -299,7 +306,7 @@ To check the plugin can reach the tray without a deck attached:
 
 ```console
 PS> openinzone-streamdeck.exe --probe
-pipe: OpenInzone.Tray.owner.v1
+pipe: OpenInzone.Daemon.owner.v1
 snapshots : 2
 connected : True
 model     : INZONE Buds
@@ -358,8 +365,8 @@ tray. Skip to [Put it on PATH](#put-it-on-path).
 
 If you would rather not run an installer at all, `OpenInzone-<version>-win-x64.zip` on the
 [latest release](https://github.com/penguinwokrs/openinzone/releases/latest) carries the same two
-programs — `inzone.exe` and `inzonetray.exe`, with `LICENSE` and the .NET runtime they need — and
-installs nothing. Unpack it somewhere permanent:
+programs — `inzone.exe`, `inzonetray.exe` and the `inzoned.exe` they share, with `LICENSE` and
+the .NET runtime they need — and installs nothing. Unpack it somewhere permanent:
 
 ```powershell
 $dir = "$env:LOCALAPPDATA\OpenInzone"
@@ -617,12 +624,15 @@ winget install Microsoft.DotNet.SDK.8
 git clone https://github.com/penguinwokrs/openinzone.git
 cd openinzone
 
-dotnet publish src\OpenInzone.Cli  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
-dotnet publish src\OpenInzone.Tray -c Release -r win-x64 --self-contained true -o publish\tray
+dotnet publish src\OpenInzone.Cli    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish src\OpenInzone.Tray   -c Release -r win-x64 --self-contained true -o publish\tray
+dotnet publish src\OpenInzone.Daemon -c Release -r win-x64 --self-contained true -o publish\tray
 ```
 
-That leaves `inzone.exe` in `publish\` and `inzonetray.exe` in `publish\tray\`, needing nothing
-installed on the machine that runs them — the same programs the release downloads contain. The
+The daemon goes into the tray's output on purpose: it is what the tray connects to, and the
+runtime already published there is the one it needs. That leaves `inzone.exe` in `publish\` and
+`inzonetray.exe` beside `inzoned.exe` in `publish\tray\`, needing nothing installed on the
+machine that runs them — the same programs the release downloads contain. The
 tray publishes as a folder rather than a single file, which is the shape both the installer and
 the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 8 runtime is
 already present.
@@ -696,7 +706,8 @@ src/OpenInzone.Core       protocol and transport
   Audio/                  the headset's Windows capture endpoint
   Model/                  typed values for each setting
 src/OpenInzone.Control    device state, the hotkey catalogue and the configuration, with no UI
-src/OpenInzone.Ipc        the local channel other programs drive the tray through
+src/OpenInzone.Ipc        the local channel every client drives the headset through
+src/OpenInzone.Daemon     inzoned.exe - the one process that opens the headset
 src/OpenInzone.Cli        inzone.exe
 src/OpenInzone.Tray       inzonetray.exe - the icon, the panel and the settings window
 src/OpenInzone.StreamDeck openinzone-streamdeck.exe - the Stream Deck plugin
@@ -711,11 +722,11 @@ installer/                the Inno Setup script and the script that compiles it
 plugin/                   the .sdPlugin directory and the script that builds it
 assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
-docs/IPC.md               the channel between the tray and the plugin
+docs/IPC.md               the channel between the daemon and its clients
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the seven projects together for Visual Studio and Rider.
+`OpenInzone.sln` ties the eight projects together for Visual Studio and Rider.
 
 ### Using it as a library
 
