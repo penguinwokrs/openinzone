@@ -118,20 +118,7 @@
         <TextBlock Foreground="{StaticResource Quiet}" FontSize="12" Margin="0,6,0,0"
                    Text="ヘッドセットの音量・バランス・マイク・バッテリーを Stream Deck のキーから操作できます。取り込んだあとは、このアプリを開いていなくても動きます。" />
 
-        <TextBlock Text="保存先" Margin="0,18,0,0" FontSize="12" Foreground="{StaticResource Quiet}" />
-        <Grid Margin="0,4,0,0">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}"
-                  BorderThickness="1" CornerRadius="3" Height="30" Padding="8,0">
-            <TextBlock x:Name="PluginFolderText" VerticalAlignment="Center" FontSize="12"
-                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-          </Border>
-          <Button Grid.Column="1" Content="参照…" Click="OnBrowseFolderClick" Margin="8,0,0,0" />
-        </Grid>
-
-        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
           <Button x:Name="PluginDownloadButton" Content="ダウンロード" Click="OnPluginDownloadClick"
                   Width="150" />
           <Button x:Name="PluginOpenButton" Content="Stream Deck に取り込む" Click="OnPluginOpenClick"

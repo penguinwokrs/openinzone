@@ -118,7 +118,6 @@ public partial class SettingsWindow : Window
         CheckUpdatesBox.Unchecked += OnCheckUpdatesChanged;
 
         VersionText.Text = $"現在のバージョン: {UpdateChecker.CurrentVersion}";
-        PluginFolderText.Text = PluginFolder;
     }
 
     // ---- applying -----------------------------------------------------------------------------
@@ -262,27 +261,13 @@ public partial class SettingsWindow : Window
     // ---- the Stream Deck plugin ---------------------------------------------------------------
 
     /// <summary>
-    /// Where the plugin is saved. Downloads by default - .NET has no special folder for it, so it
-    /// is composed rather than asked for.
+    /// Where the save dialog opens. The folder chosen last time, or Downloads - .NET has no
+    /// special folder for that one, so it is composed rather than asked for.
     /// </summary>
     private string PluginFolder => _config.PluginSaveFolder is { Length: > 0 } chosen
+                                   && Directory.Exists(chosen)
         ? chosen
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-
-    private void OnBrowseFolderClick(object sender, RoutedEventArgs e)
-    {
-        var picker = new Microsoft.Win32.OpenFolderDialog
-        {
-            Title = "保存先を選ぶ",
-            InitialDirectory = Directory.Exists(PluginFolder) ? PluginFolder : "",
-        };
-
-        if (picker.ShowDialog(this) != true) return;
-
-        _config.PluginSaveFolder = picker.FolderName;
-        SaveConfig();
-        PluginFolderText.Text = PluginFolder;
-    }
 
     private async void OnPluginDownloadClick(object sender, RoutedEventArgs e)
     {
@@ -297,7 +282,7 @@ public partial class SettingsWindow : Window
         try
         {
             var asset = await PluginDownloader.FindAsync();
-            if (!asset.Found)
+            if (!asset.Found || asset.FileName is not { Length: > 0 } suggestedName)
             {
                 // A release with no plugin attached is not an error to hide: the page is still
                 // worth offering, and it is the only place an answer could come from.
@@ -306,8 +291,32 @@ public partial class SettingsWindow : Window
                 return;
             }
 
+            // Asked for after the release is read, so the name the dialog offers is the name of
+            // the file that is about to arrive rather than a guess at it.
+            var save = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Stream Deck プラグインの保存先",
+                FileName = suggestedName,
+                DefaultExt = PluginAsset.Extension,
+                AddExtension = true,
+                Filter = $"Stream Deck プラグイン (*{PluginAsset.Extension})|*{PluginAsset.Extension}",
+                InitialDirectory = PluginFolder,
+                OverwritePrompt = true,
+            };
+
+            if (save.ShowDialog(this) != true)
+            {
+                PluginStatusText.Text = "";
+                return;
+            }
+
+            // Remembered so the dialog opens where it was left, not so anything is written there
+            // without being asked again.
+            _config.PluginSaveFolder = Path.GetDirectoryName(save.FileName);
+            SaveConfig();
+
             var progress = new Progress<int>(percent => PluginStatusText.Text = $"ダウンロード中… {percent}%");
-            string path = await PluginDownloader.SaveAsync(asset, PluginFolder, progress);
+            string path = await PluginDownloader.SaveAsync(asset, save.FileName, progress);
 
             _downloadedPlugin = path;
             PluginStatusText.Text = $"保存しました: {path}";

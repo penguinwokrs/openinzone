@@ -40,8 +40,8 @@ internal static class PluginDownloader
         PluginAsset.FromRelease(
             await UpdateChecker.FetchLatestReleaseAsync(cancellation).ConfigureAwait(false));
 
-    /// <summary>Saves the plugin into <paramref name="folder"/> and returns where it landed.</summary>
-    public static async Task<string> SaveAsync(PluginAsset asset, string folder,
+    /// <summary>Saves the plugin to <paramref name="path"/> and returns where it landed.</summary>
+    public static async Task<string> SaveAsync(PluginAsset asset, string path,
         IProgress<int>? progress, CancellationToken cancellation = default)
     {
         if (!asset.Found || asset.DownloadUrl is null || asset.FileName is null)
@@ -52,8 +52,8 @@ internal static class PluginDownloader
         if (!UpdateInfo.IsTrustedDownloadUrl(asset.DownloadUrl))
             throw new InvalidOperationException("The download address is not one this will fetch from.");
 
-        Directory.CreateDirectory(folder);
-        string path = Path.Combine(folder, Path.GetFileName(asset.FileName));
+        string? folder = Path.GetDirectoryName(path);
+        if (folder is { Length: > 0 }) Directory.CreateDirectory(folder);
 
         using var response = await Http
             .GetAsync(asset.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellation)
