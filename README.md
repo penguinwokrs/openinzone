@@ -846,6 +846,19 @@ $ git tag -a v1.2.3 -m "v1.2.3" && git push origin v1.2.3
 Labels: `enhancement`, `bug`, `fix`, `protocol`, `documentation`. Anything else lands under other
 changes, and `ignore-for-release` leaves it out altogether.
 
+The repository is set up to match, and none of it lives in a file, so it is written down here:
+
+| Setting | Value | Why |
+|---|---|---|
+| Merge methods | squash only | One commit per pull request, and a history that reads like the notes |
+| Squash commit title | the pull request's title | Otherwise a single-commit pull request is squashed under the commit's own title, and the history and the notes say different things |
+| Squash commit body | the commit messages | The reasoning is written in the commits, and taking the pull request body instead would drop it |
+| Delete branch on merge | on | |
+| Ruleset on `main` | a pull request is required, no approvals, squash only, no deletion, no force push | The rule is only a habit until something enforces it |
+
+A direct push to `main` is refused, including one made by the person who owns the repository. If
+that is ever in the way, the ruleset is under **Settings → Rules**.
+
 ### Layout
 
 ```
