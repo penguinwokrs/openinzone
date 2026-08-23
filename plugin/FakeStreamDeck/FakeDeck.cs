@@ -15,6 +15,8 @@ internal sealed class FakeDeck : IDisposable
 {
     private const string PluginUuid = "fake-streamdeck-plugin";
     private const string RegisterEvent = "registerPlugin";
+    private const string InspectorUuid = "fake-streamdeck-inspector";
+    private const string InspectorRegisterEvent = "registerPropertyInspector";
 
     private readonly WebSocketChannel _channel = new();
     private readonly ConcurrentQueue<JsonDocument> _inbound = new();
@@ -45,19 +47,37 @@ internal sealed class FakeDeck : IDisposable
         }
 
         _plugin = Process.Start(start) ?? throw new InvalidOperationException("The plugin did not start.");
+        await RegisterAsync(RegisterEvent, PluginUuid, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Waits for a Property Inspector instead of launching anything. The page is loaded by the
+    /// Stream Deck application in its own browser and registers over the same socket the plugin
+    /// uses, so standing in for the application is all that is needed to exercise it.
+    /// </summary>
+    public Task ListenForInspectorAsync(TimeSpan patience) =>
+        RegisterAsync(InspectorRegisterEvent, InspectorUuid, patience);
+
+    /// <summary>The port a page or a plugin is told to connect back to.</summary>
+    public int Port => _channel.Port;
+
+    /// <summary>What a Property Inspector is told to call connectElgatoStreamDeckSocket with.</summary>
+    public (string Uuid, string RegisterEvent) InspectorHandshake => (InspectorUuid, InspectorRegisterEvent);
+
+    private async Task RegisterAsync(string expectedEvent, string expectedUuid, TimeSpan patience)
+    {
         using var accepting = CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token);
-        accepting.CancelAfter(TimeSpan.FromSeconds(10));
+        accepting.CancelAfter(patience);
         await _channel.AcceptAsync(accepting.Token).ConfigureAwait(false);
 
         string? registration = await _channel.ReceiveAsync(accepting.Token).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("The plugin connected but did not register.");
+            ?? throw new InvalidOperationException("Connected but did not register.");
 
         using var message = JsonDocument.Parse(registration);
         string? @event = message.RootElement.GetProperty("event").GetString();
         string? uuid = message.RootElement.GetProperty("uuid").GetString();
 
-        if (@event != RegisterEvent || uuid != PluginUuid)
+        if (@event != expectedEvent || uuid != expectedUuid)
             throw new InvalidOperationException($"Unexpected registration: {registration}");
 
         _reader = Task.Run(ReadLoopAsync);

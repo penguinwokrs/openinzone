@@ -304,6 +304,16 @@ $ dotnet run --project plugin/FakeStreamDeck -- path/to/openinzone-streamdeck.ex
 
 音量を 1 段上げて戻します。途中で失敗しても元の値に戻します。
 
+設定パネル用のモードもあります。あのページは同じソケットで話す素の HTML なので、本体の代わりをするだけで本物のブラウザ上で動かせます。
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
+```
+
+ページのコンソールに貼る `connectElgatoStreamDeckSocket(...)` を表示し、ページから返ってきたものを報告します。
+
+これらで確認できないのは**見た目**です。キーの絵もダイヤルのタッチストリップも描くのは Stream Deck 側で、読みやすいかどうかは実機でしか分かりません。
+
 デッキが手元になくても、daemon に届いているかは確認できます:
 
 ```console

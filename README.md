@@ -331,6 +331,19 @@ plugin makes, and two of those were wrong once.
 
 It steps the volume up and back down, and puts it back even if a check fails part way through.
 
+The settings panel has its own mode, because that page is ordinary HTML talking over the same
+socket — so standing in for the application is all it takes to exercise it in a real browser:
+
+```console
+$ dotnet run --project plugin/FakeStreamDeck -- --property-inspector
+```
+
+It prints a `connectElgatoStreamDeckSocket(...)` call to paste into the page's console, then
+reports what the page sends back.
+
+What none of this can check is how any of it looks. A key face and a dial's touch strip are drawn
+by Stream Deck, and only a deck will show whether they read well.
+
 To check the plugin can reach the daemon without a deck attached:
 
 ```console

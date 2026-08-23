@@ -33,6 +33,9 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--property-inspector")
+            return await InspectAsync(args.Skip(1).FirstOrDefault()).ConfigureAwait(false);
+
         string plugin = args.FirstOrDefault() ?? DefaultPluginPath();
         if (!File.Exists(plugin))
         {
@@ -118,6 +121,36 @@ internal static class Program
 
         Check($"turning the mute dial leaves the microphone alone ({before} -> {now})", before == now);
 
+        // The step a key was configured with, including its sign: two keys with opposite steps
+        // are how a deck gets an up and a down, and nothing else here would notice if the sign
+        // were dropped or the configured size ignored in favour of the default.
+        await deck.SendAsync(WillAppear(Volume, "key-step", encoder: false)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        await deck.SendAsync(Settings(Volume, "key-step", 2)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        await deck.SendAsync(KeyDown(Volume, "key-step")).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        Check("a key moves by the step it was given",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start + 2);
+
+        await deck.SendAsync(Settings(Volume, "key-step", -2)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        await deck.SendAsync(KeyDown(Volume, "key-step")).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        Check("a negative step makes a key that turns it down",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start);
+
+        // A key that has gone must stop being drawn to and stop acting.
+        await deck.SendAsync(WillAppear(Battery, "key-gone", encoder: false)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        await deck.SendAsync(WillDisappear(Battery, "key-gone")).ConfigureAwait(false);
+        await deck.SettleAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+        await deck.SendAsync(KeyDown(Battery, "key-gone")).ConfigureAwait(false);
+        var afterGone = await deck.SettleAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        Check("a key that has disappeared is no longer drawn to",
+            Find(afterGone, "setImage", "key-gone") is null);
+
         // A key has to appear before it can be pressed: the plugin keeps one instance per context
         // and ignores an event for a context it has never been told about, which is right - and is
         // what this check got wrong the first time it was written.
@@ -135,6 +168,42 @@ internal static class Program
             Find(ignored, "setImage", "key-never-appeared") is null);
 
         return start;
+    }
+
+    /// <summary>
+    /// Stands in for the application while a Property Inspector page is loaded by hand in a
+    /// browser, and reports what the page sends. The page is ordinary HTML talking over the same
+    /// socket, so this is the whole of what the application does for it.
+    /// </summary>
+    private static async Task<int> InspectAsync(string? action)
+    {
+        using var deck = new FakeDeck();
+        var (uuid, register) = deck.InspectorHandshake;
+
+        Console.WriteLine("Open the Property Inspector page in a browser and run:");
+        Console.WriteLine($"  connectElgatoStreamDeckSocket({deck.Port}, \"{uuid}\", \"{register}\", " +
+                          "\"{}\", JSON.stringify({action: \"" + (action ?? Volume) +
+                          "\", context: \"pi\", payload: {settings: {}}}))");
+        Console.WriteLine("waiting...");
+
+        await deck.ListenForInspectorAsync(TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+        Console.WriteLine("the page registered");
+
+        var messages = await deck.SettleAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
+        foreach (var message in messages) Console.WriteLine($"  <- {message.RootElement}");
+
+        var settings = messages.FirstOrDefault(m =>
+            m.RootElement.TryGetProperty("event", out var e) && e.GetString() == "setSettings");
+
+        Check("the page sends setSettings", settings is not null);
+        if (settings is not null)
+        {
+            Check("the settings carry a step",
+                settings.RootElement.GetProperty("payload").TryGetProperty("step", out _));
+        }
+
+        Console.WriteLine(_failures == 0 ? "all checks passed" : $"{_failures} check(s) failed");
+        return _failures == 0 ? 0 : 1;
     }
 
     /// <summary>Puts the volume back to what it was, however the run ended.</summary>
@@ -212,6 +281,15 @@ internal static class Program
     private static string DialDown(string action, string context) =>
         $"{{\"event\":\"dialDown\",\"action\":\"{action}\",\"context\":\"{context}\"," +
         $"{Common},\"controller\":\"Encoder\"}}}}";
+
+    private static string Settings(string action, string context, int step) =>
+        $"{{\"event\":\"didReceiveSettings\",\"action\":\"{action}\",\"context\":\"{context}\"," +
+        $"\"device\":\"fake\",\"payload\":{{\"settings\":{{\"step\":{step}}}," +
+        $"\"coordinates\":{{\"column\":0,\"row\":0}}}}}}";
+
+    private static string WillDisappear(string action, string context) =>
+        $"{{\"event\":\"willDisappear\",\"action\":\"{action}\",\"context\":\"{context}\"," +
+        $"{Common},\"coordinates\":{{\"column\":0,\"row\":0}}}}}}";
 
     private static string KeyDown(string action, string context) =>
         $"{{\"event\":\"keyDown\",\"action\":\"{action}\",\"context\":\"{context}\"," +
