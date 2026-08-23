@@ -229,6 +229,28 @@ public class JsonRendererTests
         return writer.ToString().Trim();
     }
 
+    /// <summary>
+    /// A model with no adjustable capture endpoint reports no level, and scripts read
+    /// level_available to tell that from a level of nothing. Hard-coding it true went unnoticed.
+    /// </summary>
+    [Fact]
+    public void SaysWhenThereIsNoMicrophoneLevelToReport()
+    {
+        string json = Render(new MicReport(new MicVolume(Muted: false, 0xFF, 0xFF), null));
+
+        Assert.Contains("\"level\":null", json);
+        Assert.Contains("\"level_available\":false", json);
+    }
+
+    [Fact]
+    public void SaysWhenThereIsAMicrophoneLevelToReport()
+    {
+        string json = Render(new MicReport(new MicVolume(Muted: false, 0xFF, 0xFF), 75));
+
+        Assert.Contains("\"level\":75", json);
+        Assert.Contains("\"level_available\":true", json);
+    }
+
     [Fact]
     public void NullsAPartThatIsNotReportingAndKeepsTheKey()
     {

@@ -8,6 +8,17 @@ namespace OpenInzone.Tests.Ipc;
 
 public class IpcProtocolTests
 {
+    /// <summary>
+    /// The whole name, not just the parts that vary. It is the address two separately-installed
+    /// executables agree on, so anything about it changing means nothing connects - and the tests
+    /// that only checked the user and the version let a changed prefix through.
+    /// </summary>
+    [Fact]
+    public void The_pipe_is_named_the_same_way_every_build_expects()
+    {
+        Assert.Equal($"OpenInzone.Daemon.alice.v{IpcProtocol.Version}", IpcProtocol.PipeName("alice"));
+    }
+
     [Fact]
     public void Pipe_name_carries_the_user_so_two_sessions_do_not_collide()
     {
