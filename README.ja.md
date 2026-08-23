@@ -789,6 +789,28 @@ volume    : 16/30
 ```
 
 
+### リリースする
+
+`v1.2.3` の形式のタグを push すれば、あとは全部ワークフローがやります。テストを実行し、トレイ・
+daemon・CLI を publish し、Stream Deck プラグインとインストーラーをビルドし、winget のマニフェスト
+を埋め、それらを添えてリリースを作成します。
+
+ノートは GitHub 自身が生成します。前のタグ以降にマージされた**プルリクエスト**から作られ、
+[`.github/release.yml`](.github/release.yml) のカテゴリにラベルで振り分けられます。作業を `main`
+へ直接 push せずプルリクエスト経由で入れるのはこのためです。直接 push した変更は生成元が無く、
+リリースの本文が空になります。プルリクエストのタイトルがそのまま読み手に見える 1 行になるので、
+タイトルは読み手のために書きます。
+
+```console
+$ git switch -c what-this-does
+$ gh pr create --label enhancement
+$ gh pr merge --squash
+$ git tag -a v1.2.3 -m "v1.2.3" && git push origin v1.2.3
+```
+
+ラベルは `enhancement`・`bug`・`fix`・`protocol`・`documentation`。それ以外はその他の変更に入り、
+`ignore-for-release` を付けたものは載りません。
+
 ### 構成
 
 ```
