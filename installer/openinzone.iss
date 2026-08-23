@@ -110,6 +110,9 @@ begin
   { If a process is not running, taskkill returns non-zero; ignore it. }
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill.exe', '/IM inzone.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { The daemon outlives the tray by design - it stops half a minute after the last client - so an
+    upgrade started right after closing the tray still finds it holding its own executable. }
+  Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
 
@@ -186,5 +189,6 @@ var
 begin
   { If the tray is not running, taskkill returns non-zero; ignore it. }
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;

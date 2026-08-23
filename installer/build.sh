@@ -54,6 +54,11 @@ fi
 rm -rf "$ROOT/dist"
 dotnet publish "$ROOT/src/OpenInzone.Tray" -c Release -r win-x64 --self-contained true \
   -p:Version="$VERSION" -o "$ROOT/dist/tray"
+# Into the tray's own output on purpose. Both are self-contained win-x64 builds from the same SDK,
+# so the runtime beside the tray is the runtime the daemon needs: publishing it separately would
+# put a second complete copy of .NET in the installer for the sake of one small executable.
+dotnet publish "$ROOT/src/OpenInzone.Daemon" -c Release -r win-x64 --self-contained true \
+  -p:Version="$VERSION" -o "$ROOT/dist/tray"
 dotnet publish "$ROOT/src/OpenInzone.Cli" -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true -p:Version="$VERSION" -o "$ROOT/dist/cli"
 
@@ -64,6 +69,11 @@ if [ ! -f "$ROOT/dist/tray/inzonetray.exe" ]; then
 fi
 if [ ! -f "$ROOT/dist/cli/inzone.exe" ]; then
   echo "Error: $ROOT/dist/cli/inzone.exe was not published." >&2
+  exit 1
+fi
+# Without this the tray installs and starts, then fails to reach a headset nothing is holding.
+if [ ! -f "$ROOT/dist/tray/inzoned.exe" ]; then
+  echo "Error: $ROOT/dist/tray/inzoned.exe was not published." >&2
   exit 1
 fi
 

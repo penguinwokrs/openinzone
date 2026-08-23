@@ -21,7 +21,9 @@ internal static class Program
             return 2;
         }
 
-        using var tray = new IpcClient();
+        // Starts the daemon if nothing is holding the headset: the whole point of the plugin
+        // talking to a daemon rather than to the tray is that no window has to be open.
+        using var tray = new IpcClient(startDaemonIfMissing: true);
         using var deck = new StreamDeckConnection(options.Port, options.PluginUuid, options.RegisterEvent);
         using var host = new PluginHost(deck, tray);
 
@@ -41,7 +43,7 @@ internal static class Program
     /// </summary>
     private static async Task<int> ProbeAsync()
     {
-        using var tray = new IpcClient();
+        using var tray = new IpcClient(startDaemonIfMissing: true);
 
         var arrived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         DeviceSnapshot? latest = null;
@@ -53,17 +55,21 @@ internal static class Program
             latest = snapshot;
             arrived.TrySetResult(true);
         };
-        tray.ServerError += (_, message) => Console.Error.WriteLine($"tray: {message}");
+        tray.ServerError += (_, message) => Console.Error.WriteLine($"daemon: {message}");
+        tray.DaemonUnavailable += (_, message) => Console.Error.WriteLine($"daemon: {message}");
         tray.Start();
 
         Console.WriteLine($"pipe: {IpcProtocol.PipeName()}");
         try
         {
-            await arrived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            // Long enough to cover starting the daemon rather than only connecting to one that is
+            // already up: a launch, a retry delay, and the daemon opening the headset.
+            await arrived.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
-            Console.Error.WriteLine("The OpenInzone tray did not answer. Is it running?");
+            Console.Error.WriteLine(
+                $"No answer from {DaemonLauncher.ExecutableName}. Is OpenInzone installed?");
             return 1;
         }
 

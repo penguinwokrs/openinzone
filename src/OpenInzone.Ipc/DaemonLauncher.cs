@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
-using System.Diagnostics;
-
 namespace OpenInzone.Ipc;
 
 /// <summary>
@@ -90,16 +88,9 @@ public static class DaemonLauncher
 
         try
         {
-            // No window: this is started behind a tray panel or a deck key, and a console flashing
-            // up would be the only thing the user ever saw of it.
-            using var process = Process.Start(new ProcessStartInfo(executable)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = Path.GetDirectoryName(executable)!,
-            });
-
-            return process is not null;
+            // Deliberately not Process.Start: that makes the daemon a member of this process's
+            // job object, and a launcher whose job kills on close takes the daemon with it.
+            return DetachedProcess.Start(executable, Path.GetDirectoryName(executable));
         }
         catch (Exception)
         {

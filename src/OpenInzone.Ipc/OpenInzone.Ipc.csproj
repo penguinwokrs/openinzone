@@ -3,6 +3,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The source-generated interop for CreateProcess is unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>OpenInzone.Ipc</RootNamespace>
     <AssemblyName>OpenInzone.Ipc</AssemblyName>
     <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
