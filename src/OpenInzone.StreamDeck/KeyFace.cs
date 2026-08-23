@@ -108,10 +108,16 @@ internal static class KeyFace
     /// </remarks>
     private static string Charge(int y, int? percent) => percent is int value
         ? $"""<text x="{ChargeCentre}" y="{y}" fill="{Foreground}" font-size="30" text-anchor="middle">{value}""" +
-          $"""<tspan font-size="18" fill="{Dim}"> %</tspan></text>"""
+          $"""<tspan dx="{UnitGap}" font-size="18" fill="{Dim}">%</tspan></text>"""
         : $"""<text x="{ChargeCentre}" y="{y}" fill="{Dim}" font-size="30" text-anchor="middle">--</text>""";
 
     private const int ChargeCentre = 78;
+
+    /// <summary>
+    /// The gap before the unit, set here rather than with a space: SVG collapses whitespace, so a
+    /// space between the number and the unit is not something you can rely on being drawn.
+    /// </summary>
+    private const int UnitGap = 9;
 
     private static string? Percent(int? value) => value?.ToString();
 

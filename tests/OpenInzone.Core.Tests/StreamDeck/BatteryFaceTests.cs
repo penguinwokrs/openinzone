@@ -43,7 +43,7 @@ public class BatteryFaceTests
         XDocument.Parse(svg);
         Assert.Contains(">80<", svg, StringComparison.Ordinal);
         Assert.Contains(">30<", svg, StringComparison.Ordinal);
-        Assert.Equal(2, svg.Split("> %</tspan>").Length - 1);
+        Assert.Equal(2, svg.Split(">%</tspan>").Length - 1);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class BatteryFaceTests
 
         XDocument.Parse(svg);
         Assert.Contains(">--<", svg, StringComparison.Ordinal);
-        Assert.Equal(1, svg.Split("> %</tspan>").Length - 1);
+        Assert.Equal(1, svg.Split(">%</tspan>").Length - 1);
     }
 
     [Fact]
