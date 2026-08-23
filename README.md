@@ -176,9 +176,17 @@ full-screen game:
 **設定** in the right-click menu opens a window listing all eight with the key each one holds.
 Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
 another application already holds is marked as in use the moment you press it, so you find out
-there rather than by pressing it later and getting nothing. The same window has a checkbox for
-starting with Windows and a 既定に戻す (restore defaults) button. Saving re-registers the hotkeys
-immediately — there is nothing to restart.
+there rather than by pressing it later and getting nothing. 既定に戻す (restore defaults) puts
+every row back, and saving re-registers the hotkeys immediately — there is nothing to restart.
+
+Below the table are two checkboxes, the version this copy is, and an update button. Windows の起動
+時に常駐する starts the tray with Windows. 起動時に更新を確認する asks GitHub once per login
+whether a newer release exists, and says nothing unless there is one; it is off until you tick it.
+更新を確認 (check for updates) asks the same question there and then, and reports what it found
+rather than only good news — that you are current, that a newer release exists but has no installer
+attached, or that GitHub's answer could not be read. When there is one the button becomes 更新,
+which downloads that release's installer, checks it against the SHA-256 GitHub publishes alongside
+it, and runs it; the tray exits so the installer can replace it, and the installer starts it again.
 
 If a combination cannot be registered when the tray starts, because something else claimed it
 first, a balloon names the commands affected. Every other hotkey still works.
@@ -200,7 +208,8 @@ The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id
     "mic-up": "Ctrl+Alt+PageUp",
     "mic-down": "Ctrl+Alt+PageDown"
   },
-  "autostart": false
+  "autostart": false,
+  "checkForUpdatesAtStartup": false
 }
 ```
 
