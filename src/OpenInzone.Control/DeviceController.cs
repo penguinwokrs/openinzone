@@ -19,13 +19,30 @@ namespace OpenInzone.Control;
 /// </summary>
 public sealed class DeviceController : IDeviceActions, IDisposable
 {
-    private readonly BlockingCollection<Action> _work = new(new ConcurrentQueue<Action>());
+    /// <summary>How often to look again while nothing is connected.</summary>
+    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How often to read again while something is connected, so a battery level does not sit
+    /// there going stale and a link that has gone is noticed without anyone having to press
+    /// something.
+    /// </summary>
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(60);
+
+    // Announce says whether a failure is worth telling a person about. A heartbeat that finds
+    // nothing there is ordinary; the same failure from a key press is not.
+    private readonly BlockingCollection<(Action Work, bool Announce)> _work =
+        new(new ConcurrentQueue<(Action, bool)>());
+
     private readonly Thread _worker;
     private readonly object _stateLock = new();
+    private readonly Timer _heartbeat;
 
     private InzoneDevice? _device;
     private DeviceState _state = DeviceState.Disconnected;
     private DateTime _nextConnectAttempt = DateTime.MinValue;
+    private long _lastReadTicks;
+    private volatile bool _stopping;
 
     /// <summary>Raised after every change, from either end of the link.</summary>
     public event EventHandler<DeviceState>? StateChanged;
@@ -42,14 +59,44 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     {
         _worker = new Thread(WorkLoop) { IsBackground = true, Name = "inzone-worker" };
         _worker.Start();
+        _heartbeat = new Timer(_ => Beat(), null, ReconnectInterval, ReconnectInterval);
     }
 
     /// <summary>Queues work against the device. Exceptions are reported, not thrown at the caller.</summary>
-    public void Post(Action<DeviceController> work) => _work.Add(() => work(this));
+    public void Post(Action<DeviceController> work) => Enqueue(work, announce: true);
+
+    private void Enqueue(Action<DeviceController> work, bool announce)
+    {
+        if (_stopping) return;
+
+        try { _work.Add((() => work(this), announce)); }
+        catch (InvalidOperationException) { /* shutting down between the check and the add */ }
+    }
+
+    /// <summary>
+    /// Looks again on its own, which is what makes the headset coming back out of its case reach
+    /// a Stream Deck. Losing the earbuds closes the device, and with it the notifications - so
+    /// without this, nothing changes until someone opens the tray's panel or presses a key, and
+    /// the deck sits there showing what was true before.
+    /// </summary>
+    private void Beat()
+    {
+        if (_stopping) return;
+
+        bool connected = State.Connected;
+        var since = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref _lastReadTicks));
+        if (connected && since < RefreshInterval) return;
+
+        // Never queue behind work already waiting. A heartbeat is the least important thing here,
+        // and stacking them up would make a device that is already slow to answer slower.
+        if (_work.Count > 0) return;
+
+        Enqueue(_ => ReadEverything(), announce: false);
+    }
 
     private void WorkLoop()
     {
-        foreach (var action in _work.GetConsumingEnumerable())
+        foreach (var (action, announce) in _work.GetConsumingEnumerable())
         {
             try
             {
@@ -58,25 +105,46 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             catch (Exception ex)
             {
                 Drop();
-                try { Failed?.Invoke(this, ex.Message); }
-                catch { /* a misbehaving subscriber must not kill the worker */ }
+                if (announce)
+                {
+                    try { Failed?.Invoke(this, ex.Message); }
+                    catch { /* a misbehaving subscriber must not kill the worker */ }
+                }
+
                 Publish(DeviceState.Disconnected);
             }
         }
     }
 
+    // Both of these say nothing when nothing has changed. The heartbeat would otherwise republish
+    // the same disconnected state every few seconds, and every client would redraw for it.
     private void Publish(DeviceState state)
     {
-        lock (_stateLock) _state = state;
-        try { StateChanged?.Invoke(this, state); }
-        catch { /* a misbehaving subscriber must not kill the worker */ }
+        lock (_stateLock)
+        {
+            if (_state == state) return;
+            _state = state;
+        }
+
+        Announce(state);
     }
 
     private void Mutate(Func<DeviceState, DeviceState> change)
     {
         DeviceState next;
-        lock (_stateLock) next = _state = change(_state);
-        try { StateChanged?.Invoke(this, next); }
+        lock (_stateLock)
+        {
+            next = change(_state);
+            if (_state == next) return;
+            _state = next;
+        }
+
+        Announce(next);
+    }
+
+    private void Announce(DeviceState state)
+    {
+        try { StateChanged?.Invoke(this, state); }
         catch { /* a misbehaving subscriber must not kill the worker */ }
     }
 
@@ -122,9 +190,23 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         => Mutate(state => state.Apply(e.EventId, e.Param));
 
     /// <summary>Connects if needed and re-reads everything. Used on startup and when the flyout opens.</summary>
-    public void Refresh() => Post(_ =>
+    public void Refresh() => Post(_ => ReadEverything());
+
+    private void ReadEverything()
     {
+        // Connecting reads everything and publishes it, so asking again straight afterwards is
+        // twelve exchanges where six would do - and the second six land while a link that has just
+        // come back is still settling, which is exactly when one of them times out and takes the
+        // connection down again. A headset coming out of its case was flapping for it.
+        bool alreadyConnected = _device is not null;
+
         var device = Device();
+        if (!alreadyConnected)
+        {
+            Interlocked.Exchange(ref _lastReadTicks, DateTime.UtcNow.Ticks);
+            return;
+        }
+
         // Ask the device again rather than trusting the answer taken at connect time: at logon the
         // tray can win the race against Windows enumerating the capture endpoint. InzoneDevice
         // caches only a successful search, so asking here is what lets the slider come back to life
@@ -139,7 +221,9 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             MicLevelAvailable = micLevelAvailable,
             Battery = device.GetBattery(),
         });
-    });
+
+        Interlocked.Exchange(ref _lastReadTicks, DateTime.UtcNow.Ticks);
+    }
 
     /// <summary>
     /// Reads the device's own answers and hands them over, on the worker like every other request.
@@ -222,6 +306,8 @@ public sealed class DeviceController : IDeviceActions, IDisposable
 
     public void Dispose()
     {
+        _stopping = true;
+        _heartbeat.Dispose();
         _work.CompleteAdding();
         _worker.Join(2000);
         _device?.Dispose();
