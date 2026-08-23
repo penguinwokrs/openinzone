@@ -4,16 +4,16 @@
 
 English · [日本語](README.ja.md)
 
-An open, unofficial reimplementation of INZONE Hub's device control: a tray application and a
-command line tool for Windows.
+An open, unofficial reimplementation of INZONE Hub's device control for Windows: a tray
+application, a command line tool, and a Stream Deck plugin.
 
 > **Not affiliated with Sony.** OpenInzone is an independent project. It is not affiliated with,
 > authorised, sponsored or endorsed by Sony Group Corporation or any of its affiliates. "Sony",
 > "INZONE" and "INZONE Hub" are trademarks of Sony Group Corporation or its affiliates, used here
 > only to identify the hardware and the vendor application this project interoperates with.
 
-Control a Sony INZONE headset from the notification area, a physical key, or the command line,
-without INZONE Hub.
+Control a Sony INZONE headset from the notification area, a physical key, a Stream Deck, or the
+command line, without INZONE Hub.
 
 INZONE Hub can adjust the headphone volume and the game/chat balance, but only through its own
 window. This talks to the dongle directly over the same HID channel, so the same settings can be
@@ -28,7 +28,9 @@ There are two programs to run, and one download carries both:
 | `inzone.exe` | the command line tool — the same settings from a terminal, with JSON for scripting |
 
 A third, `inzoned.exe`, is never started by hand: it owns the connection to the headset, and
-whichever of the others needs it starts it and lets it stop again thirty seconds later.
+whichever of the others needs it starts it and lets it stop again thirty seconds later. The
+[Stream Deck plugin](#stream-deck) is a client of the same thing, which is why a deck key works
+with no window open.
 
 One left click on the tray icon opens this:
 
@@ -261,6 +263,8 @@ controls. Battery for each earbud, the balance as a number, whether the micropho
 of it on the key, updated the moment anything changes, including when the change came from the
 tray's own panel or from the earbuds themselves. On a Stream Deck +, the same actions sit on the
 dials, which is the right control for a value that slides.
+
+![Five OpenInzone keys on a Stream Deck: the microphone showing LIVE, the battery showing 88% and 87% for the two earbuds, the microphone level at 100%, the headphone volume at 18 of 30, and the game/chat balance centred](docs/images/streamdeck.png)
 
 **OpenInzone has to be installed, but nothing has to be running.** The plugin opens nothing
 itself. It asks `inzoned.exe`, which owns the connection to the headset and is started on demand
