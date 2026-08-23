@@ -15,6 +15,7 @@ public partial class App : System.Windows.Application
     private HotkeyHost? _hotkeys;
     private HotkeyConfig _config = HotkeyConfig.Default();
     private SettingsWindow? _settings;
+    private IpcHost? _ipc;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -56,6 +57,14 @@ public partial class App : System.Windows.Application
         _config = LoadConfig();
         _hotkeys = new HotkeyHost(_controller);
         SurfaceRejected(_hotkeys.Apply(_config));
+
+        // Serves the local channel the Stream Deck plugin talks to. It is restricted to the
+        // current user and carries only what the panel already shows, so it needs no switch of its
+        // own; a failure to listen costs the deck, not the tray, and is reported rather than thrown.
+        _ipc = new IpcHost(_controller);
+        _ipc.Failed += (_, message) => Dispatcher.BeginInvoke(() =>
+            _tray?.ShowBalloon("Stream Deck 連携を開始できませんでした", message));
+        _ipc.Start();
 
         if (_config.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
 
@@ -149,6 +158,7 @@ public partial class App : System.Windows.Application
     {
         _flyout?.Close();
         _hotkeys?.Dispose();
+        _ipc?.Dispose();
         // Before the tray icon: Dispose waits for the worker, and the worker reports its last
         // state into the icon. Taking the icon away first would leave that report with nowhere
         // to land while the UI thread is already blocked waiting for the worker to finish.

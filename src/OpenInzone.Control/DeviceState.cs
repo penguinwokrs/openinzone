@@ -20,8 +20,14 @@ public readonly record struct DeviceState(
     bool MicLevelAvailable,
     BatteryInfo Battery)
 {
+    /// <summary>
+    /// A default <see cref="BatteryInfo"/> is all zeroes, which reads back as a genuine nought per
+    /// cent rather than as no reading at all. Parsing an empty payload gives the sentinel the
+    /// firmware itself uses, so anything reading this state sees "not reporting" without having to
+    /// check <see cref="Connected"/> first.
+    /// </summary>
     public static DeviceState Disconnected { get; } =
-        new(false, "", default, default, default, 0, false, default);
+        new(false, "", default, default, default, 0, false, BatteryInfo.Parse([]));
 
     /// <summary>
     /// Folds a notification from the headset into the snapshot. Events this does not model, and
