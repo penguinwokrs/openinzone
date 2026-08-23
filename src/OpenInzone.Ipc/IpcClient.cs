@@ -41,6 +41,9 @@ public sealed class IpcClient : IDisposable
     /// <summary>Raised for the device's own answers, after asking for them with `describe`.</summary>
     public event EventHandler<DeviceDetail>? DetailReceived;
 
+    /// <summary>Raised for the settings a window shows, after asking and after each change.</summary>
+    public event EventHandler<DeviceSettings>? SettingsReceived;
+
     /// <summary>Raised when the daemon rejects something, cannot carry it out, or speaks a version this build cannot read.</summary>
     public event EventHandler<string>? ServerError;
 
@@ -186,6 +189,10 @@ public sealed class IpcClient : IDisposable
 
                 case ServerMessage.DetailUpdate when message.Detail is not null:
                     DetailReceived?.Invoke(this, message.Detail);
+                    break;
+
+                case ServerMessage.SettingsUpdate when message.Settings is not null:
+                    SettingsReceived?.Invoke(this, message.Settings);
                     break;
 
                 case ServerMessage.Error when message.Message is not null:

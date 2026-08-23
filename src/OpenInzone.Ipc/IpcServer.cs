@@ -62,6 +62,10 @@ public sealed class IpcServer : IDisposable
     public void Publish(DeviceDetail detail) => Broadcast(
         new ServerMessage(ServerMessage.DetailUpdate, IpcProtocol.Version, Detail: detail));
 
+    /// <summary>Pushes the settings a window shows, after reading them or after one changes.</summary>
+    public void Publish(DeviceSettings settings) => Broadcast(
+        new ServerMessage(ServerMessage.SettingsUpdate, IpcProtocol.Version, Settings: settings));
+
     /// <summary>Tells every client that something could not be done, in words fit to print.</summary>
     public void PublishError(string message) => Broadcast(
         new ServerMessage(ServerMessage.Error, IpcProtocol.Version, Message: message));

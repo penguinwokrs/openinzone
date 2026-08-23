@@ -23,7 +23,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 $xaml = Get-Content (Join-Path $repo 'src\OpenInzone.Tray\SettingsWindow.xaml') -Raw -Encoding UTF8
 New-Item -ItemType Directory -Path $OutDirectory -Force | Out-Null
 $xaml = $xaml -replace '\s*x:Class="[^"]*"', ''
-$xaml = $xaml -replace '\s*(Click|Checked|Unchecked)="[^"]*"', ''
+# \s+ rather than \s*: without it this also eats the Checked= inside a template's IsChecked=.
+$xaml = $xaml -replace '\s+(Click|Checked|Unchecked|ValueChanged|SelectionChanged)="[^"]*"', ''
 
 $app = New-Object System.Windows.Application
 $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
@@ -48,10 +49,23 @@ $rows = @(
 
 (Find 'VersionText').Text = '現在のバージョン: 0.3.0'
 (Find 'UpdateStatusText').Text = '最新バージョンです。'
-(Find 'PluginFolderText').Text = 'C:\Users\owner\Downloads'
 (Find 'PluginStatusText').Text = '保存しました: C:\Users\owner\Downloads\com.penguinwokrs.openinzone.streamDeckPlugin'
 (Find 'PluginOpenButton').Visibility = 'Visible'
 (Find 'AutostartBox').IsChecked = $true
+
+# The device tab, filled with a reading a connected headset would give.
+(Find 'DevicePanel').IsEnabled = $true
+(Find 'DeviceStatusText').Text = '変更はその場で反映されます。'
+(Find 'AmbientButton').IsChecked = $true
+(Find 'AmbientLevelSlider').Value = 14
+(Find 'AmbientLevelText').Text = '14'
+(Find 'VoiceFocusBox').IsChecked = $true
+(Find 'SidetoneSlider').Value = 3
+(Find 'SidetoneText').Text = '3'
+(Find 'AutoPowerOffBox').IsChecked = $true
+(Find 'BluetoothAutoSwitchBox').IsChecked = $true
+(Find 'VoiceGuidanceBox').IsChecked = $true
+(Find 'LanguageBox').SelectedIndex = 2
 
 # A Window has no visual tree until it is shown, so its content is taken out and rendered on a
 # surface of the window's own colour instead.

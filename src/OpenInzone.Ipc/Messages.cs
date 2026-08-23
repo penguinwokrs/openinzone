@@ -26,10 +26,25 @@ public static class IpcCommands
     /// <summary>Asks for the device's own answers, verbatim. Answered with a detail message.</summary>
     public const string Describe = "describe";
 
+    // The settings INZONE Hub also offers. Read together and answered with a settings message,
+    // because a window showing all of them wants one round trip rather than eight.
+    public const string GetSettings = "get-settings";
+    public const string SetSidetone = "set-sidetone";
+    public const string SetAmbientMode = "set-ambient-mode";
+    public const string SetAmbientLevel = "set-ambient-level";
+    public const string SetVoiceFocus = "set-voice-focus";
+    public const string SetAutoPowerOff = "set-auto-power-off";
+    public const string SetVoiceGuidance = "set-voice-guidance";
+    public const string SetVoiceGuidanceLanguage = "set-voice-guidance-language";
+    public const string SetBluetoothAutoSwitch = "set-bluetooth-auto-switch";
+
     public static bool IsKnown(string command) => command is
         Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
         or ToggleMicMute or AdjustMicLevel or SetMicLevel
-        or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe;
+        or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe
+        or GetSettings or SetSidetone or SetAmbientMode or SetAmbientLevel or SetVoiceFocus
+        or SetAutoPowerOff or SetVoiceGuidance or SetVoiceGuidanceLanguage
+        or SetBluetoothAutoSwitch;
 }
 
 /// <summary>One battery reading. A null percentage means the part is not reporting, or is absent.</summary>
@@ -84,18 +99,47 @@ public sealed record DeviceDetail(
     /// <summary>The Windows capture endpoint, which is not part of the headset's own protocol.</summary>
     [property: JsonPropertyName("micLevel")] int? MicLevel);
 
+/// <summary>
+/// The settings INZONE Hub also offers, as a window would show them.
+/// </summary>
+/// <remarks>
+/// Kept out of <see cref="DeviceSnapshot"/> on purpose. The snapshot is what every client draws
+/// on a key or a slider and is read constantly; these are read when a settings window opens and
+/// written when someone changes one, and nothing else wants them.
+///
+/// Every field is nullable because a model that does not answer for one of these is not an error.
+/// INZONE Buds has no wearing detection and no LED; another model may have no ambient sound.
+/// </remarks>
+public sealed record DeviceSettings(
+    [property: JsonPropertyName("sidetone")] int? Sidetone,
+    /// 0 off, 1 noise cancelling, 2 ambient sound.
+    [property: JsonPropertyName("ambientMode")] int? AmbientMode,
+    [property: JsonPropertyName("ambientLevel")] int? AmbientLevel,
+    [property: JsonPropertyName("voiceFocus")] bool? VoiceFocus,
+    [property: JsonPropertyName("autoPowerOff")] bool? AutoPowerOff,
+    [property: JsonPropertyName("voiceGuidance")] bool? VoiceGuidance,
+    /// 0 English, 1 Chinese, 2 Japanese.
+    [property: JsonPropertyName("voiceGuidanceLanguage")] int? VoiceGuidanceLanguage,
+    [property: JsonPropertyName("bluetoothAutoSwitch")] bool? BluetoothAutoSwitch)
+{
+    /// <summary>Nothing answered for, which is what a client shows before it has asked.</summary>
+    public static DeviceSettings None { get; } = new(null, null, null, null, null, null, null, null);
+}
+
 /// <summary>A message from the daemon to a client.</summary>
 public sealed record ServerMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("version")] int Version = 0,
     [property: JsonPropertyName("state")] DeviceSnapshot? State = null,
     [property: JsonPropertyName("message")] string? Message = null,
-    [property: JsonPropertyName("detail")] DeviceDetail? Detail = null)
+    [property: JsonPropertyName("detail")] DeviceDetail? Detail = null,
+    [property: JsonPropertyName("settings")] DeviceSettings? Settings = null)
 {
     public const string Hello = "hello";
     public const string StateUpdate = "state";
     public const string Error = "error";
     public const string DetailUpdate = "detail";
+    public const string SettingsUpdate = "settings";
 }
 
 /// <summary>A message from a client to the tray.</summary>

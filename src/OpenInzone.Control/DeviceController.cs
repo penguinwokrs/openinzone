@@ -232,6 +232,58 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// </summary>
     public void Describe(Action<DeviceDetail> deliver) => Post(_ => deliver(IpcSnapshot.Detail(Device())));
 
+    /// <summary>Reads the settings a window shows, and hands them over.</summary>
+    public void ReadSettings(Action<DeviceSettings> deliver) =>
+        Post(_ => deliver(IpcSnapshot.Settings(Device())));
+
+    // Each of these changes one setting and then reads them all back, so a window is told what the
+    // headset now says rather than what it was asked for. The ambient packet carries three
+    // settings at once, so changing one of them starts from a reading rather than from nothing.
+
+    public void SetSidetone(int value, Action<DeviceSettings> deliver) => Post(_ =>
+    {
+        var device = Device();
+        device.SetSidetoneVolume(value);
+        deliver(IpcSnapshot.Settings(device));
+    });
+
+    public void ChangeAmbient(Func<AmbientSetting, AmbientSetting> change, Action<DeviceSettings> deliver) =>
+        Post(_ =>
+        {
+            var device = Device();
+            device.SetAmbientSetting(change(device.GetAmbientSetting()));
+            deliver(IpcSnapshot.Settings(device));
+        });
+
+    public void SetAutoPowerOff(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    {
+        var device = Device();
+        device.SetAutoPowerOff(on);
+        deliver(IpcSnapshot.Settings(device));
+    });
+
+    public void SetVoiceGuidance(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    {
+        var device = Device();
+        device.SetVoiceGuidance(on);
+        deliver(IpcSnapshot.Settings(device));
+    });
+
+    public void SetVoiceGuidanceLanguage(VoiceGuidanceLanguage language, Action<DeviceSettings> deliver) =>
+        Post(_ =>
+        {
+            var device = Device();
+            device.SetVoiceGuidanceLanguage(language);
+            deliver(IpcSnapshot.Settings(device));
+        });
+
+    public void SetBluetoothAutoSwitch(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    {
+        var device = Device();
+        device.SetBluetoothAutoSwitch(on);
+        deliver(IpcSnapshot.Settings(device));
+    });
+
     // ---- IDeviceActions ------------------------------------------------------
     // Each one queues; none of them block the caller. The adjusting methods connect via Device()
     // before reading State, because Device() is what publishes real values on first connect -

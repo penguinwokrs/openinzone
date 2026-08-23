@@ -6,6 +6,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using OpenInzone.Control;
+using OpenInzone.Ipc;
 
 namespace OpenInzone.Tray;
 
@@ -78,7 +79,21 @@ public partial class SettingsWindow : Window
     private readonly List<HotkeyRow> _rows;
     private readonly HotkeyConfig _config;
     private readonly HotkeyHost _hotkeys;
+    private readonly IpcDeviceSurface _headset;
     private HotkeyRow? _capturing;
+
+    /// <summary>Set while a reading is being copied into the controls, so echoes are not written back.</summary>
+    private bool _showingSettings;
+
+    /// <summary>
+    /// A slider raises a change per pixel of travel. Sending each one would flood the headset, so
+    /// writes are coalesced and the last value always goes out - the same arrangement the panel
+    /// uses, and for the same reason.
+    /// </summary>
+    private readonly System.Windows.Threading.DispatcherTimer _settingWrites =
+        new() { Interval = TimeSpan.FromMilliseconds(150) };
+
+    private readonly Dictionary<string, Action> _pendingSettingWrites = [];
 
     // NoUpdate until an on-demand check finds one; that transition is what turns the button from
     // "確認" into "更新" and tells a second click to install rather than check again.
@@ -91,11 +106,12 @@ public partial class SettingsWindow : Window
     /// <summary>Raised whenever a hotkey could not be registered, with the ids that were refused.</summary>
     public event EventHandler<IReadOnlyList<string>>? Rejected;
 
-    public SettingsWindow(HotkeyConfig config, HotkeyHost hotkeys)
+    public SettingsWindow(HotkeyConfig config, HotkeyHost hotkeys, IpcDeviceSurface headset)
     {
         InitializeComponent();
         _config = config;
         _hotkeys = hotkeys;
+        _headset = headset;
         _rows = HotkeyCommand.All
             .Select(c => new HotkeyRow(c, config.Bindings.GetValueOrDefault(c.Id, c.DefaultCombo)))
             .ToList();
@@ -125,6 +141,10 @@ public partial class SettingsWindow : Window
         CheckUpdatesBox.Unchecked += OnCheckUpdatesChanged;
 
         VersionText.Text = $"現在のバージョン: {UpdateChecker.CurrentVersion}";
+
+        _settingWrites.Tick += (_, _) => FlushSettingWrites();
+        _headset.SettingsReceived += OnSettingsReceived;
+        _headset.RequestSettings();
     }
 
     // ---- applying -----------------------------------------------------------------------------
@@ -258,10 +278,17 @@ public partial class SettingsWindow : Window
         ApplyHotkeys();
     }
 
-    /// <summary>A capture left running when the window closes must not leave the hotkeys off.</summary>
+    /// <summary>
+    /// A capture left running when the window closes must not leave the hotkeys off. The headset
+    /// outlives this window, so what was subscribed to it is let go here too - otherwise every
+    /// opening of the settings would leave another dead window listening. A slider let go a moment
+    /// before closing has its write flushed rather than dropped.
+    /// </summary>
     protected override void OnClosed(EventArgs e)
     {
         EndCapture();
+        FlushSettingWrites();
+        _headset.SettingsReceived -= OnSettingsReceived;
         base.OnClosed(e);
     }
 
@@ -506,5 +533,140 @@ public partial class SettingsWindow : Window
         UpdateButton.Content = "更新";
         UpdateButton.IsEnabled = true;
         _updateBusy = false;
+    }
+
+    // ---- the settings INZONE Hub also offers --------------------------------------------------
+    // Every control writes as it is used and is then told what the headset says, which is what
+    // arrives here. Nothing is composed locally: a mode change comes back with the level the
+    // headset kept, and a failed write comes back as the value that is still in force.
+
+    private void OnSettingsReceived(object? sender, DeviceSettings settings) =>
+        Dispatcher.BeginInvoke(() => ShowSettings(settings));
+
+    private void ShowSettings(DeviceSettings settings)
+    {
+        _showingSettings = true;
+        try
+        {
+            bool anything = settings != DeviceSettings.None;
+            DevicePanel.IsEnabled = anything;
+            DeviceStatusText.Text = anything
+                ? "変更はその場で反映されます。"
+                : "ヘッドセットが応答していません。";
+
+            Show(AmbientGroup, settings.AmbientMode is not null);
+            switch (settings.AmbientMode)
+            {
+                case 1: NoiseCancellingButton.IsChecked = true; break;
+                case 2: AmbientButton.IsChecked = true; break;
+                default: AmbientOffButton.IsChecked = true; break;
+            }
+
+            // The level belongs to ambient sound; the headset keeps it in every mode, but showing
+            // it as adjustable while it does nothing would be a lie.
+            AmbientLevelRow.IsEnabled = settings.AmbientMode == 2;
+            if (settings.AmbientLevel is int level)
+            {
+                AmbientLevelSlider.Value = level;
+                AmbientLevelText.Text = level.ToString();
+            }
+
+            Show(VoiceFocusBox, settings.VoiceFocus is not null);
+            VoiceFocusBox.IsChecked = settings.VoiceFocus == true;
+
+            if (settings.Sidetone is int sidetone)
+            {
+                SidetoneSlider.Value = sidetone;
+                SidetoneText.Text = sidetone.ToString();
+            }
+
+            Show(AutoPowerOffBox, settings.AutoPowerOff is not null);
+            AutoPowerOffBox.IsChecked = settings.AutoPowerOff == true;
+
+            Show(BluetoothAutoSwitchBox, settings.BluetoothAutoSwitch is not null);
+            BluetoothAutoSwitchBox.IsChecked = settings.BluetoothAutoSwitch == true;
+
+            Show(VoiceGuidanceBox, settings.VoiceGuidance is not null);
+            VoiceGuidanceBox.IsChecked = settings.VoiceGuidance == true;
+
+            Show(LanguageRow, settings.VoiceGuidanceLanguage is not null);
+            LanguageBox.SelectedIndex = settings.VoiceGuidanceLanguage ?? 0;
+        }
+        finally
+        {
+            _showingSettings = false;
+        }
+    }
+
+    /// <summary>
+    /// Hides what this model does not answer for, rather than showing a control that does nothing.
+    /// INZONE Buds has no wearing detection and no LED; another model may have no ambient sound.
+    /// </summary>
+    private static void Show(System.Windows.UIElement element, bool present) =>
+        element.Visibility = present ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Replaces that control's pending write; one slider never cancels another's.</summary>
+    private void QueueSettingWrite(string control, Action write)
+    {
+        if (_showingSettings) return;
+
+        _pendingSettingWrites[control] = write;
+        _settingWrites.Stop();
+        _settingWrites.Start();
+    }
+
+    private void FlushSettingWrites()
+    {
+        _settingWrites.Stop();
+        foreach (var write in _pendingSettingWrites.Values) write();
+        _pendingSettingWrites.Clear();
+    }
+
+    private void OnAmbientModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (_showingSettings) return;
+
+        int mode = int.Parse((string)((System.Windows.Controls.RadioButton)sender).Tag);
+        AmbientLevelRow.IsEnabled = mode == 2;
+        _headset.SetAmbientMode(mode);
+    }
+
+    private void OnAmbientLevelChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        AmbientLevelText.Text = ((int)e.NewValue).ToString();
+        QueueSettingWrite("ambient-level", () => _headset.SetAmbientLevel((int)e.NewValue));
+    }
+
+    private void OnVoiceFocusChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_showingSettings) _headset.SetVoiceFocus(VoiceFocusBox.IsChecked == true);
+    }
+
+    private void OnSidetoneChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        SidetoneText.Text = ((int)e.NewValue).ToString();
+        QueueSettingWrite("sidetone", () => _headset.SetSidetone((int)e.NewValue));
+    }
+
+    private void OnAutoPowerOffChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_showingSettings) _headset.SetAutoPowerOff(AutoPowerOffBox.IsChecked == true);
+    }
+
+    private void OnVoiceGuidanceChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_showingSettings) _headset.SetVoiceGuidance(VoiceGuidanceBox.IsChecked == true);
+    }
+
+    private void OnBluetoothAutoSwitchChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_showingSettings) _headset.SetBluetoothAutoSwitch(BluetoothAutoSwitchBox.IsChecked == true);
+    }
+
+    private void OnLanguageChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_showingSettings || LanguageBox.SelectedItem is not System.Windows.Controls.ComboBoxItem item) return;
+
+        _headset.SetVoiceGuidanceLanguage(int.Parse((string)item.Tag));
     }
 }

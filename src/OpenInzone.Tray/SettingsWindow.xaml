@@ -25,6 +25,61 @@
       <Setter Property="BorderBrush" Value="{StaticResource Line}" />
     </Style>
 
+    <!-- The stock combo is light grey chrome, like the tab strip below it. Only the closed box is
+         restyled: the drop-down list is drawn by the system and left alone. -->
+    <Style TargetType="ComboBox">
+      <Setter Property="Foreground" Value="{StaticResource Text}" />
+      <Setter Property="Background" Value="{StaticResource Panel}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
+                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                  <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}"
+                            BorderThickness="1" CornerRadius="3">
+                      <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"
+                            Data="M0,0 L8,0 L4,5 Z" Fill="{StaticResource Quiet}" />
+                    </Border>
+                  </ControlTemplate>
+                </ToggleButton.Template>
+              </ToggleButton>
+              <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" Margin="10,0,26,0"
+                                VerticalAlignment="Center" IsHitTestVisible="False" />
+              <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+                     AllowsTransparency="True" PopupAnimation="Slide">
+                <Border Background="#FF2A2D31" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                        MinWidth="{TemplateBinding ActualWidth}">
+                  <StackPanel IsItemsHost="True" />
+                </Border>
+              </Popup>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource Text}" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBoxItem">
+            <Border x:Name="Chrome" Background="Transparent" Padding="{TemplateBinding Padding}">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="#FF3A3D42" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- The stock tab strip is light grey chrome; this is the same dark surface as the rest. -->
     <Style TargetType="TabItem">
       <Setter Property="Foreground" Value="{StaticResource Quiet}" />
@@ -72,6 +127,75 @@
         <TextBlock Foreground="{StaticResource Quiet}" FontSize="12" Margin="0,24,0,0"
                    Text="変更はその場で反映されます。保存する操作はありません。" />
       </StackPanel>
+    </TabItem>
+
+    <TabItem Header="デバイス">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="DevicePanel" Margin="6,12,14,0" IsEnabled="False">
+          <TextBlock x:Name="DeviceStatusText" Foreground="{StaticResource Quiet}" FontSize="12"
+                     Margin="0,0,0,12" Text="ヘッドセットに問い合わせています…" />
+
+          <TextBlock Text="外音コントロール" FontSize="13" />
+          <StackPanel x:Name="AmbientGroup" Margin="0,8,0,0">
+            <RadioButton x:Name="AmbientOffButton" GroupName="Ambient" Content="オフ"
+                         Foreground="{StaticResource Text}" Checked="OnAmbientModeChanged" Tag="0" />
+            <RadioButton x:Name="NoiseCancellingButton" GroupName="Ambient" Content="ノイズキャンセリング"
+                         Foreground="{StaticResource Text}" Margin="0,6,0,0"
+                         Checked="OnAmbientModeChanged" Tag="1" />
+            <RadioButton x:Name="AmbientButton" GroupName="Ambient" Content="外音取り込み"
+                         Foreground="{StaticResource Text}" Margin="0,6,0,0"
+                         Checked="OnAmbientModeChanged" Tag="2" />
+
+            <Grid x:Name="AmbientLevelRow" Margin="22,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                <ColumnDefinition Width="40" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="取り込みレベル" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{StaticResource Quiet}" />
+              <Slider x:Name="AmbientLevelSlider" Grid.Column="1" Minimum="1" Maximum="20"
+                      IsSnapToTickEnabled="True" TickFrequency="1" Margin="10,0"
+                      VerticalAlignment="Center" ValueChanged="OnAmbientLevelChanged" />
+              <TextBlock x:Name="AmbientLevelText" Grid.Column="2" FontSize="12"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </Grid>
+
+            <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0"
+                      Checked="OnVoiceFocusChanged" Unchecked="OnVoiceFocusChanged" />
+          </StackPanel>
+
+          <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" />
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" /><ColumnDefinition Width="40" />
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="SidetoneSlider" Minimum="0" Maximum="10" IsSnapToTickEnabled="True"
+                    TickFrequency="1" VerticalAlignment="Center" Margin="0,0,10,0"
+                    ValueChanged="OnSidetoneChanged" />
+            <TextBlock x:Name="SidetoneText" Grid.Column="1" FontSize="12"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+          </Grid>
+
+          <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0" />
+          <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0"
+                    Checked="OnAutoPowerOffChanged" Unchecked="OnAutoPowerOffChanged" />
+          <CheckBox x:Name="BluetoothAutoSwitchBox" Margin="0,8,0,0"
+                    Content="Bluetooth の発信・着信時に自動で接続を切り替える"
+                    Checked="OnBluetoothAutoSwitchChanged" Unchecked="OnBluetoothAutoSwitchChanged" />
+          <CheckBox x:Name="VoiceGuidanceBox" Content="音声ガイド" Margin="0,8,0,0"
+                    Checked="OnVoiceGuidanceChanged" Unchecked="OnVoiceGuidanceChanged" />
+          <StackPanel x:Name="LanguageRow" Orientation="Horizontal" Margin="22,8,0,14">
+            <TextBlock Text="言語" FontSize="12" VerticalAlignment="Center"
+                       Foreground="{StaticResource Quiet}" />
+            <ComboBox x:Name="LanguageBox" Width="130" Margin="10,0,0,0" Height="26"
+                      SelectionChanged="OnLanguageChanged">
+              <ComboBoxItem Content="英語" Tag="0" />
+              <ComboBoxItem Content="中国語" Tag="1" />
+              <ComboBoxItem Content="日本語" Tag="2" />
+            </ComboBox>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
     </TabItem>
 
     <TabItem Header="ホットキー">

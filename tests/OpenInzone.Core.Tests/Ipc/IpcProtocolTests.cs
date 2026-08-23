@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using System.Reflection;
 using System.Text.Json;
 using OpenInzone.Ipc;
 
@@ -81,17 +82,21 @@ public class IpcProtocolTests
         Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
     }
 
+    /// <summary>
+    /// Read off the class rather than listed by hand: a command named but left out of
+    /// <see cref="IpcCommands.IsKnown"/> is rejected at the daemon, and a hand-written list is
+    /// exactly the thing that gets forgotten when one is added.
+    /// </summary>
     [Fact]
     public void Every_named_command_is_recognised()
     {
-        string[] all =
-        [
-            IpcCommands.Refresh, IpcCommands.AdjustVolume, IpcCommands.SetVolume,
-            IpcCommands.AdjustBalance, IpcCommands.SetBalance, IpcCommands.ToggleMicMute,
-            IpcCommands.AdjustMicLevel, IpcCommands.SetMicLevel,
-        ];
+        string[] all = [.. typeof(IpcCommands)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)];
 
-        Assert.All(all, command => Assert.True(IpcCommands.IsKnown(command)));
+        Assert.NotEmpty(all);
+        Assert.All(all, command => Assert.True(IpcCommands.IsKnown(command), command));
     }
 
     [Theory]

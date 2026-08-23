@@ -127,6 +127,36 @@ public class IpcRoundTripTests
     }
 
     /// <summary>
+    /// The settings window is a client like any other, so what it draws has to come back over the
+    /// same pipe. This asks for the settings and checks that the answer arrives whole.
+    /// </summary>
+    [Fact]
+    public async Task Asking_for_the_settings_brings_them_back()
+    {
+        string pipeName = UniquePipeName();
+        var settings = new DeviceSettings(3, 2, 14, true, true, false, 2, true);
+
+        using var server = new IpcServer(() => Sample, pipeName);
+        server.CommandReceived += (sender, message) =>
+        {
+            if (message.Command == IpcCommands.GetSettings) ((IpcServer)sender!).Publish(settings);
+        };
+        server.Start();
+
+        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrived = new TaskCompletionSource<DeviceSettings>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        client.SettingsReceived += (_, s) => arrived.TrySetResult(s);
+        client.Start();
+        await Within(connected);
+
+        Assert.True(client.Send(IpcCommands.GetSettings));
+
+        Assert.Equal(settings, await Within(arrived));
+    }
+
+    /// <summary>
     /// A request the daemon accepted but could not carry out - the headset went away mid-read -
     /// has to reach the caller, or a describe that failed looks like a channel gone quiet.
     /// </summary>

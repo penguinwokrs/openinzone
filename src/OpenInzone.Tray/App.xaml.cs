@@ -67,12 +67,12 @@ public partial class App : System.Windows.Application
         _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() =>
         {
             if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
-            if (_hotkeys is null) return;
+            if (_hotkeys is null || _headset is null) return;
 
             // The window applies as it goes and holds the hotkeys off only while it is waiting for
             // a key, so there is nothing to suspend or resume around its lifetime any more - and
             // nothing to do when it closes, because everything it was asked to do is already done.
-            _settings = new SettingsWindow(_config, _hotkeys);
+            _settings = new SettingsWindow(_config, _hotkeys, _headset);
             _settings.Rejected += (_, rejected) => SurfaceRejected(rejected);
             _settings.Show();
         });

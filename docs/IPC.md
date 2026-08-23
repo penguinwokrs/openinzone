@@ -103,8 +103,20 @@ other way round.
 | `set-volume-muted` | 0 or 1 | Mute or unmute the headset's own volume |
 | `toggle-volume-mute` | — | Toggle it |
 | `describe` | — | Read the device again and answer with a `detail` |
+| `get-settings` | — | Read the settings below and answer with a `settings` |
+| `set-sidetone` | 0–10 | How much of your own voice comes back |
+| `set-ambient-mode` | 0, 1, 2 | Off, noise cancelling, ambient sound |
+| `set-ambient-level` | 1–20 | How much of the world comes through |
+| `set-voice-focus` | 0 or 1 | Voice focus within ambient sound |
+| `set-auto-power-off` | 0 or 1 | Power off when taken off and left |
+| `set-voice-guidance` | 0 or 1 | Spoken prompts |
+| `set-voice-guidance-language` | 0, 1, 2 | English, Chinese, Japanese |
+| `set-bluetooth-auto-switch` | 0 or 1 | Switch connection on an incoming or outgoing call |
 
 Anything else is answered with an `error` and not acted on.
+
+Every one of the setting commands is answered with a `settings` read back from the headset, so a
+window shows what the headset now says rather than what it was asked for.
 
 ## Detail
 
@@ -129,6 +141,24 @@ the snapshot instead.
 
 Like everything else on this channel, a detail is pushed to every client rather than returned to
 the one that asked. A client with a `describe` outstanding takes the next one that arrives.
+
+## Settings
+
+`get-settings`, and every command that writes one of them, is answered with the whole set:
+
+```json
+{"type":"settings","version":1,"settings":{
+  "sidetone":3,"ambientMode":2,"ambientLevel":14,"voiceFocus":true,
+  "autoPowerOff":true,"voiceGuidance":false,"voiceGuidanceLanguage":2,
+  "bluetoothAutoSwitch":true}}
+```
+
+Unlike a detail, this is decoded — it is what a settings window draws, not what a protocol tool
+reads. Every field is nullable, and null is not the same as off: it means this model did not answer
+for that setting, and a client should leave it out rather than show it as off.
+
+These are kept out of the snapshot on purpose. The snapshot is read constantly, by every client
+that draws a key or a slider; these are read when a settings window opens.
 
 ## The snapshot
 

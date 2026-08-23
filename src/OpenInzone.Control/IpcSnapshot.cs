@@ -56,4 +56,45 @@ public static class IpcSnapshot
             Sidetone: Read(EventId.SidetoneVolume),
             MicLevel: device.Microphone is not null ? device.GetMicLevel() : null);
     }
+
+    /// <summary>
+    /// The settings a window shows. A model that does not answer for one of them leaves it null
+    /// rather than failing the lot: INZONE Buds has no wearing detection and no LED, and another
+    /// model may not have ambient sound at all.
+    /// </summary>
+    public static DeviceSettings Settings(InzoneDevice device)
+    {
+        // Read once and used three times: the ambient packet carries mode, level and voice focus
+        // together, so asking for it once is a third of the exchanges and cannot see them change
+        // in between.
+        var ambient = Ask(device.GetAmbientSetting);
+
+        return new DeviceSettings(
+            Sidetone: Ask(() => (int)device.GetSidetoneVolume().Value),
+            AmbientMode: ambient is { } a ? (int)a.Mode : null,
+            AmbientLevel: ambient is { } level ? level.Level : null,
+            VoiceFocus: ambient?.VoiceFocus,
+            AutoPowerOff: Ask(() => device.GetAutoPowerOff().IsOn),
+            VoiceGuidance: Ask(() => device.GetVoiceGuidance().IsOn),
+            VoiceGuidanceLanguage: Ask(() => (int)device.GetVoiceGuidanceLanguage()),
+            BluetoothAutoSwitch: Ask(() => device.GetBluetoothAutoSwitch().IsOn));
+    }
+
+    /// <summary>
+    /// A setting this model does not carry answers with a timeout, and one setting being absent
+    /// must not cost the window the others. Only a timeout is swallowed: anything else means the
+    /// connection itself is in trouble, and the controller drops the device and says so - which is
+    /// a far better answer than a window quietly showing every setting as unsupported.
+    /// </summary>
+    private static T? Ask<T>(Func<T> read) where T : struct
+    {
+        try
+        {
+            return read();
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
+    }
 }
