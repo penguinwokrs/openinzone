@@ -4,6 +4,7 @@
   "Author": "penguinwokrs",
   "Description": "Control a Sony INZONE headset from the deck: volume, game/chat balance, microphone mute and level, and battery for each earbud. Requires the OpenInzone tray application, which owns the connection to the headset.",
   "Category": "OpenInzone",
+  "CategoryIcon": "images/category",
   "Version": "0.1.0.0",
   "URL": "https://github.com/penguinwokrs/openinzone",
   "Icon": "images/plugin",

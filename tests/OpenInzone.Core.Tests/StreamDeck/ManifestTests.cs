@@ -127,6 +127,21 @@ public class ManifestTests
         Assert.Equal(Text(Manifest.RootElement, "Name"), Text(Manifest.RootElement, "Category"));
     }
 
+    /// <summary>
+    /// Elgato's validator accepts a Category with no CategoryIcon; Elgato's application refuses to
+    /// install it, saying only "category icon not defined" in a log nobody thinks to read. The two
+    /// have to be declared together.
+    /// </summary>
+    [Fact]
+    public void A_category_brings_its_icon_with_it()
+    {
+        bool hasCategory = Manifest.RootElement.TryGetProperty("Category", out _);
+        bool hasIcon = Manifest.RootElement.TryGetProperty("CategoryIcon", out var icon);
+
+        Assert.Equal(hasCategory, hasIcon);
+        if (hasIcon) Assert.True(ImageExists(icon.GetString()!), "the category icon");
+    }
+
     [Fact]
     public void Every_action_can_be_placed_on_a_key_and_on_a_dial()
     {

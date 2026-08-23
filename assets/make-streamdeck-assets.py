@@ -105,12 +105,16 @@ def main():
     make_icon = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(make_icon)
 
-    for size, suffix in ((256, ""), (512, "@2x")):
-        data = make_icon.png(size, make_icon.coverage(size))
-        path = PLUGIN / "images" / f"plugin{suffix}.png"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        print(f"wrote {path.relative_to(PLUGIN.parent.parent)} ({size}x{size}, {len(data)} bytes)")
+    # The plugin's own icon, and the one beside its heading in the action list. Declaring a
+    # Category without a CategoryIcon is accepted by Elgato's validator and then refused by
+    # Elgato's application, which reports only "category icon not defined" in its log.
+    for name, sizes in (("plugin", (256, 512)), ("category", (28, 56))):
+        for size, suffix in zip(sizes, ("", "@2x")):
+            data = make_icon.png(size, make_icon.coverage(size))
+            path = PLUGIN / "images" / f"{name}{suffix}.png"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            print(f"wrote {path.relative_to(PLUGIN.parent.parent)} ({size}x{size}, {len(data)} bytes)")
 
 
 if __name__ == "__main__":
