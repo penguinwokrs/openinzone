@@ -2,6 +2,7 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.IO;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -87,6 +88,7 @@ internal static class Program
                 }
 
                 Report(window);
+                ReportScrolling(window, tabs);
                 window.Close();
             });
         }
@@ -113,6 +115,42 @@ internal static class Program
         {
             application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Background);
             Thread.Sleep(50);
+        }
+    }
+
+    /// <summary>
+    /// Whether any tab is taller than the window it is in. The window does not resize, so a tab
+    /// that outgrows it gets a scroll bar rather than a complaint, and nobody notices until they
+    /// are looking at one.
+    /// </summary>
+    private static void ReportScrolling(Window window, TabControl tabs)
+    {
+        for (int index = 0; index < tabs.Items.Count; index++)
+        {
+            tabs.SelectedIndex = index;
+            window.UpdateLayout();
+
+            string header = ((TabItem)tabs.Items[index]).Header?.ToString() ?? $"{index}";
+            foreach (var viewer in Descendants(window).OfType<ScrollViewer>())
+            {
+                if (viewer.ExtentHeight <= 0) continue;
+
+                double over = viewer.ExtentHeight - viewer.ViewportHeight;
+                Console.WriteLine(over > 0.5
+                    ? $"{header}: {over:0} px too tall for the window (needs {viewer.ExtentHeight:0}, has {viewer.ViewportHeight:0})"
+                    : $"{header}: fits, {-over:0} px to spare");
+            }
+        }
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < count; index++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (var further in Descendants(child)) yield return further;
         }
     }
 

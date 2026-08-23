@@ -1,7 +1,7 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OpenInzone.Tray.SettingsWindow"
-        Title="OpenInzone の設定" Width="560" Height="470"
+        Title="OpenInzone の設定" Width="560" Height="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#FF202225">
   <Window.Resources>
