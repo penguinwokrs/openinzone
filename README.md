@@ -46,6 +46,7 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 - [Install](#install)
 - [Using the tray](#using-the-tray)
 - [Hotkeys and settings](#hotkeys-and-settings)
+  - [デバイス](#デバイス)
 - [Stream Deck](#stream-deck)
 - [Troubleshooting](#troubleshooting)
 - [Command line](#command-line)
@@ -61,6 +62,8 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 - Headphone volume, 0–30, and mute
 - Microphone mute and level
 - Battery for both earbuds and the case
+- Noise cancelling, ambient sound, sidetone and the rest of INZONE Hub's settings, bar the
+  equaliser — see [デバイス](#デバイス)
 - Watch for changes made elsewhere, including from the earbuds themselves
 - Drive all of it from a [Stream Deck](#stream-deck), with the values on the keys
 
@@ -202,20 +205,51 @@ full-screen game:
 | マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
 | マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
 
-**設定** in the right-click menu opens a window listing all eight with the key each one holds.
-Select a row and press a combination to assign it; `Esc` clears a row to unassigned. A combination
-another application already holds is marked as in use the moment you press it, so you find out
-there rather than by pressing it later and getting nothing. 既定に戻す (restore defaults) puts
-every row back, and saving re-registers the hotkeys immediately — there is nothing to restart.
+**設定** in the right-click menu opens a window with five tabs — 全般, デバイス, ホットキー,
+アップデート and プラグイン. There is no save button: everything applies as you change it.
 
-Below the table are two checkboxes, the version this copy is, and an update button. Windows の起動
-時に常駐する starts the tray with Windows. 起動時に更新を確認する asks GitHub once per login
-whether a newer release exists, and says nothing unless there is one; it is off until you tick it.
-更新を確認 (check for updates) asks the same question there and then, and reports what it found
-rather than only good news — that you are current, that a newer release exists but has no installer
-attached, or that GitHub's answer could not be read. When there is one the button becomes 更新,
-which downloads that release's installer, checks it against the SHA-256 GitHub publishes alongside
-it, and runs it; the tray exits so the installer can replace it, and the installer starts it again.
+**ホットキー** lists all eight commands with the key each one holds. Select a row and press a
+combination to assign it; `Esc` clears a row to unassigned. A combination another application
+already holds is marked as in use the moment you press it, so you find out there rather than by
+pressing it later and getting nothing. 既定に戻す (restore defaults) puts every row back. Each
+change re-registers the hotkeys immediately — there is nothing to restart.
+
+**全般** has two checkboxes. Windows の起動時に常駐する starts the tray with Windows. 起動時に更
+新を確認する asks GitHub once per login whether a newer release exists, and says nothing unless
+there is one; it is off until you tick it.
+
+**アップデート** shows the version this copy is and a button. 更新を確認 (check for updates) asks
+the same question there and then, and reports what it found rather than only good news — that you
+are current, that a newer release exists but has no installer attached, or that GitHub's answer
+could not be read. When there is one the button becomes 更新, which downloads that release's
+installer, checks it against the SHA-256 GitHub publishes alongside it, and runs it; the tray exits
+so the installer can replace it, and the installer starts it again.
+
+**プラグイン** saves the Stream Deck plugin: pick where to put it, then open the folder. See
+[Stream Deck](#stream-deck).
+
+### デバイス
+
+![The デバイス tab: 外音コントロール with off, noise cancelling and ambient sound, a 取り込みレベル slider and ボイスフォーカス, a サイドトーン slider, and checkboxes for 自動電源オフ, Bluetooth call switching and 音声ガイド with a language box](docs/images/settings-device.png)
+
+The settings INZONE Hub offers besides the three on the panel, except the equaliser:
+
+| | |
+|---|---|
+| 外音コントロール | Off, noise cancelling, or ambient sound with a level of 1–20 |
+| ボイスフォーカス | Within ambient sound, brings voices forward |
+| サイドトーン | How much of your own voice comes back, 0–10 |
+| 自動電源オフ | Power off when taken off and left |
+| Bluetooth | Switch the connection on an incoming or outgoing call |
+| 音声ガイド | Spoken prompts, in English, Chinese or Japanese |
+
+Each one is written as you change it and then read back, so what you see is what the headset says
+rather than what it was asked for — change the mode and the level it kept comes back with it. A
+setting your model does not answer for is not shown at all, rather than shown as off; the tab is
+greyed out entirely while no headset is connected.
+
+These are decoded from watching INZONE Hub work, packet by packet: see
+[docs/PROTOCOL.md](docs/PROTOCOL.md) for what each one sends.
 
 If a combination cannot be registered when the tray starts, because something else claimed it
 first, a balloon names the commands affected. Every other hotkey still works.
