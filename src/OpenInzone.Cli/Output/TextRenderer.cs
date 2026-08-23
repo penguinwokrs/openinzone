@@ -85,14 +85,28 @@ public sealed class TextRenderer(TextWriter output, TextWriter error, bool raw =
     /// `--raw` rather than adding a second line: watching bytes change during a notification is
     /// exactly what `--raw` is for.
     /// </summary>
-    private string Detail(EventReport e) => e.Payload switch
+    /// <summary>
+    /// The decoded value, and under --raw the bytes it was decoded from.
+    /// </summary>
+    /// <remarks>
+    /// --raw used to reach only the battery, which made it useless for the thing it is for:
+    /// watching what INZONE Hub sends in order to work out a setting this project cannot decode
+    /// yet. A decoded line was the one place the bytes were hidden, and those are exactly the
+    /// lines worth comparing against a value seen in Hub's own window.
+    /// </remarks>
+    private string Detail(EventReport e)
     {
-        BatteryReport battery when raw => $"{battery.Battery}  raw {HexFormat.Battery(battery.Battery)}",
-        BatteryReport battery => battery.Battery.ToString(),
-        BalanceReport balance => balance.Balance.ToString(),
-        VolumeReport volume => volume.Volume.ToString(),
-        MicMuteReport mic => mic.Mic.ToString(),
-        SidetoneReport sidetone => sidetone.Sidetone.ToString(),
-        _ => e.RawHex,
-    };
+        string decoded = e.Payload switch
+        {
+            BatteryReport battery => battery.Battery.ToString(),
+            BalanceReport balance => balance.Balance.ToString(),
+            VolumeReport volume => volume.Volume.ToString(),
+            MicMuteReport mic => mic.Mic.ToString(),
+            SidetoneReport sidetone => sidetone.Sidetone.ToString(),
+            _ => e.RawHex,
+        };
+
+        // Nothing to repeat when the line is already the bytes.
+        return raw && e.Payload is not null ? $"{decoded}  raw {e.RawHex}" : decoded;
+    }
 }

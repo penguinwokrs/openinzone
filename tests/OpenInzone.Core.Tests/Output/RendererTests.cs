@@ -29,6 +29,21 @@ public class TextRendererTests
         Assert.Equal("L 76%  R --  case 34%\n", Render(report));
     }
 
+    /// <summary>
+    /// --raw is for watching what INZONE Hub sends while working out a setting this cannot decode
+    /// yet, and it used to reach only the battery - so the decoded lines, the ones worth comparing
+    /// against a value in Hub's own window, were the one place the bytes were hidden.
+    /// </summary>
+    [Fact]
+    public void ShowsTheBytesBehindADecodedNotificationUnderRaw()
+    {
+        var report = new EventReport(new DateTime(2026, 1, 1, 1, 20, 23),
+            EventId.SidetoneVolume, new SidetoneReport(new SidetoneVolume(3, 30)), "03 1E");
+
+        Assert.Equal("01:20:23  SidetoneVolume         3  raw 03 1E\n", Render(report, raw: true));
+        Assert.Equal("01:20:23  SidetoneVolume         3\n", Render(report));
+    }
+
     [Fact]
     public void DrawsBalanceByNamingTheSideItLeansTo()
     {
