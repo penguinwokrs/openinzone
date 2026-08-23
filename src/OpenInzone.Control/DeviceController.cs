@@ -178,6 +178,14 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         Mutate(state => state with { Mic = result });
     });
 
+    // Explicit rather than a toggle the caller has to work out from a state it read a moment
+    // ago: `inzone mic mute` means mute, whatever it was.
+    public void SetMicMuted(bool muted) => Post(_ =>
+    {
+        var result = Device().SetMicMuted(muted);
+        Mutate(state => state with { Mic = result });
+    });
+
     // The panel dropped its headphone mute - muting the headset's own volume turned out to mean
     // little next to the Windows mixer - but the CLI still offers it, and a client that asks for
     // it must not be the one process that has to open the device itself to get it.

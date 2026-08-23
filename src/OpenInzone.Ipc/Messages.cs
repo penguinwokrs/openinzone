@@ -19,6 +19,7 @@ public static class IpcCommands
     public const string ToggleMicMute = "toggle-mic-mute";
     public const string AdjustMicLevel = "adjust-mic-level";
     public const string SetMicLevel = "set-mic-level";
+    public const string SetMicMuted = "set-mic-muted";
     public const string SetVolumeMuted = "set-volume-muted";
     public const string ToggleVolumeMute = "toggle-volume-mute";
 
@@ -28,7 +29,7 @@ public static class IpcCommands
     public static bool IsKnown(string command) => command is
         Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
         or ToggleMicMute or AdjustMicLevel or SetMicLevel
-        or SetVolumeMuted or ToggleVolumeMute or Describe;
+        or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe;
 }
 
 /// <summary>One battery reading. A null percentage means the part is not reporting, or is absent.</summary>

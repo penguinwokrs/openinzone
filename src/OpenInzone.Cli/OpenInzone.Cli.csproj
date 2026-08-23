@@ -21,5 +21,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenInzone.Core\OpenInzone.Core.csproj" />
+    <ProjectReference Include="..\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
   </ItemGroup>
 </Project>

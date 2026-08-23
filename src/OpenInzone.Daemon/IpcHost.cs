@@ -60,6 +60,7 @@ internal sealed class IpcHost : IDisposable
             case IpcCommands.ToggleMicMute: _controller.ToggleMicMute(); break;
             case IpcCommands.AdjustMicLevel: _controller.AdjustMicLevel(message.Value); break;
             case IpcCommands.SetMicLevel: _controller.SetMicLevel(message.Value); break;
+            case IpcCommands.SetMicMuted: _controller.SetMicMuted(message.Value != 0); break;
             case IpcCommands.SetVolumeMuted: _controller.SetVolumeMuted(message.Value != 0); break;
             case IpcCommands.ToggleVolumeMute: _controller.ToggleVolumeMute(); break;
             case IpcCommands.Describe: _controller.Describe(detail => _server.Publish(detail)); break;

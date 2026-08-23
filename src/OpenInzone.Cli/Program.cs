@@ -4,6 +4,7 @@
 using System.Globalization;
 using OpenInzone;
 using OpenInzone.Cli.Output;
+using OpenInzone.Cli.Session;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
 
@@ -72,19 +73,38 @@ internal static class Program
         return command switch
         {
             "devices" => ListDevices(renderer),
-            "status" => WithDevice(device => Show(renderer, BuildStatus(device))),
-            "balance" => WithDevice(device => Show(renderer, new BalanceReport(Balance(device, rest)))),
-            "volume" or "vol" => WithDevice(device => Show(renderer, new VolumeReport(Volume(device, rest)))),
-            "mic" => WithDevice(device => Mic(device, rest, renderer)),
-            "battery" => WithDevice(device => Show(renderer, new BatteryReport(device.GetBattery()))),
+            "status" => WithSession(session => Show(renderer, BuildStatus(session))),
+            "balance" => WithSession(session => Show(renderer, new BalanceReport(Balance(session, rest)))),
+            "volume" or "vol" => WithSession(session => Show(renderer, new VolumeReport(Volume(session, rest)))),
+            "mic" => WithSession(session => Mic(session, rest, renderer)),
+            "battery" => WithSession(session => Show(renderer, new BatteryReport(session.GetBattery()))),
             "watch" => WithDevice(device => Watch(device, rest, renderer)),
             _ => Unknown(command, renderer),
         };
     }
 
     /// <summary>
-    /// Opens the dongle for the commands that need one. Keeping it out of <see cref="Run"/> is
-    /// what lets an unknown command be rejected on a machine with nothing plugged in.
+    /// Runs a command against whoever is holding the headset. Keeping this out of
+    /// <see cref="Run"/> is what lets an unknown command be rejected on a machine with nothing
+    /// plugged in.
+    /// </summary>
+    /// <remarks>
+    /// A running daemon is asked rather than talked over. Replies are matched on a transaction
+    /// number each process counts from one, so two conversations on the same dongle can claim each
+    /// other's answers - which is a real possibility whenever the tray or a Stream Deck is up. With
+    /// no daemon there is nobody to collide with, and opening the device is both safe and quicker
+    /// than starting one to ask a single question.
+    /// </remarks>
+    private static int WithSession(Func<IHeadsetSession, int> action)
+    {
+        using var session = DaemonSession.TryConnect() ?? DirectSession.Open();
+        return action(session);
+    }
+
+    /// <summary>
+    /// Opens the dongle directly, for `watch`. A listener issues no requests of its own after the
+    /// first, so it has no transactions to collide with anyone else's - and the channel carries
+    /// whole snapshots rather than the individual notifications this command exists to show.
     /// </summary>
     private static int WithDevice(Func<InzoneDevice, int> action)
     {
@@ -137,75 +157,62 @@ internal static class Program
         return 0;
     }
 
-    private static StatusReport BuildStatus(InzoneDevice device) => new(
-        device.GetModelInfo(),
-        device.GetBattery(),
-        device.GetMixBalance(),
-        device.GetHeadphoneVolume(),
-        device.GetMicVolume(),
-        MicLevel(device),
-        device.GetSidetoneVolume());
+    private static StatusReport BuildStatus(IHeadsetSession session) => new(
+        session.GetModelInfo(),
+        session.GetBattery(),
+        session.GetMixBalance(),
+        session.GetHeadphoneVolume(),
+        session.GetMicVolume(),
+        session.GetMicLevel(),
+        session.GetSidetoneVolume());
 
-    private static MixBalance Balance(InzoneDevice device, string[] args)
+    private static MixBalance Balance(IHeadsetSession session, string[] args)
     {
-        if (args.Length == 0) return device.GetMixBalance();
+        if (args.Length == 0) return session.GetMixBalance();
 
         string arg = args[0];
-        if (arg is "centre" or "center") return device.SetMixBalance(MixBalance.Centre);
+        if (arg is "centre" or "center") return session.SetMixBalance(MixBalance.Centre);
 
         var (value, relative) = ParseAmount(arg, "balance");
-        return relative ? device.AdjustMixBalance(value) : device.SetMixBalance(value);
+        return relative ? session.AdjustMixBalance(value) : session.SetMixBalance(value);
     }
 
-    private static HeadphoneVolume Volume(InzoneDevice device, string[] args)
+    private static HeadphoneVolume Volume(IHeadsetSession session, string[] args)
     {
-        if (args.Length == 0) return device.GetHeadphoneVolume();
+        if (args.Length == 0) return session.GetHeadphoneVolume();
 
         switch (args[0].ToLowerInvariant())
         {
-            case "mute": return device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: true);
-            case "unmute": return device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted: false);
-            case "toggle": return device.ToggleHeadphoneMute();
+            case "mute": return session.SetHeadphoneMuted(true);
+            case "unmute": return session.SetHeadphoneMuted(false);
+            case "toggle": return session.ToggleHeadphoneMute();
         }
 
         var (value, relative) = ParseAmount(args[0], "volume");
-        return relative ? device.AdjustHeadphoneVolume(value) : device.SetHeadphoneVolume(value);
+        return relative ? session.AdjustHeadphoneVolume(value) : session.SetHeadphoneVolume(value);
     }
 
-    private static int Mic(InzoneDevice device, string[] args, IReportRenderer renderer)
+    private static int Mic(IHeadsetSession session, string[] args, IReportRenderer renderer)
     {
-        if (args.Length == 0) return Show(renderer, MicNow(device));
+        if (args.Length == 0) return Show(renderer, MicNow(session));
 
         // Each of these reports only what it changed, which is what the command has always
         // printed. Muting is a headset flag; the level is a Windows setting. Reporting both
         // together belongs to `inzone mic` with no arguments, not to these.
         switch (args[0].ToLowerInvariant())
         {
-            case "mute": return Show(renderer, new MicMuteReport(device.SetMicMuted(true)));
-            case "unmute": return Show(renderer, new MicMuteReport(device.SetMicMuted(false)));
-            case "toggle": return Show(renderer, new MicMuteReport(device.ToggleMicMute()));
+            case "mute": return Show(renderer, new MicMuteReport(session.SetMicMuted(true)));
+            case "unmute": return Show(renderer, new MicMuteReport(session.SetMicMuted(false)));
+            case "toggle": return Show(renderer, new MicMuteReport(session.ToggleMicMute()));
         }
 
         var (value, relative) = ParseAmount(args[0], "microphone level");
-        int level = relative ? device.AdjustMicLevel(value) : device.SetMicLevel(value);
+        int level = relative ? session.AdjustMicLevel(value) : session.SetMicLevel(value);
         return Show(renderer, new MicLevelReport(level));
     }
 
-    private static MicReport MicNow(InzoneDevice device)
-        => new(device.GetMicVolume(), MicLevel(device));
-
-    /// <summary>The level lives on the Windows capture endpoint, which may not exist.</summary>
-    private static int? MicLevel(InzoneDevice device)
-    {
-        try
-        {
-            return device.GetMicLevel();
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
+    private static MicReport MicNow(IHeadsetSession session)
+        => new(session.GetMicVolume(), session.GetMicLevel());
 
     private static int Watch(InzoneDevice device, string[] args, IReportRenderer renderer)
     {
