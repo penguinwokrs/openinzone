@@ -144,7 +144,37 @@ public partial class SettingsWindow : Window
 
         _settingWrites.Tick += (_, _) => FlushSettingWrites();
         _headset.SettingsReceived += OnSettingsReceived;
+
+        // In code rather than in markup, and only now that everything they touch exists. Attached
+        // in markup, a handler runs while the window is still being built: a Slider with a
+        // Minimum of 1 coerces its value as the markup is read, and OnAmbientLevelChanged then
+        // ran against a label that had not been created and a headset that had not been assigned.
+        // That crashed the window before it could open, and it reached a release, because neither
+        // the tests nor the renderer that draws these tabs runs a handler at all.
+        AttachDeviceHandlers();
         _headset.RequestSettings();
+    }
+
+    private void AttachDeviceHandlers()
+    {
+        foreach (var button in new[] { AmbientOffButton, NoiseCancellingButton, AmbientButton })
+            button.Checked += OnAmbientModeChanged;
+
+        AmbientLevelSlider.ValueChanged += OnAmbientLevelChanged;
+        SidetoneSlider.ValueChanged += OnSidetoneChanged;
+        LanguageBox.SelectionChanged += OnLanguageChanged;
+
+        foreach (var (box, handler) in new (System.Windows.Controls.CheckBox, RoutedEventHandler)[]
+        {
+            (VoiceFocusBox, OnVoiceFocusChanged),
+            (AutoPowerOffBox, OnAutoPowerOffChanged),
+            (BluetoothAutoSwitchBox, OnBluetoothAutoSwitchChanged),
+            (VoiceGuidanceBox, OnVoiceGuidanceChanged),
+        })
+        {
+            box.Checked += handler;
+            box.Unchecked += handler;
+        }
     }
 
     // ---- applying -----------------------------------------------------------------------------
@@ -646,6 +676,8 @@ public partial class SettingsWindow : Window
 
     private void OnAmbientLevelChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (_showingSettings) return;
+
         AmbientLevelText.Text = ((int)e.NewValue).ToString();
         QueueSettingWrite("ambient-level", () => _headset.SetAmbientLevel((int)e.NewValue));
     }
@@ -657,6 +689,8 @@ public partial class SettingsWindow : Window
 
     private void OnSidetoneChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (_showingSettings) return;
+
         SidetoneText.Text = ((int)e.NewValue).ToString();
         QueueSettingWrite("sidetone", () => _headset.SetSidetone((int)e.NewValue));
     }

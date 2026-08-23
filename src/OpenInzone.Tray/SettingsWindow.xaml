@@ -138,13 +138,11 @@
           <TextBlock Text="外音コントロール" FontSize="13" />
           <StackPanel x:Name="AmbientGroup" Margin="0,8,0,0">
             <RadioButton x:Name="AmbientOffButton" GroupName="Ambient" Content="オフ"
-                         Foreground="{StaticResource Text}" Checked="OnAmbientModeChanged" Tag="0" />
+                         Foreground="{StaticResource Text}" Tag="0" />
             <RadioButton x:Name="NoiseCancellingButton" GroupName="Ambient" Content="ノイズキャンセリング"
-                         Foreground="{StaticResource Text}" Margin="0,6,0,0"
-                         Checked="OnAmbientModeChanged" Tag="1" />
+                         Foreground="{StaticResource Text}" Margin="0,6,0,0" Tag="1" />
             <RadioButton x:Name="AmbientButton" GroupName="Ambient" Content="外音取り込み"
-                         Foreground="{StaticResource Text}" Margin="0,6,0,0"
-                         Checked="OnAmbientModeChanged" Tag="2" />
+                         Foreground="{StaticResource Text}" Margin="0,6,0,0" Tag="2" />
 
             <Grid x:Name="AmbientLevelRow" Margin="22,8,0,0">
               <Grid.ColumnDefinitions>
@@ -155,13 +153,12 @@
                          Foreground="{StaticResource Quiet}" />
               <Slider x:Name="AmbientLevelSlider" Grid.Column="1" Minimum="1" Maximum="20"
                       IsSnapToTickEnabled="True" TickFrequency="1" Margin="10,0"
-                      VerticalAlignment="Center" ValueChanged="OnAmbientLevelChanged" />
+                      VerticalAlignment="Center" />
               <TextBlock x:Name="AmbientLevelText" Grid.Column="2" FontSize="12"
                          HorizontalAlignment="Right" VerticalAlignment="Center" />
             </Grid>
 
-            <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0"
-                      Checked="OnVoiceFocusChanged" Unchecked="OnVoiceFocusChanged" />
+            <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0" />
           </StackPanel>
 
           <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" />
@@ -170,25 +167,20 @@
               <ColumnDefinition Width="*" /><ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
             <Slider x:Name="SidetoneSlider" Minimum="0" Maximum="10" IsSnapToTickEnabled="True"
-                    TickFrequency="1" VerticalAlignment="Center" Margin="0,0,10,0"
-                    ValueChanged="OnSidetoneChanged" />
+                    TickFrequency="1" VerticalAlignment="Center" Margin="0,0,10,0" />
             <TextBlock x:Name="SidetoneText" Grid.Column="1" FontSize="12"
                        HorizontalAlignment="Right" VerticalAlignment="Center" />
           </Grid>
 
           <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0" />
-          <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0"
-                    Checked="OnAutoPowerOffChanged" Unchecked="OnAutoPowerOffChanged" />
+          <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0" />
           <CheckBox x:Name="BluetoothAutoSwitchBox" Margin="0,8,0,0"
-                    Content="Bluetooth の発信・着信時に自動で接続を切り替える"
-                    Checked="OnBluetoothAutoSwitchChanged" Unchecked="OnBluetoothAutoSwitchChanged" />
-          <CheckBox x:Name="VoiceGuidanceBox" Content="音声ガイド" Margin="0,8,0,0"
-                    Checked="OnVoiceGuidanceChanged" Unchecked="OnVoiceGuidanceChanged" />
+                    Content="Bluetooth の発信・着信時に自動で接続を切り替える" />
+          <CheckBox x:Name="VoiceGuidanceBox" Content="音声ガイド" Margin="0,8,0,0" />
           <StackPanel x:Name="LanguageRow" Orientation="Horizontal" Margin="22,8,0,14">
             <TextBlock Text="言語" FontSize="12" VerticalAlignment="Center"
                        Foreground="{StaticResource Quiet}" />
-            <ComboBox x:Name="LanguageBox" Width="130" Margin="10,0,0,0" Height="26"
-                      SelectionChanged="OnLanguageChanged">
+            <ComboBox x:Name="LanguageBox" Width="130" Margin="10,0,0,0" Height="26">
               <ComboBoxItem Content="英語" Tag="0" />
               <ComboBoxItem Content="日本語" Tag="1" />
               <ComboBoxItem Content="中国語" Tag="2" />
