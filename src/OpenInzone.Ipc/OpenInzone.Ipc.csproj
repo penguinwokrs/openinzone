@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Ipc</RootNamespace>
+    <AssemblyName>OpenInzone.Ipc</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+
+    <!--
+      The Stream Deck plugin publishes trimmed, so this assembly must carry no reflection-based
+      serialisation: every payload goes through the source-generated context in IpcJson.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+</Project>
