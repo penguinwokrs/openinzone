@@ -19,6 +19,12 @@ public sealed class HotkeyConfig
     // someone without asking.
     public bool CheckForUpdatesAtStartup { get; set; }
 
+    /// <summary>
+    /// Where the settings window last saved the Stream Deck plugin. Null means it has never been
+    /// asked, and the downloads folder stands in.
+    /// </summary>
+    public string? PluginSaveFolder { get; set; }
+
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
     public static HotkeyConfig Default() => new()
@@ -50,6 +56,7 @@ public sealed class HotkeyConfig
         {
             ["bindings"] = new JsonObject(Bindings.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
             ["checkForUpdatesAtStartup"] = CheckForUpdatesAtStartup,
+            ["pluginSaveFolder"] = PluginSaveFolder,
         };
 
         // Write beside the file and move it into place, so a save interrupted part-way leaves the
@@ -71,6 +78,10 @@ public sealed class HotkeyConfig
         // than parsed, so a stale or malformed value here is never a reason to refuse the file.
         if (root["checkForUpdatesAtStartup"] is JsonValue checkForUpdates)
             config.CheckForUpdatesAtStartup = checkForUpdates.GetValue<bool>();
+
+        if (root["pluginSaveFolder"] is JsonValue folder && folder.TryGetValue(out string? path)
+            && !string.IsNullOrWhiteSpace(path))
+            config.PluginSaveFolder = path;
 
         switch (root["bindings"])
         {

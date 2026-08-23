@@ -67,18 +67,13 @@ public partial class App : System.Windows.Application
         _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() =>
         {
             if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
+            if (_hotkeys is null) return;
 
-            // Releases our own registrations for the window's lifetime, so a combination this
-            // application already holds does not falsely probe as taken while the user is
-            // re-confirming it or moving it to another command.
-            _hotkeys?.Suspend();
-
-            _settings = new SettingsWindow(_config);
-            // Re-registering here is what makes a saved change take effect without a restart.
-            _settings.Saved += (_, config) => SurfaceRejected(_hotkeys?.Apply(config) ?? []);
-            // Runs whether the window was saved or dismissed with the X button: Resume puts back
-            // whatever configuration was last applied, which after a save is the new one.
-            _settings.Closed += (_, _) => SurfaceRejected(_hotkeys?.Resume() ?? []);
+            // The window applies as it goes and holds the hotkeys off only while it is waiting for
+            // a key, so there is nothing to suspend or resume around its lifetime any more - and
+            // nothing to do when it closes, because everything it was asked to do is already done.
+            _settings = new SettingsWindow(_config, _hotkeys);
+            _settings.Rejected += (_, rejected) => SurfaceRejected(rejected);
             _settings.Show();
         });
     }

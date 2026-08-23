@@ -51,9 +51,15 @@ public static class UpdateChecker
     /// disagree about what to do with that: the startup check swallows it silently, the settings
     /// window's on-demand check reports it, so neither behaviour belongs here.
     /// </summary>
-    public static async Task<UpdateInfo> CheckAsync(CancellationToken cancellationToken = default)
-    {
-        string json = await Http.GetStringAsync(ReleasesUrl, cancellationToken).ConfigureAwait(false);
-        return UpdateInfo.CheckRelease(json, CurrentVersion);
-    }
+    public static async Task<UpdateInfo> CheckAsync(CancellationToken cancellationToken = default) =>
+        UpdateInfo.CheckRelease(
+            await FetchLatestReleaseAsync(cancellationToken).ConfigureAwait(false), CurrentVersion);
+
+    /// <summary>
+    /// The release body itself, for callers after something other than an update - the Stream Deck
+    /// plugin is attached to the same release. Shares this client rather than opening a second one
+    /// for the same small request against the same host.
+    /// </summary>
+    public static Task<string> FetchLatestReleaseAsync(CancellationToken cancellationToken = default) =>
+        Http.GetStringAsync(ReleasesUrl, cancellationToken);
 }
