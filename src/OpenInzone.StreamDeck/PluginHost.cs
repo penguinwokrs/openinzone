@@ -30,11 +30,17 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
             _state = snapshot;
             RedrawAll();
         };
-        // A dropped link is drawn as no reading at all rather than as the last one, which would
-        // otherwise sit there looking current.
         tray.ConnectionChanged += (_, connected) =>
         {
+            // A dropped link is drawn as no reading at all rather than as the last one, which
+            // would otherwise sit there looking current.
             if (!connected) _state = DeviceSnapshot.Disconnected;
+
+            // The tray's hello carries whatever it last knew, which may be from before the
+            // earbuds were taken out of the case. Asking on arrival is what makes the deck
+            // right immediately rather than at the next thing that happens to change.
+            else tray.Send(IpcCommands.Refresh);
+
             RedrawAll();
         };
     }
