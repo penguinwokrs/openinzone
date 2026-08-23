@@ -217,6 +217,13 @@ for voice focus on. Voice focus is the only other control in that panel, so byte
 
 The level is carried in every mode, including the ones that do not use it.
 
+The readings above were taken in the order the controls were driven, which is what put the voice
+guidance languages the wrong way round in this document (see `0x83`). This one was cross-checked
+afterwards, without writing anything: the headset answered `02 14 FF 00` while its owner had
+INZONE Hub open, and Hub showed ambient sound, level 20, voice focus off. Mode `02`, the level's
+scale and byte 3 therefore each agree with what a person can see, not only with the order they
+were asked in.
+
 ### Auto power off, `0x81`
 
 One byte. `00` off, `0x0F` on. INZONE Buds offers only those two in INZONE Hub, and 15 reads like
