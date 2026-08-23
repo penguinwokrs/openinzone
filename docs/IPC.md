@@ -25,8 +25,12 @@ to start it.
 
 It is started with `CREATE_BREAKAWAY_FROM_JOB`. Without that it joins its launcher's job object,
 and a launcher whose job kills on close takes the daemon with it — measured with a PowerShell
-pipeline and with WSL's interop, both of which did exactly that. A job may refuse, in which case
-the daemon is started tied to its launcher rather than not at all.
+pipeline and with WSL's interop, both of which did exactly that.
+
+A job may refuse the breakaway, and some do: `Start-Process -Wait` is one, and the daemon then
+stops with the client that started it. That is not fatal. Any other client notices the pipe has
+gone within a couple of seconds, starts a new daemon and carries on — so the worst case is a brief
+gap, not a headset nobody owns.
 
 It holds no hotkeys. Those are registered first come, first served; a second holder is what
 retired this project's earlier console daemon, and they stay with the tray.
