@@ -70,14 +70,82 @@ Filename: "{app}\inzonetray.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; 
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-{ The tray owns the hotkey registrations, so it has to be gone before files are replaced. }
+{ The tray owns the hotkey registrations, so it has to be gone before files are replaced. inzone.exe
+  ships into the same directory: it is a short-lived command-line tool, so the odds of it still
+  running are low, but if it is, it would lock its own file exactly like the tray would, so it gets
+  the same treatment. }
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
-  { If the tray is not running, taskkill returns non-zero; ignore it. }
+  { If a process is not running, taskkill returns non-zero; ignore it. }
   Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/IM inzone.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
+end;
+
+{ True when Dir holds files that mark it as a previous OpenInzone install: our own executable, or
+  an Inno-generated uninstaller. Anything else -- an empty directory, or a path the user repointed
+  the install to that happens to hold unrelated files -- must not match, because ClearOldInstall
+  below deletes on the strength of this check. }
+function DirLooksLikePreviousInstall(const Dir: String): Boolean;
+var
+  FindRec: TFindRec;
+begin
+  Result := FileExists(Dir + '\inzonetray.exe');
+  if not Result and FindFirst(Dir + '\unins*.exe', FindRec) then
+  begin
+    Result := True;
+    FindClose(FindRec);
+  end;
+end;
+
+{ Removes everything inside Dir, but not Dir itself, so a directory the user chose in the wizard
+  keeps whatever permissions were set on it. }
+procedure ClearOldInstall(const Dir: String);
+var
+  FindRec: TFindRec;
+  FullPath: String;
+begin
+  if FindFirst(Dir + '\*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        begin
+          FullPath := Dir + '\' + FindRec.Name;
+          if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
+            DelTree(FullPath, True, True, True)
+          else
+            DeleteFile(FullPath);
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
+{ Inno replaces a file by renaming the old copy aside, then moving the new one into place; a file
+  left behind by an earlier, incomplete uninstall sits in the way of that rename and it fails with
+  error 183 (ERROR_ALREADY_EXISTS) -- exactly what happened when 0.1.0 was uninstalled with the
+  tray still running, its files survived, and every install after it piled a new [unins0xx.*] pair
+  on top instead of replacing the old one. ssInstall fires after the wizard but before Inno writes
+  any payload, and Inno does not create its own uninstaller until the very end of installation, so
+  clearing the directory here wipes stale files -- including old unins*.* -- without touching the
+  uninstaller for the install now in progress. This is safe only because the payload is
+  self-contained: the app directory holds nothing but what we put there, so once it is recognisable
+  as a previous OpenInzone install, we own everything in it. }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  AppDir: String;
+begin
+  if CurStep = ssInstall then
+  begin
+    AppDir := ExpandConstant('{app}');
+    if DirExists(AppDir) and DirLooksLikePreviousInstall(AppDir) then
+      ClearOldInstall(AppDir);
+  end;
 end;
 
 { Uninstall is when the tray is most likely to be running: autostart is a checked task and setup
