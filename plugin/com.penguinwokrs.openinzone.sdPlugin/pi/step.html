@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  SPDX-License-Identifier: GPL-3.0-only
+  Copyright (C) 2026 penguinwokrs
+
+  The settings panel for the actions that move a value. Self-contained on purpose: a
+  Property Inspector is loaded from disk inside the Stream Deck application, and a plugin
+  that pulls a stylesheet or a script off the network is a plugin that breaks the first
+  time someone is offline.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>OpenInzone</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px 16px;
+        background: #2d2d2d;
+        color: #d8d8d8;
+        font: 9pt "Segoe UI", -apple-system, sans-serif;
+      }
+      .row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      label { flex: 0 0 92px; text-align: right; color: #969696; }
+      input {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 4px 6px;
+        border: 1px solid #3d3d3d;
+        border-radius: 3px;
+        background: #3d3d3d;
+        color: #d8d8d8;
+        font: inherit;
+      }
+      input:focus { outline: 1px solid #77f; }
+      p.hint { margin: 0 0 0 102px; color: #7a7a7a; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <label for="step">Step</label>
+      <input id="step" type="number" step="1" />
+    </div>
+    <p class="hint">
+      How far one press moves the value. A negative step makes a key that turns it down, so a
+      pair of keys gives you up and down. A dial ignores the sign and takes its direction from
+      the way it is turned.
+    </p>
+
+    <script>
+      let socket = null;
+      let context = null;
+      const field = document.getElementById("step");
+
+      // The entry point the Stream Deck application calls once this page is loaded.
+      function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfo) {
+        context = uuid;
+        socket = new WebSocket("ws://127.0.0.1:" + port);
+
+        socket.onopen = () => {
+          socket.send(JSON.stringify({ event: registerEvent, uuid: uuid }));
+          apply(safeParse(actionInfo));
+        };
+
+        socket.onmessage = (message) => {
+          const event = safeParse(message.data);
+          if (event && event.event === "didReceiveSettings") apply(event);
+        };
+      }
+
+      function safeParse(text) {
+        try {
+          return typeof text === "string" ? JSON.parse(text) : text;
+        } catch {
+          return null;
+        }
+      }
+
+      // An empty field means "whatever the plugin considers normal for this action", which is
+      // why it is left blank rather than pre-filled with a number the user did not choose.
+      function apply(event) {
+        const step = event && event.payload && event.payload.settings
+          ? event.payload.settings.step
+          : undefined;
+        field.value = typeof step === "number" ? step : "";
+      }
+
+      field.addEventListener("change", () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        const parsed = parseInt(field.value, 10);
+        socket.send(JSON.stringify({
+          event: "setSettings",
+          context: context,
+          payload: Number.isNaN(parsed) ? {} : { step: parsed },
+        }));
+      });
+    </script>
+  </body>
+</html>

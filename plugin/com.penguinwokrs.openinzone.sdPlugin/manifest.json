@@ -1,0 +1,122 @@
+{
+  "UUID": "com.penguinwokrs.openinzone",
+  "Name": "OpenInzone",
+  "Author": "penguinwokrs",
+  "Description": "Control a Sony INZONE headset from the deck: volume, game/chat balance, microphone mute and level, and battery for each earbud. Requires the OpenInzone tray application, which owns the connection to the headset.",
+  "Version": "0.1.0.0",
+  "URL": "https://github.com/penguinwokrs/openinzone",
+  "Icon": "images/plugin",
+  "CodePath": "openinzone-streamdeck.exe",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.4"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "UUID": "com.penguinwokrs.openinzone.volume",
+      "Name": "Volume",
+      "Icon": "images/actions/volume",
+      "Tooltip": "Steps the headset's own volume. Set a negative step for a key that turns it down.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Volume"
+        }
+      },
+      "States": [
+        {
+          "Image": "images/keys/volume",
+          "TitleAlignment": "middle"
+        }
+      ]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.balance",
+      "Name": "Game / chat balance",
+      "Icon": "images/actions/balance",
+      "Tooltip": "Steps the balance between game audio and chat audio, on the same scale INZONE Hub shows.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Push": "Centre",
+          "Rotate": "Balance"
+        }
+      },
+      "States": [
+        {
+          "Image": "images/keys/balance",
+          "TitleAlignment": "middle"
+        }
+      ]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.micmute",
+      "Name": "Microphone mute",
+      "Icon": "images/actions/micmute",
+      "Tooltip": "Mutes and unmutes the headset's microphone.",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Push": "Mute"
+        }
+      },
+      "States": [
+        {
+          "Image": "images/keys/micmute",
+          "TitleAlignment": "middle"
+        }
+      ]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.miclevel",
+      "Name": "Microphone level",
+      "Icon": "images/actions/miclevel",
+      "Tooltip": "Steps the microphone's recording level. Set a negative step for a key that turns it down.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Push": "Mute",
+          "Rotate": "Level"
+        }
+      },
+      "States": [
+        {
+          "Image": "images/keys/miclevel",
+          "TitleAlignment": "middle"
+        }
+      ]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.battery",
+      "Name": "Battery",
+      "Icon": "images/actions/battery",
+      "Tooltip": "Shows the charge of each earbud. Press to read the headset again.",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Push": "Refresh"
+        }
+      },
+      "States": [
+        {
+          "Image": "images/keys/battery",
+          "TitleAlignment": "middle"
+        }
+      ]
+    }
+  ]
+}
