@@ -19,11 +19,4 @@ public static class UpdateSupport
     /// </summary>
     public static Version ThreeComponent(Version version) =>
         new(version.Major, version.Minor, Math.Max(version.Build, 0));
-
-    /// <summary>
-    /// The name to save a downloaded installer under - taken from the URL GitHub actually served
-    /// rather than rebuilt from the version, so it can never drift from what was downloaded.
-    /// </summary>
-    public static string InstallerFileName(string downloadUrl) =>
-        Uri.UnescapeDataString(new Uri(downloadUrl).Segments[^1]);
 }

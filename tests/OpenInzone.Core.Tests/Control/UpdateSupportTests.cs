@@ -34,22 +34,4 @@ public class UpdateSupportTests
 
         Assert.Equal(new Version(1, 0, 0), reduced);
     }
-
-    [Fact]
-    public void The_installer_file_name_comes_from_the_download_url()
-    {
-        string name = UpdateSupport.InstallerFileName(
-            "https://github.com/penguinwokrs/openinzone/releases/download/v1.5.0/OpenInzone-1.5.0-setup.exe");
-
-        Assert.Equal("OpenInzone-1.5.0-setup.exe", name);
-    }
-
-    [Fact]
-    public void The_installer_file_name_is_url_decoded()
-    {
-        string name = UpdateSupport.InstallerFileName(
-            "https://github.com/penguinwokrs/openinzone/releases/download/v1.5.0/OpenInzone%201.5.0.exe");
-
-        Assert.Equal("OpenInzone 1.5.0.exe", name);
-    }
 }
