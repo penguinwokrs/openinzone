@@ -33,6 +33,9 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--faces")
+            return await FacesAsync(args.Skip(1).FirstOrDefault(), args.Skip(2).FirstOrDefault()).ConfigureAwait(false);
+
         if (args.FirstOrDefault() == "--property-inspector")
             return await InspectAsync(args.Skip(1).FirstOrDefault()).ConfigureAwait(false);
 
@@ -168,6 +171,52 @@ internal static class Program
             Find(ignored, "setImage", "key-never-appeared") is null);
 
         return start;
+    }
+
+    /// <summary>
+    /// Writes out the key faces the plugin draws from whatever the headset is doing right now, so
+    /// they can be looked at. The tests draw them from made-up states; this is the real thing, and
+    /// a face is only right if someone has seen it at the size it will be used.
+    /// </summary>
+    private static async Task<int> FacesAsync(string? pluginPath, string? outputDirectory)
+    {
+        string plugin = pluginPath ?? DefaultPluginPath();
+        string directory = outputDirectory ?? Path.Combine(Environment.CurrentDirectory, "faces");
+        Directory.CreateDirectory(directory);
+
+        using var deck = new FakeDeck();
+        await deck.StartAsync(plugin).ConfigureAwait(false);
+
+        foreach (string action in new[] { Volume, "com.penguinwokrs.openinzone.balance", MicMute,
+                                          "com.penguinwokrs.openinzone.miclevel", Battery })
+        {
+            string name = action.Split('.')[^1];
+            await deck.SendAsync(WillAppear(action, $"key-{name}", encoder: false)).ConfigureAwait(false);
+            var drawn = await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+            var image = Find(drawn, "setImage", $"key-{name}");
+            if (image is null)
+            {
+                Console.WriteLine($"  {name}: nothing drawn");
+                continue;
+            }
+
+            string uri = image.Value.GetProperty("payload").GetProperty("image").GetString()!;
+            const string prefix = "data:image/svg+xml;base64,";
+            if (!uri.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                Console.WriteLine($"  {name}: not an SVG data URI");
+                _failures++;
+                continue;
+            }
+
+            string path = Path.Combine(directory, $"{name}.svg");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(uri[prefix.Length..]))
+                .ConfigureAwait(false);
+            Console.WriteLine($"  {name}: {path}");
+        }
+
+        return _failures == 0 ? 0 : 1;
     }
 
     /// <summary>
