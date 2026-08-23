@@ -11,6 +11,13 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <!-- Unlike the tray project, this had no Product either, so FileDescription, ProductName and
+         CompanyName all fell back to the assembly name (inzone) - a properties dialog on inzone.exe
+         described the file as "inzone" three times over. -->
+    <Product>OpenInzone</Product>
+    <AssemblyTitle>OpenInzone</AssemblyTitle>
+    <Company>penguinwokrs</Company>
+    <Description>Command line tool for controlling Sony INZONE headsets</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenInzone.Core\OpenInzone.Core.csproj" />

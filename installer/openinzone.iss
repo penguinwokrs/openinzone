@@ -64,12 +64,41 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\inzonetray.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; \
   Flags: nowait postinstall skipifsilent
+; skipifsilent above is right for an unattended install nobody is watching - winget running this in
+; the background must not pop a GUI open unasked. But the tray's own self-update also installs with
+; /SILENT, and that is the one case that most needs the application to come back: nothing else will
+; start it. UpdateInstaller.Run passes /RELAUNCHAFTERUPDATE alongside /SILENT /NOCANCEL to say so,
+; and RelaunchRequested below tests for it, so this entry launches only for that caller and stays
+; silent for everyone else's silent install.
+Filename: "{app}\inzonetray.exe"; Flags: nowait; Check: RelaunchRequested
 
 [UninstallDelete]
 ; %APPDATA%\openinzone is left alone so settings survive a reinstall.
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+{ Backs the second [Run] entry: true only when the command line carries /RELAUNCHAFTERUPDATE, which
+  UpdateInstaller.Run in the tray adds specifically so its own /SILENT install gets the tray back
+  afterwards. A plain /SILENT install - winget, or anyone else scripting this - leaves the switch
+  off and this returns false, so [Run]'s skipifsilent entry and this one agree: no GUI starts
+  itself in the background uninvited. There is no built-in CmdLineParamExists in Inno's Pascal
+  Scripting, so this walks ParamStr/ParamCount itself - the same pair /SILENT and /NOCANCEL above
+  are parsed from. }
+function RelaunchRequested(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(I), '/RELAUNCHAFTERUPDATE') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
 { The tray owns the hotkey registrations, so it has to be gone before files are replaced. inzone.exe
   ships into the same directory: it is a short-lived command-line tool, so the odds of it still
   running are low, but if it is, it would lock its own file exactly like the tray would, so it gets

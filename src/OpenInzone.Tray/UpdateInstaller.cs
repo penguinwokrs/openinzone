@@ -222,9 +222,19 @@ public static class UpdateInstaller
     /// <summary>
     /// The installer already stops a running tray and relaunches it once it is done, so nothing
     /// here waits for it or restarts anything - the caller's job after this is only to exit.
+    ///
+    /// /SILENT suppresses the wizard pages, which also suppresses the "launch it now" tick box
+    /// [Run] would otherwise offer - Inno's skipifsilent does exactly what it says. That is right
+    /// for a silent install started by something like winget, which should not have a GUI pop up
+    /// unasked, but wrong here: this <em>is</em> the running application asking to come back after
+    /// replacing itself, and without a relaunch the user is left with no tray until they start it
+    /// by hand. /RELAUNCHAFTERUPDATE carries that distinction across the process boundary -
+    /// openinzone.iss adds a second [Run] entry gated by a Check: clause that looks for it, so
+    /// only this caller, not a bare /SILENT install, gets the tray back automatically.
     /// </summary>
     public static void Run(string installerPath) =>
-        Process.Start(new ProcessStartInfo(installerPath, "/SILENT /NOCANCEL") { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo(installerPath, "/SILENT /NOCANCEL /RELAUNCHAFTERUPDATE")
+            { UseShellExecute = true });
 
     /// <summary>
     /// Removes the file and the directory <see cref="CreateStagingPath"/> made for it. Called on
