@@ -217,21 +217,3 @@ begin
   Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
-
-{ Runs immediately before any file is written, which is the last moment anything can be holding one
-  open. InitializeSetup already cleared the field, but a wizard the user left sitting there gives a
-  client all the time it needs to have brought something back - and SetupMutex only stops the
-  daemon, not a tray someone started by hand in the meantime. }
-function PrepareToInstall(var NeedsRestart: Boolean): String;
-var
-  ResultCode: Integer;
-begin
-  Exec('taskkill.exe', '/IM inzonetray.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('taskkill.exe', '/IM inzone.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('taskkill.exe', '/IM inzoned.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
-  { Killing returns before the handles are all closed. A moment here costs nothing and is the
-    difference between replacing a file and failing on it. }
-  Sleep(700);
-  Result := '';
-end;
