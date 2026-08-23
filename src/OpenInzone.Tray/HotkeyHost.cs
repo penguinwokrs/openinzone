@@ -33,6 +33,13 @@ public sealed class HotkeyHost : IDisposable
         _source.AddHook(OnMessage);
     }
 
+    /// <summary>
+    /// The commands whose key could not be taken the last time this applied one. Kept because a
+    /// balloon at startup is gone by the time anyone opens the settings, and a binding that is not
+    /// registered otherwise sits there looking exactly like one that is.
+    /// </summary>
+    public IReadOnlyList<string> Rejected { get; private set; } = [];
+
     /// <summary>Applies a configuration, returning the ids of commands whose key was already taken.</summary>
     public IReadOnlyList<string> Apply(HotkeyConfig config)
     {
@@ -59,6 +66,7 @@ public sealed class HotkeyHost : IDisposable
                 rejected.Add(command.Id);
         }
 
+        Rejected = rejected;
         return rejected;
     }
 

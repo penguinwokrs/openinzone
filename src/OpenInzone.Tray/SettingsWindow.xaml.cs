@@ -103,6 +103,13 @@ public partial class SettingsWindow : Window
         Rows.ItemsSource = _rows;
         MarkDuplicates();
 
+        // What is not registered right now, rather than what was refused when it was last touched:
+        // a key taken by something else between sessions would otherwise look like it was working.
+        // Two of our own commands sharing a key are refused the same way, and that is a different
+        // thing to be told, so those rows keep their own explanation.
+        foreach (var row in _rows)
+            row.Conflict = !row.Duplicate && hotkeys.Rejected.Contains(row.Id);
+
         // Assigned before the handlers can fire, so setting the initial state does not write it
         // straight back out.
         AutostartBox.Checked -= OnAutostartChanged;
