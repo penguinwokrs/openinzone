@@ -29,6 +29,12 @@ public static class UpdateInstaller
     // does not leave the button spinning for the session's lifetime.
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(30);
 
+    // A dead HTTP/2 connection has been measured to stop delivering bytes and never recover, while
+    // sitting inside the 30-minute budget above looking identical to a slow-but-alive download. 30
+    // seconds is generous given a healthy connection here moves tens of megabytes a second; this is
+    // what turns "frozen at some percentage for half an hour" into a failure the user can retry.
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(30);
+
     // Not UpdateChecker's client: its 10-second timeout covers reads from the response stream too,
     // so a ~70 MB installer would abort partway on anything slower than about 7 MB/s. Cancellation
     // here comes from a token instead, which is what a timeout on a streamed body has to be.
@@ -83,12 +89,12 @@ public static class UpdateInstaller
     /// Falls back to the release's own <see cref="UpdateInfo.SizeBytes"/> when the response carries
     /// no Content-Length, so progress still moves even when the server omits it.
     ///
-    /// Returns the file open for read and write, positioned back at the start, with writers
-    /// excluded - the same handle <see cref="VerifyDigest"/> hashes from and <see cref="Run"/>
-    /// eventually launches by name. Opening it once here and carrying it forward is what keeps
-    /// download, verification and launch looking at the same bytes throughout; the caller owns it
-    /// from this point and must dispose it once the installer has been started, or hand it to
-    /// <see cref="CleanUp"/>'s caller first if it gives up instead.
+    /// Returns the file reopened read-only, positioned back at the start, with writers excluded -
+    /// the same handle <see cref="VerifyDigest"/> hashes from and <see cref="Run"/> eventually
+    /// launches by name. Opening it once here and carrying it forward is what keeps verification
+    /// and launch looking at the same bytes; the caller owns it from this point and must dispose it
+    /// once the installer has been started, or hand it to <see cref="CleanUp"/>'s caller first if
+    /// it gives up instead.
     /// </summary>
     public static async Task<FileStream> DownloadAsync(UpdateInfo update, string path, IProgress<int>? progress,
         CancellationToken cancellationToken = default)
@@ -107,27 +113,33 @@ public static class UpdateInstaller
             throw new IOException(
                 $"The release declares {declared} bytes, over the {MaxInstallerBytes}-byte cap this installs up to.");
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(DownloadTimeout);
-        CancellationToken token = timeout.Token;
+        // The total budget is a fixed deadline from the call's start - it is never re-armed. The
+        // idle timer is the opposite: it is reset on every chunk received below, so it only ever
+        // fires when the connection has gone quiet, not because the download is merely large.
+        using var totalBudget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        totalBudget.CancelAfter(DownloadTimeout);
+        using var idleBudget = new CancellationTokenSource();
+        idleBudget.CancelAfter(IdleTimeout);
+        using var combined = CancellationTokenSource.CreateLinkedTokenSource(totalBudget.Token, idleBudget.Token);
+        CancellationToken token = combined.Token;
 
-        using HttpResponseMessage response = await Http
-            .GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, token)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        long? total = response.Content.Headers.ContentLength ?? update.SizeBytes;
-        long limit = declared ?? MaxInstallerBytes;
-
-        // ReadWrite and FileShare.Read rather than File.Create's write-only, exclusive handle:
-        // this same handle is hashed in place once the loop below ends and then held open through
-        // the launch, so nothing else with read access to %TEMP% gets a window to swap the file
-        // between those steps.
-        var destination = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
         try
         {
-            await using (Stream source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
+            using HttpResponseMessage response = await Http
+                .GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, token)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            long? total = response.Content.Headers.ContentLength ?? update.SizeBytes;
+            long limit = declared ?? MaxInstallerBytes;
+
+            // Write-only would do for the bytes themselves, but ReadWrite plus FileShare.Read keeps
+            // a second writer out for the whole download too - a swap attempted mid-download is no
+            // more welcome than one attempted after. This handle is closed below, before anything
+            // downstream of the download loop ever sees it.
+            using (var destination = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
             {
+                await using Stream source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
                 byte[] buffer = new byte[81920];
                 long readSoFar = 0;
                 int read;
@@ -140,6 +152,10 @@ public static class UpdateInstaller
                     await destination.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
                     // Clamped: a server sending more than it advertised must not report 143%.
                     if (total is > 0) progress?.Report((int)Math.Min(100, readSoFar * 100 / total.Value));
+
+                    // Bytes arrived, so the connection is alive - push the idle deadline out again
+                    // rather than letting it keep counting down from before this chunk landed.
+                    idleBudget.CancelAfter(IdleTimeout);
                 }
 
                 // read == 0 also means "the server closed early", not just "the body is complete" -
@@ -148,15 +164,35 @@ public static class UpdateInstaller
                 if (declared is not null && readSoFar != declared.Value)
                     throw new IOException($"The download stopped after {readSoFar} of the {declared} bytes declared.");
             }
-
-            destination.Position = 0;
-            return destination;
         }
-        catch
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            await destination.DisposeAsync().ConfigureAwait(false);
-            throw;
+            // Distinguished because they mean different things to whoever reads the message: idle
+            // says the connection died and retrying now is reasonable, total says half an hour has
+            // genuinely gone by. idleBudget and totalBudget are separate sources, each only ever
+            // cancelled by its own timer expiring, so at most one is actually set here; checking
+            // idleBudget first only matters to break the tie if both happened to land together.
+            if (idleBudget.IsCancellationRequested)
+                throw new IOException(
+                    $"The download stalled: no data arrived for {IdleTimeout.TotalSeconds:0} seconds.");
+            throw new IOException($"The download timed out after {DownloadTimeout.TotalMinutes:0} minutes.");
         }
+
+        // The write handle above is already closed by this point, on every path out of the try
+        // block - the caller's CleanUp deletes the file on a failure, same as before this method
+        // grew a second handle.
+
+        // Reopened rather than kept open from the write above: Windows will not create an image
+        // section for a file someone holds open for writing, which is exactly what launching it
+        // through Run needs to do, and VerifyDigest only ever needs to read it. This leaves a
+        // sub-millisecond gap between the write handle closing and this open where the file is
+        // briefly unprotected, but the staging directory's name is fresh and random per download,
+        // so finding this file in that gap needs to already be watching %TEMP% for change
+        // notifications - and on the path that matters, the digest check right after this would
+        // still catch a swap. Holding the write handle through the launch instead - which is what
+        // this replaced - does not close that gap, it fails the launch outright: read this reopen
+        // as load-bearing, not redundant, before removing it.
+        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
     }
 
     /// <summary>
