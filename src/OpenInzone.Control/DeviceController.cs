@@ -2,6 +2,7 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Collections.Concurrent;
+using OpenInzone.Ipc;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
 
@@ -140,6 +141,13 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         });
     });
 
+    /// <summary>
+    /// Reads the device's own answers and hands them over, on the worker like every other request.
+    /// A failure raises <see cref="Failed"/> and delivers nothing, which is what the caller's
+    /// timeout is for.
+    /// </summary>
+    public void Describe(Action<DeviceDetail> deliver) => Post(_ => deliver(IpcSnapshot.Detail(Device())));
+
     // ---- IDeviceActions ------------------------------------------------------
     // Each one queues; none of them block the caller. The adjusting methods connect via Device()
     // before reading State, because Device() is what publishes real values on first connect -
@@ -168,6 +176,22 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     {
         var result = Device().ToggleMicMute();
         Mutate(state => state with { Mic = result });
+    });
+
+    // The panel dropped its headphone mute - muting the headset's own volume turned out to mean
+    // little next to the Windows mixer - but the CLI still offers it, and a client that asks for
+    // it must not be the one process that has to open the device itself to get it.
+    public void SetVolumeMuted(bool muted) => Post(_ =>
+    {
+        var device = Device();
+        var result = device.SetHeadphoneVolume(device.GetHeadphoneVolume().Value, muted);
+        Mutate(state => state with { Volume = result });
+    });
+
+    public void ToggleVolumeMute() => Post(_ =>
+    {
+        var result = Device().ToggleHeadphoneMute();
+        Mutate(state => state with { Volume = result });
     });
 
     private void SetBalanceNow(int value)

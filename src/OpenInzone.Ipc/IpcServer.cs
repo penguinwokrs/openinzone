@@ -54,6 +54,25 @@ public sealed class IpcServer : IDisposable
         foreach (var client in _clients.Keys) client.Post(line);
     }
 
+    /// <summary>
+    /// Pushes the device's own answers. Sent to every client rather than only to the one that
+    /// asked: the channel has no request/reply, and a detail is a whole reading, so a client that
+    /// did not ask for it either wants it or ignores it.
+    /// </summary>
+    public void Publish(DeviceDetail detail) => Broadcast(
+        new ServerMessage(ServerMessage.DetailUpdate, IpcProtocol.Version, Detail: detail));
+
+    /// <summary>Tells every client that something could not be done, in words fit to print.</summary>
+    public void PublishError(string message) => Broadcast(
+        new ServerMessage(ServerMessage.Error, IpcProtocol.Version, Message: message));
+
+    private void Broadcast(ServerMessage message)
+    {
+        if (_clients.IsEmpty) return;
+        byte[] line = JsonSerializer.SerializeToUtf8Bytes(message, IpcJson.Default.ServerMessage);
+        foreach (var client in _clients.Keys) client.Post(line);
+    }
+
     private async Task AcceptLoopAsync()
     {
         while (!_stopping.IsCancellationRequested)

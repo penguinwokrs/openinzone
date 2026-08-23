@@ -38,7 +38,10 @@ public sealed class IpcClient : IDisposable
     /// <summary>Raised for the hello snapshot and every push after it.</summary>
     public event EventHandler<DeviceSnapshot>? SnapshotReceived;
 
-    /// <summary>Raised when the tray rejects something, or speaks a version this build cannot read.</summary>
+    /// <summary>Raised for the device's own answers, after asking for them with `describe`.</summary>
+    public event EventHandler<DeviceDetail>? DetailReceived;
+
+    /// <summary>Raised when the daemon rejects something, cannot carry it out, or speaks a version this build cannot read.</summary>
     public event EventHandler<string>? ServerError;
 
     /// <summary>Raised when the link comes up and when it goes down, so a client can grey itself out.</summary>
@@ -179,6 +182,10 @@ public sealed class IpcClient : IDisposable
                 case ServerMessage.Hello:
                 case ServerMessage.StateUpdate:
                     if (message.State is not null) SnapshotReceived?.Invoke(this, message.State);
+                    break;
+
+                case ServerMessage.DetailUpdate when message.Detail is not null:
+                    DetailReceived?.Invoke(this, message.Detail);
                     break;
 
                 case ServerMessage.Error when message.Message is not null:

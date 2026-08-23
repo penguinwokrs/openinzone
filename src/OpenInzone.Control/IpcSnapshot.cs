@@ -3,6 +3,7 @@
 
 using OpenInzone.Ipc;
 using OpenInzone.Model;
+using OpenInzone.Protocol;
 
 namespace OpenInzone.Control;
 
@@ -33,4 +34,26 @@ public static class IpcSnapshot
             Right: state.Battery.Right.Percent,
             Case: state.Battery.Case.Percent,
             HasSeparateBuds: state.Battery.HasSeparateBuds));
+
+    /// <summary>
+    /// The device's own answers, unparsed, for a client that speaks the protocol.
+    /// </summary>
+    /// <remarks>
+    /// Every setting is asked for again rather than taken from the cached state: this exists so
+    /// that a tool routed through the daemon prints exactly what it would have printed on its own
+    /// connection, and a cache is the one thing that could make those differ.
+    /// </remarks>
+    public static DeviceDetail Detail(InzoneDevice device)
+    {
+        string Read(EventId eventId) => Convert.ToBase64String(device.Session.Get(eventId));
+
+        return new DeviceDetail(
+            Model: Read(EventId.ModelInfo),
+            Battery: Read(EventId.BatteryInfo),
+            Balance: Read(EventId.GameChatMixBalance),
+            Volume: Read(EventId.HeadphoneVolume),
+            Mic: Read(EventId.MicVolume),
+            Sidetone: Read(EventId.SidetoneVolume),
+            MicLevel: device.Microphone is not null ? device.GetMicLevel() : null);
+    }
 }

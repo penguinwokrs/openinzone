@@ -85,6 +85,56 @@ public class IpcRoundTripTests
     }
 
     [Fact]
+    public async Task Asking_for_detail_brings_the_devices_own_answers_back()
+    {
+        string pipeName = UniquePipeName();
+        var detail = new DeviceDetail("bW9kZWw=", "YmF0dA==", "YmFs", "dm9s", "bWlj", "c2lkZQ==", 75);
+
+        using var server = new IpcServer(() => Sample, pipeName);
+        server.CommandReceived += (sender, message) =>
+        {
+            if (message.Command == IpcCommands.Describe) ((IpcServer)sender!).Publish(detail);
+        };
+        server.Start();
+
+        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrived = new TaskCompletionSource<DeviceDetail>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        client.DetailReceived += (_, d) => arrived.TrySetResult(d);
+        client.Start();
+        await Within(connected);
+
+        Assert.True(client.Send(IpcCommands.Describe));
+
+        Assert.Equal(detail, await Within(arrived));
+    }
+
+    /// <summary>
+    /// A request the daemon accepted but could not carry out - the headset went away mid-read -
+    /// has to reach the caller, or a describe that failed looks like a channel gone quiet.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_to_carry_out_a_command_reaches_the_client()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => Sample, pipeName);
+        server.Start();
+
+        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var complaint = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        client.ServerError += (_, message) => complaint.TrySetResult(message);
+        client.Start();
+        await Within(connected);
+
+        server.PublishError("ヘッドセットに接続されていません。");
+
+        Assert.Equal("ヘッドセットに接続されていません。", await Within(complaint));
+    }
+
+    [Fact]
     public async Task An_unknown_command_is_reported_back_rather_than_ignored()
     {
         string pipeName = UniquePipeName();

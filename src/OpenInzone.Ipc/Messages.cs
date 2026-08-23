@@ -19,10 +19,16 @@ public static class IpcCommands
     public const string ToggleMicMute = "toggle-mic-mute";
     public const string AdjustMicLevel = "adjust-mic-level";
     public const string SetMicLevel = "set-mic-level";
+    public const string SetVolumeMuted = "set-volume-muted";
+    public const string ToggleVolumeMute = "toggle-volume-mute";
+
+    /// <summary>Asks for the device's own answers, verbatim. Answered with a detail message.</summary>
+    public const string Describe = "describe";
 
     public static bool IsKnown(string command) => command is
         Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
-        or ToggleMicMute or AdjustMicLevel or SetMicLevel;
+        or ToggleMicMute or AdjustMicLevel or SetMicLevel
+        or SetVolumeMuted or ToggleVolumeMute or Describe;
 }
 
 /// <summary>One battery reading. A null percentage means the part is not reporting, or is absent.</summary>
@@ -57,16 +63,38 @@ public sealed record DeviceSnapshot(
         new(false, "", 0, 30, false, 50, false, 0, false, new BatterySnapshot(null, null, null, false));
 }
 
-/// <summary>A message from the tray to a client.</summary>
+/// <summary>
+/// The device's own answers to each setting, base64 of the bytes it sent back.
+/// </summary>
+/// <remarks>
+/// Deliberately unlike <see cref="DeviceSnapshot"/>, which is a shape any client can read without
+/// knowing the protocol. This is for a tool that already speaks it - the CLI - and exists so that
+/// routing that tool through the daemon cannot change a single byte of its output: it parses these
+/// with the same decoders it would have used on its own connection. A client that does not speak
+/// the protocol wants the snapshot, not this.
+/// </remarks>
+public sealed record DeviceDetail(
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("battery")] string Battery,
+    [property: JsonPropertyName("balance")] string Balance,
+    [property: JsonPropertyName("volume")] string Volume,
+    [property: JsonPropertyName("mic")] string Mic,
+    [property: JsonPropertyName("sidetone")] string Sidetone,
+    /// <summary>The Windows capture endpoint, which is not part of the headset's own protocol.</summary>
+    [property: JsonPropertyName("micLevel")] int? MicLevel);
+
+/// <summary>A message from the daemon to a client.</summary>
 public sealed record ServerMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("version")] int Version = 0,
     [property: JsonPropertyName("state")] DeviceSnapshot? State = null,
-    [property: JsonPropertyName("message")] string? Message = null)
+    [property: JsonPropertyName("message")] string? Message = null,
+    [property: JsonPropertyName("detail")] DeviceDetail? Detail = null)
 {
     public const string Hello = "hello";
     public const string StateUpdate = "state";
     public const string Error = "error";
+    public const string DetailUpdate = "detail";
 }
 
 /// <summary>A message from a client to the tray.</summary>

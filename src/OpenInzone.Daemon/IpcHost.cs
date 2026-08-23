@@ -29,6 +29,11 @@ internal sealed class IpcHost : IDisposable
         _server.CommandReceived += (_, message) => Execute(message);
         _server.Failed += (_, message) => Failed?.Invoke(this, message);
 
+        // A request that could not be carried out is the client's business, not just the log's:
+        // without this a describe that failed would look to the caller like a channel that had
+        // simply gone quiet.
+        controller.Failed += (_, message) => _server.PublishError(message);
+
         // Raised on the controller's worker thread. Publishing does not block on any client, so a
         // deck that has stopped reading cannot hold up the headset.
         controller.StateChanged += (_, state) => _server.Publish(IpcSnapshot.From(state));
@@ -55,6 +60,9 @@ internal sealed class IpcHost : IDisposable
             case IpcCommands.ToggleMicMute: _controller.ToggleMicMute(); break;
             case IpcCommands.AdjustMicLevel: _controller.AdjustMicLevel(message.Value); break;
             case IpcCommands.SetMicLevel: _controller.SetMicLevel(message.Value); break;
+            case IpcCommands.SetVolumeMuted: _controller.SetVolumeMuted(message.Value != 0); break;
+            case IpcCommands.ToggleVolumeMute: _controller.ToggleVolumeMute(); break;
+            case IpcCommands.Describe: _controller.Describe(detail => _server.Publish(detail)); break;
         }
     }
 
