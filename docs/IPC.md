@@ -99,8 +99,36 @@ other way round.
 | `toggle-mic-mute` | — | Mute or unmute the microphone |
 | `adjust-mic-level` | delta | Move the recording level, 0–100 |
 | `set-mic-level` | 0–100 | Set it |
+| `set-mic-muted` | 0 or 1 | Mute or unmute explicitly |
+| `set-volume-muted` | 0 or 1 | Mute or unmute the headset's own volume |
+| `toggle-volume-mute` | — | Toggle it |
+| `describe` | — | Read the device again and answer with a `detail` |
 
 Anything else is answered with an `error` and not acted on.
+
+## Detail
+
+`describe` is answered with the device's own replies, unparsed:
+
+```json
+{"type":"detail","version":1,"detail":{
+  "model":"BAAiEQAA","battery":"AGEAXgA+","balance":"KA==",
+  "volume":"ABA1","mic":"Af//","sidetone":"Ax4=",
+  "micLevel":75}}
+```
+
+Each field is base64 of the parameter bytes the headset sent back, and `micLevel` is the Windows
+capture endpoint, which is not part of the headset's protocol at all and is absent when the model
+has none.
+
+This is deliberately unlike the snapshot. The snapshot is a shape any client can read without
+knowing the protocol; this is for a tool that already speaks it. It exists so that the CLI, routed
+through the daemon, prints exactly what it prints on its own connection — it decodes these with the
+same decoders, so there is nothing left to drift. A client that does not speak the protocol wants
+the snapshot instead.
+
+Like everything else on this channel, a detail is pushed to every client rather than returned to
+the one that asked. A client with a `describe` outstanding takes the next one that arrives.
 
 ## The snapshot
 

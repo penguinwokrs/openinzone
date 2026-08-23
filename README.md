@@ -73,8 +73,11 @@ up first.
 Windows only. On Linux, [zoneout](https://github.com/marcinjakubowski/zoneout) covers the same
 device and more of it — see [Related projects](#related-projects).
 
-INZONE Hub does not need to be closed. The control interface is opened with sharing enabled, so
-both can be connected at once — handy while trying this out, since you can watch INZONE Hub's own
+`inzone` and the tray can be used at the same time. Neither opens the headset itself: `inzoned.exe`
+does, and both ask it, which is what keeps two conversations from claiming each other's replies.
+
+INZONE Hub does not need to be closed either. The control interface is opened with sharing enabled,
+so both can be connected at once — handy while trying this out, since you can watch INZONE Hub's own
 sliders move.
 
 ## Install
