@@ -794,8 +794,8 @@ tests/OpenInzone.Core.Tests
   Ipc/                    ワイヤフォーマットと、実パイプ越しの往復
   StreamDeck/             キーの描画、入力の意味づけ、manifest との突き合わせ
 plugin/                   .sdPlugin 一式と、それをビルドするスクリプト
-plugin/FakeStreamDeck     Stream Deck 本体の代わりをする治具
-tools/ShowSettings        本物の設定ウィンドウを daemon につないで開き、撮影する治具
+plugin/FakeStreamDeck     Stream Deck 本体の代わりをして、プラグインを動かして確かめるツール
+tools/ShowSettings        本物の設定ウィンドウを daemon につないで開き、撮影するツール
 installer/                Inno Setup のスクリプトと、それをコンパイルするスクリプト
 assets/                   アプリケーションアイコンと、それを生成するスクリプト
 docs/PROTOCOL.md          解析したワイヤフォーマット
