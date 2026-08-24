@@ -417,15 +417,21 @@ and add a new `<ItemGroup>`:
 
 ```xml
   <ItemGroup>
-    <!-- GenerateSource is the SDK's own resx code generator. The Visual Studio designer is not
-         involved, which matters because the release is published from WSL. -->
+    <!-- StronglyTyped* is MSBuild's own GenerateResource task doing the code generation, not the
+         Visual Studio designer's ResXFileCodeGenerator custom tool. That matters because the
+         release is published from WSL, where the designer does not exist: this way the class
+         regenerates on every `dotnet build` from the command line, same as any other source. -->
     <EmbeddedResource Update="Resources\Strings.resx"
-                      GenerateSource="true"
-                      Namespace="OpenInzone.Control.Resources"
-                      ClassName="OpenInzone.Control.Resources.Strings"
+                      StronglyTypedClassName="Strings"
+                      StronglyTypedNamespace="OpenInzone.Control.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)Strings.g.cs"
+                      StronglyTypedLanguage="CSharp"
+                      PublicClass="true"
                       Generator="" />
   </ItemGroup>
 ```
+
+**Not `GenerateSource="true"`.** An earlier draft of this plan named that attribute; it does not exist in the only SDK installed here (8.0.424) and silently generates nothing. Verified: the `StronglyTyped*` form above produces `obj/<config>/net8.0/Strings.g.cs` and publishes `ja/` and `zh-Hans/` satellite directories.
 
 - [ ] **Step 5: Write the completeness test**
 
@@ -463,10 +469,13 @@ public class ResourceCompletenessTests
     /// Every resource directory in the repository. Task 4 adds the tray's; until then this names
     /// only the one that exists, so each task finishes with the suite green.
     /// </summary>
-    public static TheoryData<string> ResourceDirectories() =>
-    [
-        Path.Combine("src", "OpenInzone.Control", "Resources"),
-    ];
+    public static TheoryData<string> ResourceDirectories()
+    {
+        // Not a collection expression: xunit 2.5.3's TheoryData does not support one (CS0029).
+        var data = new TheoryData<string>();
+        data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
+        return data;
+    }
 
     private static string[] KeysIn(string path) =>
         [.. XDocument.Load(path).Root!.Elements("data")
@@ -774,24 +783,33 @@ and a new `<ItemGroup>`:
 
 ```xml
   <ItemGroup>
+    <!-- Same in-box MSBuild generator Task 2 wired into OpenInzone.Control, for the same reason:
+         it runs on a plain `dotnet build`, so the WSL-published release gets the class too. -->
     <EmbeddedResource Update="Resources\Strings.resx"
-                      GenerateSource="true"
-                      Namespace="OpenInzone.Tray.Resources"
-                      ClassName="OpenInzone.Tray.Resources.Strings"
+                      StronglyTypedClassName="Strings"
+                      StronglyTypedNamespace="OpenInzone.Tray.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)Strings.g.cs"
+                      StronglyTypedLanguage="CSharp"
+                      PublicClass="true"
                       Generator="" />
   </ItemGroup>
 ```
+
+Copy this shape from `src/OpenInzone.Control/OpenInzone.Control.csproj`, which already has it working. **Do not use `GenerateSource="true"`** — that attribute does not exist in SDK 8.0.424 and generates nothing without complaining.
 
 - [ ] **Step 3: Bring the tray's resources under the completeness test**
 
 The tray's files now exist, so add them to the list in `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`:
 
 ```csharp
-    public static TheoryData<string> ResourceDirectories() =>
-    [
-        Path.Combine("src", "OpenInzone.Control", "Resources"),
-        Path.Combine("src", "OpenInzone.Tray", "Resources"),
-    ];
+    public static TheoryData<string> ResourceDirectories()
+    {
+        // Not a collection expression: xunit 2.5.3's TheoryData does not support one (CS0029).
+        var data = new TheoryData<string>();
+        data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
+        data.Add(Path.Combine("src", "OpenInzone.Tray", "Resources"));
+        return data;
+    }
 ```
 
 and drop the now-stale sentence from its doc comment about Task 4 adding the tray's directory.
