@@ -3,6 +3,7 @@
 
 using OpenInzone.Control;
 using OpenInzone.Ipc;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Daemon;
 
@@ -75,8 +76,14 @@ internal sealed class IpcHost : IDisposable
             // Both are answered by pushing everything the headset now says, so a window shows
             // what it reports rather than what it was asked for.
             case IpcCommands.GetSettings: _controller.ReadSettings(); break;
-            case IpcCommands.SetSetting when message.Setting is not null:
-                _controller.SetSetting(message.Setting, message.Value);
+            // Checked here rather than at the device: an id nothing describes would otherwise
+            // throw on the worker, and the worker treats a throw as a link that has gone - it
+            // would drop the headset over a client's typo.
+            case IpcCommands.SetSetting:
+                if (message.Setting is { } id && SettingCatalogue.ById(id) is not null)
+                    _controller.SetSetting(id, message.Value);
+                else
+                    _server.PublishError($"unknown setting '{message.Setting}'");
                 break;
         }
     }
