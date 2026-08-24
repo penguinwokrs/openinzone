@@ -22,12 +22,23 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
     private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
 
+    /// <summary>
+    /// What the connected model has, or null while the tray has not said. Null offers everything,
+    /// which is how the plugin behaved before it was told anything at all.
+    /// </summary>
+    private volatile DeviceCapabilities? _capabilities;
+
     public void Start()
     {
         deck.EventReceived += (_, inbound) => Handle(inbound);
         tray.SnapshotReceived += (_, snapshot) =>
         {
             _state = snapshot;
+            RedrawAll();
+        };
+        tray.CapabilitiesReceived += (_, capabilities) =>
+        {
+            _capabilities = capabilities;
             RedrawAll();
         };
         tray.ConnectionChanged += (_, connected) =>
@@ -93,7 +104,7 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     {
         if (!_instances.TryGetValue(context, out var instance)) return;
 
-        if (!tray.IsConnected)
+        if (!tray.IsConnected || !Offers(instance.ActionId))
         {
             _ = deck.ShowAlertAsync(context);
             return;
@@ -148,10 +159,17 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
         foreach (string context in _instances.Keys) Redraw(context);
     }
 
+    /// <summary>Whether this model has what a key is for.</summary>
+    private bool Offers(string actionId) => _capabilities.Allows(ActionIds.Feature(actionId));
+
     private void Redraw(string context)
     {
         if (!_instances.TryGetValue(context, out var instance)) return;
-        var state = _state;
+
+        // A key for something this model does not have is drawn as no reading. It is the same face
+        // as a headset that is not answering, which is the truth from the key's point of view:
+        // there is nothing there to show.
+        var state = Offers(instance.ActionId) ? _state : DeviceSnapshot.Disconnected;
 
         if (instance.IsEncoder) _ = deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state));
         else _ = deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state));

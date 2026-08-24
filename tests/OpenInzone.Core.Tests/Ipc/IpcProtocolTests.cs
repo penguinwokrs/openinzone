@@ -83,6 +83,34 @@ public class IpcProtocolTests
     }
 
     /// <summary>
+    /// The one command that carries more than a number. Which setting it is about travels beside
+    /// the value, so adding a setting no longer adds a command.
+    /// </summary>
+    [Fact]
+    public void A_setting_write_carries_the_setting_it_is_about()
+    {
+        var command = new ClientMessage(IpcCommands.SetSetting, 14, "ambient-level");
+
+        string json = JsonSerializer.Serialize(command, IpcJson.Default.ClientMessage);
+
+        Assert.Contains("\"setting\":\"ambient-level\"", json);
+        Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
+    }
+
+    /// <summary>
+    /// A command that is not about a setting says nothing about one, rather than naming an empty
+    /// string a daemon would then have to tell apart from a real id.
+    /// </summary>
+    [Fact]
+    public void A_command_that_is_not_about_a_setting_names_none()
+    {
+        string json = JsonSerializer.Serialize(
+            new ClientMessage(IpcCommands.Refresh), IpcJson.Default.ClientMessage);
+
+        Assert.DoesNotContain("setting", json);
+    }
+
+    /// <summary>
     /// Read off the class rather than listed by hand: a command named but left out of
     /// <see cref="IpcCommands.IsKnown"/> is rejected at the daemon, and a hand-written list is
     /// exactly the thing that gets forgotten when one is added.

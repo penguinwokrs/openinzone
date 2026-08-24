@@ -21,6 +21,15 @@ public interface IHeadset : IDeviceActions
     /// <summary>Raised on a background thread whenever the state changes, from any source.</summary>
     event EventHandler<DeviceSnapshot>? StateChanged;
 
+    /// <summary>
+    /// What the connected model has, as the headset itself reported it, or null while nothing has
+    /// said. Null is not "nothing": an interface told nothing offers everything.
+    /// </summary>
+    DeviceCapabilities? Capabilities { get; }
+
+    /// <summary>Raised when a headset says what it has, which is once per connection.</summary>
+    event EventHandler<DeviceCapabilities>? CapabilitiesReceived;
+
     /// <summary>Asks for everything to be read again.</summary>
     void Refresh();
 
