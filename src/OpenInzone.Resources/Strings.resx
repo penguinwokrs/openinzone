@@ -73,4 +73,109 @@
   <data name="App_ListSeparator" xml:space="preserve">
     <value>, </value>
   </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>OpenInzone Settings</value>
+  </data>
+  <data name="Settings_Tab_General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Settings_Tab_Device" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="Settings_Tab_Hotkeys" xml:space="preserve">
+    <value>Hotkeys</value>
+  </data>
+  <data name="Settings_Tab_Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Settings_Tab_Plugin" xml:space="preserve">
+    <value>Plugin</value>
+  </data>
+  <data name="Settings_Autostart" xml:space="preserve">
+    <value>Run when Windows starts</value>
+  </data>
+  <data name="Settings_AutostartHint" xml:space="preserve">
+    <value>Puts the tray icon up when you log in.</value>
+  </data>
+  <data name="Settings_CheckUpdates" xml:space="preserve">
+    <value>Check for updates at startup</value>
+  </data>
+  <data name="Settings_CheckUpdatesHint" xml:space="preserve">
+    <value>Looks at the GitHub releases. Says nothing if it cannot.</value>
+  </data>
+  <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
+    <value>Changes take effect as you make them. There is nothing to save.</value>
+  </data>
+  <data name="Settings_DeviceQuerying" xml:space="preserve">
+    <value>Asking the headset…</value>
+  </data>
+  <data name="Settings_Ambient" xml:space="preserve">
+    <value>Ambient sound control</value>
+  </data>
+  <data name="Settings_AmbientOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="Settings_NoiseCancelling" xml:space="preserve">
+    <value>Noise cancelling</value>
+  </data>
+  <data name="Settings_AmbientOn" xml:space="preserve">
+    <value>Ambient sound</value>
+  </data>
+  <data name="Settings_AmbientLevel" xml:space="preserve">
+    <value>Ambient level</value>
+  </data>
+  <data name="Settings_VoiceFocus" xml:space="preserve">
+    <value>Voice focus</value>
+  </data>
+  <data name="Settings_Sidetone" xml:space="preserve">
+    <value>Sidetone</value>
+  </data>
+  <data name="Settings_Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="Settings_AutoPowerOff" xml:space="preserve">
+    <value>Automatic power off</value>
+  </data>
+  <data name="Settings_BluetoothSwitch" xml:space="preserve">
+    <value>Switch the connection automatically for Bluetooth calls</value>
+  </data>
+  <data name="Settings_VoiceGuidance" xml:space="preserve">
+    <value>Voice guidance</value>
+  </data>
+  <data name="Settings_VoiceGuidanceLanguage" xml:space="preserve">
+    <value>Voice guidance language</value>
+  </data>
+  <data name="Settings_VoiceLanguage_English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Japanese" xml:space="preserve">
+    <value>Japanese</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Chinese" xml:space="preserve">
+    <value>Chinese</value>
+  </data>
+  <data name="Settings_HotkeyHint" xml:space="preserve">
+    <value>Select a row, then press a key combination to assign it. Esc clears one.</value>
+  </data>
+  <data name="Settings_ResetDefaults" xml:space="preserve">
+    <value>Restore defaults</value>
+  </data>
+  <data name="Settings_CheckNow" xml:space="preserve">
+    <value>Check for updates</value>
+  </data>
+  <data name="Settings_StreamDeckPlugin" xml:space="preserve">
+    <value>Stream Deck plugin</value>
+  </data>
+  <data name="Settings_PluginDescription" xml:space="preserve">
+    <value>Puts the headset's volume, balance, microphone and battery on Stream Deck keys. Once imported it works whether or not this window is open.</value>
+  </data>
+  <data name="Settings_PluginDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="Settings_PluginImport" xml:space="preserve">
+    <value>Import into Stream Deck</value>
+  </data>
+  <data name="Settings_OpenReleasePage" xml:space="preserve">
+    <value>Open the releases page</value>
+  </data>
 </root>

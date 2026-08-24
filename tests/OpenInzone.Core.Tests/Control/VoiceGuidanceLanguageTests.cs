@@ -14,12 +14,12 @@ namespace OpenInzone.Tests.Control;
 /// </summary>
 public class VoiceGuidanceLanguageTests
 {
-    /// <summary>What each byte was heard to do, in the words the window uses.</summary>
-    private static readonly (VoiceGuidanceLanguage Language, string Japanese)[] Heard =
+    /// <summary>What each byte was heard to do, named by the resource key the window shows.</summary>
+    private static readonly (VoiceGuidanceLanguage Language, string ResourceKey)[] Heard =
     [
-        (VoiceGuidanceLanguage.English, "英語"),
-        (VoiceGuidanceLanguage.Japanese, "日本語"),
-        (VoiceGuidanceLanguage.Chinese, "中国語"),
+        (VoiceGuidanceLanguage.English, "Settings_VoiceLanguage_English"),
+        (VoiceGuidanceLanguage.Japanese, "Settings_VoiceLanguage_Japanese"),
+        (VoiceGuidanceLanguage.Chinese, "Settings_VoiceLanguage_Chinese"),
     ];
 
     private static string Repository()
@@ -32,8 +32,12 @@ public class VoiceGuidanceLanguageTests
         return directory.FullName;
     }
 
-    /// <summary>The window's list, read out of the markup as tag and label together.</summary>
-    private static (int Tag, string Content)[] LanguageItems()
+    /// <summary>
+    /// The window's list, read out of the markup as tag and resource key together. The Content is
+    /// now an {x:Static} reference, so what is pinned is which key sits against which byte - the
+    /// words themselves live in the resx files and are checked by ResourceCompletenessTests.
+    /// </summary>
+    private static (int Tag, string ResourceKey)[] LanguageItems()
     {
         string path = Path.Combine(Repository(), "src", "OpenInzone.Tray", "SettingsWindow.xaml");
         var xaml = XDocument.Load(path);
@@ -44,7 +48,18 @@ public class VoiceGuidanceLanguageTests
             .Single(element => (string?)element.Attribute(xaml2006 + "Name") == "LanguageBox");
 
         return [.. box.Elements(presentation + "ComboBoxItem")
-            .Select(item => (int.Parse((string)item.Attribute("Tag")!), (string)item.Attribute("Content")!))];
+            .Select(item => (
+                int.Parse((string)item.Attribute("Tag")!),
+                KeyFrom((string)item.Attribute("Content")!)))];
+    }
+
+    /// <summary>Pulls Settings_VoiceLanguage_Japanese out of "{x:Static res:Strings.Settings_VoiceLanguage_Japanese}".</summary>
+    private static string KeyFrom(string staticReference)
+    {
+        const string marker = "res:Strings.";
+        int start = staticReference.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Content is not a resource reference: {staticReference}");
+        return staticReference[(start + marker.Length)..].TrimEnd('}', ' ');
     }
 
     [Fact]
@@ -58,9 +73,19 @@ public class VoiceGuidanceLanguageTests
     [Fact]
     public void Each_label_carries_the_byte_that_was_heard_to_produce_it()
     {
-        var items = LanguageItems().ToDictionary(item => item.Content, item => item.Tag);
+        var offered = LanguageItems().ToDictionary(item => (VoiceGuidanceLanguage)item.Tag, item => item.ResourceKey);
 
-        Assert.All(Heard, heard => Assert.Equal((int)heard.Language, items[heard.Japanese]));
+        Assert.All(Heard, pair => Assert.Equal(pair.ResourceKey, offered[pair.Language]));
+    }
+
+    [Fact]
+    public void Every_key_the_window_names_actually_exists_in_the_resources()
+    {
+        string resx = Path.Combine(Repository(), "src", "OpenInzone.Resources", "Strings.resx");
+        var defined = XDocument.Load(resx).Root!.Elements("data")
+            .Select(d => (string)d.Attribute("name")!).ToHashSet();
+
+        Assert.All(LanguageItems(), item => Assert.Contains(item.ResourceKey, defined));
     }
 
     /// <summary>

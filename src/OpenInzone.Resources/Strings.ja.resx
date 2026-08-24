@@ -73,4 +73,109 @@
   <data name="App_ListSeparator" xml:space="preserve">
     <value>、</value>
   </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>OpenInzone の設定</value>
+  </data>
+  <data name="Settings_Tab_General" xml:space="preserve">
+    <value>全般</value>
+  </data>
+  <data name="Settings_Tab_Device" xml:space="preserve">
+    <value>デバイス</value>
+  </data>
+  <data name="Settings_Tab_Hotkeys" xml:space="preserve">
+    <value>ホットキー</value>
+  </data>
+  <data name="Settings_Tab_Update" xml:space="preserve">
+    <value>アップデート</value>
+  </data>
+  <data name="Settings_Tab_Plugin" xml:space="preserve">
+    <value>プラグイン</value>
+  </data>
+  <data name="Settings_Autostart" xml:space="preserve">
+    <value>Windows の起動時に常駐する</value>
+  </data>
+  <data name="Settings_AutostartHint" xml:space="preserve">
+    <value>ログイン時にトレイアイコンを出します。</value>
+  </data>
+  <data name="Settings_CheckUpdates" xml:space="preserve">
+    <value>起動時に更新を確認する</value>
+  </data>
+  <data name="Settings_CheckUpdatesHint" xml:space="preserve">
+    <value>GitHub のリリースを見に行きます。失敗しても何も表示しません。</value>
+  </data>
+  <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
+    <value>変更はその場で反映されます。保存する操作はありません。</value>
+  </data>
+  <data name="Settings_DeviceQuerying" xml:space="preserve">
+    <value>ヘッドセットに問い合わせています…</value>
+  </data>
+  <data name="Settings_Ambient" xml:space="preserve">
+    <value>外音コントロール</value>
+  </data>
+  <data name="Settings_AmbientOff" xml:space="preserve">
+    <value>オフ</value>
+  </data>
+  <data name="Settings_NoiseCancelling" xml:space="preserve">
+    <value>ノイズキャンセリング</value>
+  </data>
+  <data name="Settings_AmbientOn" xml:space="preserve">
+    <value>外音取り込み</value>
+  </data>
+  <data name="Settings_AmbientLevel" xml:space="preserve">
+    <value>取り込みレベル</value>
+  </data>
+  <data name="Settings_VoiceFocus" xml:space="preserve">
+    <value>ボイスフォーカス</value>
+  </data>
+  <data name="Settings_Sidetone" xml:space="preserve">
+    <value>サイドトーン</value>
+  </data>
+  <data name="Settings_Other" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="Settings_AutoPowerOff" xml:space="preserve">
+    <value>自動電源オフ</value>
+  </data>
+  <data name="Settings_BluetoothSwitch" xml:space="preserve">
+    <value>Bluetooth の発信・着信時に自動で接続を切り替える</value>
+  </data>
+  <data name="Settings_VoiceGuidance" xml:space="preserve">
+    <value>音声ガイド</value>
+  </data>
+  <data name="Settings_VoiceGuidanceLanguage" xml:space="preserve">
+    <value>音声ガイダンスの言語</value>
+  </data>
+  <data name="Settings_VoiceLanguage_English" xml:space="preserve">
+    <value>英語</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Japanese" xml:space="preserve">
+    <value>日本語</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Chinese" xml:space="preserve">
+    <value>中国語</value>
+  </data>
+  <data name="Settings_HotkeyHint" xml:space="preserve">
+    <value>行を押してからキーの組み合わせを押すと割り当てます。Esc で解除。</value>
+  </data>
+  <data name="Settings_ResetDefaults" xml:space="preserve">
+    <value>既定に戻す</value>
+  </data>
+  <data name="Settings_CheckNow" xml:space="preserve">
+    <value>更新を確認</value>
+  </data>
+  <data name="Settings_StreamDeckPlugin" xml:space="preserve">
+    <value>Stream Deck プラグイン</value>
+  </data>
+  <data name="Settings_PluginDescription" xml:space="preserve">
+    <value>ヘッドセットの音量・バランス・マイク・バッテリーを Stream Deck のキーから操作できます。取り込んだあとは、このアプリを開いていなくても動きます。</value>
+  </data>
+  <data name="Settings_PluginDownload" xml:space="preserve">
+    <value>ダウンロード</value>
+  </data>
+  <data name="Settings_PluginImport" xml:space="preserve">
+    <value>Stream Deck に取り込む</value>
+  </data>
+  <data name="Settings_OpenReleasePage" xml:space="preserve">
+    <value>リリースページを開く</value>
+  </data>
 </root>
