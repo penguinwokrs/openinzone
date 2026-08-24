@@ -150,12 +150,57 @@ connection destination and wearing detection, `0x8C`–`0x8D` assignable buttons
 update. Asked for once and answered by nothing on this model: `0x05` host select, `0x25` surround,
 `0x61`–`0x63` Bluetooth, `0x82` LED, `0x88`, `0x8A`–`0x8B`, `0x8F` mic attach state.
 
-**Spatial sound is not on this channel.** Toggling it in INZONE Hub produces nothing here at all,
-while every other setting in Hub's window does - so on INZONE Buds it is either a PC-side feature
-or lives on one of the collections this project does not open.
+**Spatial sound is not on this channel, and not on the headset at all.** See below.
 
 **INZONE Hub polls.** With Hub open, the balance, volume, microphone and battery are re-read about
 once a minute, which shows up as unsolicited notifications to anything else listening.
+
+### Spatial sound is done on the PC, not by the headset
+
+Toggling it in INZONE Hub produces nothing on this channel, which for a long time left two
+possibilities open: a PC-side feature, or one of the dongle's collections this project does not
+open. Settled on 2026-08-24 by looking at both.
+
+The dongle publishes five HID collections, of which this project opens one:
+
+| Usage page | Reports | |
+|---|---|---|
+| `0xFF04` | 64 in, 64 out | the control channel everything here speaks |
+| `0xFF13` | 62 in, 62 out | never opened |
+| `0xFF01` | 8 in | never opened |
+| `0x000C` | 2 in | consumer control — the media keys the earbuds send |
+| `0xFF03` | none | no reports at all |
+
+All four of the others were opened and listened to while spatial sound was switched on in INZONE
+Hub. **Not one byte arrived on any of them.**
+
+Nor is it a matter of addressing. A timeout on this channel does not mean a setting is absent: it
+can equally mean the request went to the wrong end of the link, which is exactly what `0x05` does —
+silent when addressed to the receiver, answering `00` when addressed to the transmitter. Asking for
+`0x25`, the id named surround, at every address in turn produced nothing at any of them.
+
+What changed when it was switched on was all on the PC:
+
+| | off | on |
+|---|---|---|
+| `%APPDATA%\Sony\INZONE Hub\SoundProfile.json` | `"Surround": false` | `"Surround": true` |
+| the endpoint's APO configuration, `rootpath` | `%PROGRAMDATA%\...\VirtualizeStandard` | `%APPDATA%\...\VirtualizeUser` |
+| `cef_name_hki` | `downmix.hki` | `standard_hrtf.hki` |
+| `coef_name_ba` | empty | `WF-G700N_standard_A.ba` |
+
+`WF-G700N` is INZONE Buds; the `.ba` file is a set of HRTF coefficients. INZONE Hub writes one YAML
+per audio endpoint under `%APPDATA%\Sony\INZONE Hub\APO\{endpoint}.yaml`, and Sony's audio
+processing object reads it and does the convolution inside the Windows audio pipeline. The headset
+is never told. A pointer under `MMDevices` also moved to a different endpoint id, which is not
+explained here.
+
+**The equaliser lives in the same two places** — `EQPreset` and the `EQGain_*` values in
+`SoundProfile.json`, and an `equalizer:` section of the same YAML. It was left out of this project
+for being a large piece of work; it turns out it is not the headset's to do either.
+
+Both could be driven by writing those two files, but the sound would only change where Sony's APO
+is installed and reloads them — which means INZONE Hub installed, and this project is for not
+needing it. Doing that convolution instead of Sony is a different project.
 
 ### The headset publishes its own capability map, `0x06`–`0x08`
 
