@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Forms;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
-using OpenInzone.Tray.Resources;
+using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
 

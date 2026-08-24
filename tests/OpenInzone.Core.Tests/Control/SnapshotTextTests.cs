@@ -166,7 +166,7 @@ public class SnapshotTextTests
         Assert.NotNull(directory);
 
         string fileName = culture == "en" ? "Strings.resx" : $"Strings.{culture}.resx";
-        string path = Path.Combine(directory.FullName, "src", "OpenInzone.Tray", "Resources", fileName);
+        string path = Path.Combine(directory.FullName, "src", "OpenInzone.Resources", fileName);
 
         var entry = XDocument.Load(path).Root!.Elements("data")
             .Single(d => (string)d.Attribute("name")! == key);

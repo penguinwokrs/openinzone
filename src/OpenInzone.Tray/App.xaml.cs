@@ -4,7 +4,7 @@
 using System.IO;
 using System.Windows;
 using OpenInzone.Control;
-using OpenInzone.Tray.Resources;
+using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
 

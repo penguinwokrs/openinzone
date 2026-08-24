@@ -33,7 +33,7 @@ public class ResourceCompletenessTests
         // Not a collection expression: xunit 2.5.3's TheoryData does not support one (CS0029).
         var data = new TheoryData<string>();
         data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
-        data.Add(Path.Combine("src", "OpenInzone.Tray", "Resources"));
+        data.Add(Path.Combine("src", "OpenInzone.Resources"));
         return data;
     }
 

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Resources</RootNamespace>
+    <AssemblyName>OpenInzone.Resources</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <Product>OpenInzone</Product>
+    <!-- English is the neutral culture: a language with no satellite assembly gets English, which
+         is the whole point. Japanese here would make every unsupported language fall back to
+         Japanese instead. -->
+    <NeutralResourcesLanguage>en</NeutralResourcesLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same in-box MSBuild generator as OpenInzone.Control uses, for the same reason: it runs on
+         a plain `dotnet build`, so the WSL-published release gets the class too. -->
+    <EmbeddedResource Update="Strings.resx"
+                      StronglyTypedClassName="Strings"
+                      StronglyTypedNamespace="OpenInzone.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)Strings.g.cs"
+                      StronglyTypedLanguage="CSharp"
+                      PublicClass="true"
+                      Generator="" />
+  </ItemGroup>
+</Project>
