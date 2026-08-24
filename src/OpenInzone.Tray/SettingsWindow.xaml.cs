@@ -500,6 +500,28 @@ public partial class SettingsWindow : Window
         ProjectLinks.Open(ProjectLinks.LatestRelease);
 
     /// <summary>
+    /// Opens on the update tab with an update someone else has already found.
+    /// </summary>
+    /// <remarks>
+    /// The state a check made on this window would have left behind, set the same way: the button
+    /// installs rather than checks, and the line under it names the version. Nothing is composed
+    /// here that <see cref="CheckForUpdateAsync"/> does not compose, so the two cannot drift into
+    /// showing different things about the same update.
+    ///
+    /// It does not start the download. Downloading because a notification was clicked would take
+    /// the decision away from the person who clicked it.
+    /// </remarks>
+    public void ShowUpdate(UpdateInfo update)
+    {
+        if (!update.Available) return;
+
+        _pendingUpdate = update;
+        UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
+        UpdateStatusText.Text = string.Format(Strings.Settings_UpdateAvailable, update.Version);
+        UpdateTab.IsSelected = true;
+    }
+
+    /// <summary>
     /// Doubles as "check now" and "install now": the button becomes Settings_UpdateButtonInstall the
     /// moment a check finds something, and a second click on that button installs it rather than
     /// checking again. This is how someone checks on demand when the startup setting is off, so it

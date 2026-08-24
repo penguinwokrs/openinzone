@@ -250,7 +250,7 @@
       </DockPanel>
     </TabItem>
 
-    <TabItem Header="{x:Static res:Strings.Settings_Tab_Update}">
+    <TabItem x:Name="UpdateTab" Header="{x:Static res:Strings.Settings_Tab_Update}">
       <StackPanel Margin="6,14,6,0">
         <TextBlock x:Name="VersionText" />
         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
