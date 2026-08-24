@@ -111,8 +111,11 @@ That is SmartScreen. It appears because this build is not code-signed — signin
 money, and this is a free project — not because anything is wrong with the file. Click
 **More info**, and then the **Run anyway** button that appears underneath.
 
-The installer opens with a language prompt; the wizard itself is available in English, though the
-two optional checkboxes on the next page and the tray application's own menus are in Japanese.
+The installer opens with a language prompt that offers English, Japanese and Simplified Chinese,
+guessing from Windows' own language and falling back to English for anything else. Whichever you
+pick carries through the rest of setup — the two optional checkboxes on the next page — and into
+the tray application itself, which opens its menus in that language from first launch. It can be
+changed afterwards from the settings window; see [Hotkeys and settings](#hotkeys-and-settings).
 
 ### 3. Take the defaults
 
@@ -217,9 +220,11 @@ already holds is marked as in use the moment you press it, so you find out there
 pressing it later and getting nothing. 既定に戻す (restore defaults) puts every row back. Each
 change re-registers the hotkeys immediately — there is nothing to restart.
 
-**全般** has two checkboxes. Windows の起動時に常駐する starts the tray with Windows. 起動時に更
-新を確認する asks GitHub once per login whether a newer release exists, and says nothing unless
-there is one; it is off until you tick it.
+**全般** has two checkboxes and, below them, a 表示言語 (display language) box. Windows の起動時に
+常駐する starts the tray with Windows. 起動時に更新を確認する asks GitHub once per login whether a
+newer release exists, and says nothing unless there is one; it is off until you tick it. 表示言語
+switches the tray between English, 日本語 and 简体中文, each named in its own script; changing it
+offers to restart the tray immediately, or you can leave it for next launch.
 
 **アップデート** shows the version this copy is and a button. 更新を確認 (check for updates) asks
 the same question there and then, and reports what it found rather than only good news — that you
@@ -874,6 +879,10 @@ src/OpenInzone.Daemon     inzoned.exe - the one process that opens the headset
 src/OpenInzone.Cli        inzone.exe
 src/OpenInzone.Tray       inzonetray.exe - the icon, the panel and the settings window
 src/OpenInzone.StreamDeck openinzone-streamdeck.exe - the Stream Deck plugin
+src/OpenInzone.Resources  the window, tray and flyout text for all three languages - its own
+                          assembly because WPF cannot resolve a same-assembly resx-generated class
+                          from XAML on this SDK, so it has to live somewhere the markup compiler
+                          in OpenInzone.Tray can reference across an assembly boundary
 tests/OpenInzone.Core.Tests
   Protocol/               packet codec tests, checked against docs/PROTOCOL.md
   Model/                  the battery values and how they format
@@ -882,6 +891,7 @@ tests/OpenInzone.Core.Tests
   Ipc/                    the wire format and a round trip over a real pipe
   StreamDeck/             key faces, what each input means, and the manifest
 installer/                the Inno Setup script and the script that compiles it
+installer/lang/           .isl files Inno Setup does not ship itself - Simplified Chinese, vendored
 plugin/                   the .sdPlugin directory and the script that builds it
 plugin/FakeStreamDeck     stands in for Stream Deck so the plugin can be driven without one
 tools/ShowSettings        opens the real settings window against a running daemon and photographs it
@@ -891,7 +901,7 @@ docs/IPC.md               the channel between the daemon and its clients
 config/                   an example hotkey configuration
 ```
 
-`OpenInzone.sln` ties the ten projects together for Visual Studio and Rider.
+`OpenInzone.sln` ties the eleven projects together for Visual Studio and Rider.
 
 ### Using it as a library
 
