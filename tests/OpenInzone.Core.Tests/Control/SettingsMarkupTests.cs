@@ -15,7 +15,8 @@ namespace OpenInzone.Tests.Control;
 /// renderer that draws the tabs strips the handlers out before parsing.
 ///
 /// So the rule is checked instead: the device tab attaches its handlers in code, once everything
-/// they touch exists.
+/// they touch exists. It also holds one test unrelated to that rule: that the update tab still
+/// carries the name the code selects it by.
 /// </summary>
 public class SettingsMarkupTests
 {

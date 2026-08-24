@@ -268,7 +268,6 @@ public partial class App : System.Windows.Application
         _headset?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();
-        _stopping.Dispose();
         base.OnExit(e);
     }
 }
