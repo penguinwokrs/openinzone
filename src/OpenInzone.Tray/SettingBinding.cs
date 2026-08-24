@@ -23,6 +23,10 @@ namespace OpenInzone.Tray;
 /// Values are plain integers, as they are on the channel and in the core's catalogue — 0 or 1 for
 /// a toggle, and the headset's own number for anything else. Nothing here knows what any
 /// particular setting means, which is the point.
+///
+/// More than one part of the tab may name the same setting — a heading and the controls beneath it
+/// — and each is bound on its own, so a heading goes away with what it introduced rather than
+/// standing over nothing.
 /// </remarks>
 internal sealed class SettingBinding
 {

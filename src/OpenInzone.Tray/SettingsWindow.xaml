@@ -137,7 +137,7 @@
           <TextBlock x:Name="DeviceStatusText" Foreground="{StaticResource Quiet}" FontSize="12"
                      Margin="0,0,0,12" Text="ヘッドセットに問い合わせています…" />
 
-          <TextBlock Text="外音コントロール" FontSize="13" />
+          <TextBlock Text="外音コントロール" FontSize="13" tray:Setting.Id="ambient-mode" />
           <StackPanel x:Name="AmbientGroup" Margin="0,8,0,0" tray:Setting.Id="ambient-mode">
             <RadioButton x:Name="AmbientOffButton" GroupName="Ambient" Content="オフ"
                          Foreground="{StaticResource Text}" Tag="0" />
@@ -165,7 +165,7 @@
           <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0"
                     tray:Setting.Id="voice-focus" />
 
-          <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" />
+          <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" tray:Setting.Id="sidetone" />
           <Grid x:Name="SidetoneRow" Margin="0,8,0,0" tray:Setting.Id="sidetone">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" /><ColumnDefinition Width="40" />
