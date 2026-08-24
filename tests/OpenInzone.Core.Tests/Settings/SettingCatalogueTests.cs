@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Ipc;
 using OpenInzone.Protocol;
 using OpenInzone.Settings;
 
@@ -125,5 +126,46 @@ public class SettingCatalogueTests
     public void Sidetone_echoes_the_byte_it_does_not_own()
     {
         Assert.Equal(new byte[] { 0x05, 0xFF }, SettingCatalogue.ById("sidetone")!.Write([0x00, 0xFF], 5));
+    }
+}
+
+/// <summary>
+/// The catalogue lives in the core and the feature ids live in the published contract, because a
+/// client - the Stream Deck plugin, which ships trimmed - has no business carrying the HID stack
+/// to learn what a setting is called. Two lists is the price of that, so they are pinned together
+/// here rather than left to drift.
+/// </summary>
+public class SettingIdTests
+{
+    [Fact]
+    public void Every_setting_the_core_describes_has_a_feature_id_on_the_wire()
+    {
+        var missing = SettingCatalogue.All
+            .Select(setting => setting.Id)
+            .Except(FeatureIds.All)
+            .ToList();
+
+        Assert.Empty(missing);
+    }
+
+    /// <summary>
+    /// The other way round has to hold too, minus the features that are not settings: a feature id
+    /// nothing answers for would be a control a client draws and nothing ever fills.
+    /// </summary>
+    [Fact]
+    public void Every_feature_id_is_either_a_setting_or_part_of_the_panel()
+    {
+        string[] panel =
+        [
+            FeatureIds.Balance, FeatureIds.Volume, FeatureIds.MicMute,
+            FeatureIds.MicLevel, FeatureIds.Battery,
+        ];
+
+        var unaccounted = FeatureIds.All
+            .Except(panel)
+            .Except(SettingCatalogue.All.Select(setting => setting.Id))
+            .ToList();
+
+        Assert.Empty(unaccounted);
     }
 }
