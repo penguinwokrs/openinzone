@@ -11,16 +11,38 @@
 # The window's own markup carries x:Class, which XamlReader cannot resolve without the compiled
 # code-behind, so it is stripped before parsing. The flyout attaches its handlers in C# rather than
 # in markup, so nothing else has to be removed.
+#
+# FlyoutWindow.xaml also carries xmlns:res="clr-namespace:OpenInzone.Resources;assembly=..." and
+# uses {x:Static res:Strings...} for its text. Both resolve while XamlReader parses the markup, so
+# the resource assembly - built if it is not already there, satellite directories and all - has to
+# be loaded, and the UI culture set to Japanese, before Parse runs below. This produces the
+# Japanese screenshot; an English Windows with no culture pinned would otherwise get English text
+# in a picture that is meant to show the Japanese UI.
 
 param(
   [Parameter(Mandatory = $true)][string]$OutPath,
   [double]$Scale = 2.0
 )
 
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
 $repo = Split-Path -Parent $PSScriptRoot
 $trayDir = Join-Path $repo 'src\OpenInzone.Tray'
+
+# Built rather than assumed present, so this does not silently pick up a stale copy from an
+# unrelated earlier build. `dotnet build` also lays the ja\ and zh-Hans\ satellite directories down
+# beside the dll, which is what makes the Japanese strings reachable at all.
+$resourcesProject = Join-Path $repo 'src\OpenInzone.Resources'
+$resourcesDll = Join-Path $resourcesProject 'bin\Release\net8.0\OpenInzone.Resources.dll'
+dotnet build $resourcesProject -c Release | Out-Null
+if (-not (Test-Path $resourcesDll)) { throw "build did not produce $resourcesDll" }
+Add-Type -Path $resourcesDll
+
+# {x:Static} resolves at parse time, not render time, so this has to be set before Parse is called
+# below - setting it any later would leave the already-parsed text in whatever culture the host
+# happened to be running under.
+[System.Threading.Thread]::CurrentThread.CurrentUICulture = 'ja'
 
 # StaticResource is resolved while parsing, so the icon dictionary has to be in place first.
 $app = New-Object System.Windows.Application
