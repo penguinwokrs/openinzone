@@ -64,13 +64,22 @@ public static class IpcSnapshot
     public sealed record DeviceReading(
         IReadOnlyList<SettingValue> Settings, DeviceCapabilities Capabilities);
 
-    /// <summary>Panel features and the id whose slot in the map answers for them.</summary>
+    /// <summary>
+    /// Panel features and the id whose slot in the map answers for them.
+    /// </summary>
+    /// <remarks>
+    /// The battery is not here, and cannot be: a slot of nothing but 0xFF means "no such setting"
+    /// only where 0xFF is not itself a reading. In the battery it is — it is the firmware's own
+    /// "this part is not reporting", which a headset model's two bytes can both carry at once while
+    /// nothing is docked. Reading that as a model with no battery would blank the panel's charge
+    /// line and the deck's battery key for the whole connection. Every INZONE product runs on one,
+    /// so it is offered unconditionally and the reading says the rest.
+    /// </remarks>
     private static readonly (string Feature, EventId EventId)[] PanelFeatures =
     [
         (FeatureIds.Balance, EventId.GameChatMixBalance),
         (FeatureIds.Volume, EventId.HeadphoneVolume),
         (FeatureIds.MicMute, EventId.MicVolume),
-        (FeatureIds.Battery, EventId.BatteryInfo),
     ];
 
     /// <summary>
@@ -106,28 +115,49 @@ public static class IpcSnapshot
             features.Add(setting.Id);
         }
 
+        // The capture endpoint is not on the headset's wire at all, so whether there is one is a
+        // question for Windows rather than for the map.
+        features.AddRange(Features(map, device.Microphone is not null));
+
+        return new DeviceReading(settings, new DeviceCapabilities(features));
+    }
+
+    /// <summary>
+    /// The features that are not settings: the three the panel draws, the charge, and the
+    /// microphone level.
+    /// </summary>
+    /// <remarks>
+    /// Taken apart from the reading so that it can be checked without a headset, which is the only
+    /// way to see what a model this project does not own would be offered.
+    /// </remarks>
+    public static IEnumerable<string> Features(CapabilityMap map, bool micLevelAvailable)
+    {
         // Absent only when the headset said so. An id the map does not carry, or a map that could
         // not be read, leaves the control where it has always been: shown.
         foreach (var (feature, eventId) in PanelFeatures)
-            if (map.Present(eventId) != false) features.Add(feature);
+            if (map.Present(eventId) != false) yield return feature;
 
-        // Not on the headset's wire at all - this is the Windows capture endpoint, and whether
-        // there is one is a question for Windows.
-        if (device.Microphone is not null) features.Add(FeatureIds.MicLevel);
+        yield return FeatureIds.Battery;
 
-        return new DeviceReading(settings, new DeviceCapabilities(features));
+        if (micLevelAvailable) yield return FeatureIds.MicLevel;
     }
 
     /// <summary>
     /// Writes one setting, starting from what the headset currently reports so that a packet
     /// carrying three settings keeps the two it was not asked about.
     /// </summary>
+    /// <remarks>
+    /// Unless there is nothing to keep. A setting that is the whole packet is composed outright,
+    /// which is what the methods this replaced did: reading first would be a round trip spent for
+    /// nothing, and one more chance for a bad moment on the link to drop the headset on the way to
+    /// ticking a checkbox.
+    /// </remarks>
     public static void Write(InzoneDevice device, string id, int value)
     {
         var setting = SettingCatalogue.ById(id)
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
-        var current = device.Session.Get(setting.EventId);
+        byte[] current = setting.OwnsPacket ? [] : device.Session.Get(setting.EventId);
         device.Session.Set(setting.EventId, setting.Write(current, value));
     }
 

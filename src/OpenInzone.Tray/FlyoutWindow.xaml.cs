@@ -119,9 +119,14 @@ public partial class FlyoutWindow : Window
         var capabilities = _headset.Capabilities;
 
         Show(VolumeRow, capabilities.Allows(FeatureIds.Volume));
-        Show(MicRow, capabilities.Allows(FeatureIds.MicMute));
         Show(BalanceRow, capabilities.Allows(FeatureIds.Balance));
         Show(BatteryText, capabilities.Allows(FeatureIds.Battery));
+
+        // Two features share this row: the mute button is the headset's, the slider is the Windows
+        // capture endpoint. A model with no mute must not take the slider away with it, so the row
+        // goes only when neither is there.
+        Show(MicRow, capabilities.Allows(FeatureIds.MicMute) || capabilities.Allows(FeatureIds.MicLevel));
+        Show(MicMuteButton, capabilities.Allows(FeatureIds.MicMute));
     }
 
     private static void Show(UIElement element, bool present) =>

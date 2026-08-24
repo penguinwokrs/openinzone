@@ -97,6 +97,21 @@ public sealed record DeviceCapabilities(
     [property: JsonPropertyName("features")] IReadOnlyList<string> Features)
 {
     public bool Has(string feature) => Features.Contains(feature);
+
+    /// <summary>The same set with one feature added or taken away.</summary>
+    /// <remarks>
+    /// For the one capability that is not the headset's to answer. The microphone level is a
+    /// Windows capture endpoint, and Windows can enumerate it after the dongle is already open, so
+    /// the answer given once per connection can be wrong for the rest of it.
+    /// </remarks>
+    public DeviceCapabilities With(string feature, bool present)
+    {
+        if (Has(feature) == present) return this;
+
+        var features = Features.Where(id => id != feature).ToList();
+        if (present) features.Add(feature);
+        return new DeviceCapabilities(features);
+    }
 }
 
 public static class DeviceCapabilityExtensions
@@ -105,10 +120,11 @@ public static class DeviceCapabilityExtensions
     /// Whether to offer a feature. A client that has not been told what the model has — nothing is
     /// connected, or the daemon is an older build — offers everything, which is how this project
     /// behaved before it asked at all. Hiding a control on no information would be worse than
-    /// showing one the model turns out not to have.
+    /// showing one the model turns out not to have. A null feature is the same case seen from the
+    /// other side: nothing was named, so nothing is gated.
     /// </summary>
-    public static bool Allows(this DeviceCapabilities? capabilities, string feature) =>
-        capabilities is null || capabilities.Has(feature);
+    public static bool Allows(this DeviceCapabilities? capabilities, string? feature) =>
+        capabilities is null || feature is null || capabilities.Has(feature);
 
     /// <summary>The value of one setting, or null when the model did not answer for it.</summary>
     public static int? Value(this IReadOnlyList<SettingValue>? settings, string id) =>

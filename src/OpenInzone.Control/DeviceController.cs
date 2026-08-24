@@ -162,6 +162,11 @@ public sealed class DeviceController : IDeviceActions, IDisposable
 
     private void Drop()
     {
+        // What the last model had says nothing about the next one, and a client that connects
+        // while nothing is does better with no answer than with the previous headset's: being told
+        // nothing offers everything, which is where every interface starts.
+        Capabilities = null;
+
         if (_device is null) return;
         try { _device.Dispose(); } catch { /* already gone */ }
         _device = null;
@@ -230,6 +235,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         // caches only a successful search, so asking here is what lets the slider come back to life
         // instead of reading 利用不可 for the whole connection.
         bool micLevelAvailable = device.Microphone is not null;
+        ReviseMicLevel(micLevelAvailable);
         Mutate(state => state with
         {
             Balance = device.GetMixBalance(),
@@ -251,7 +257,18 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     public void Describe(Action<DeviceDetail> deliver) => Post(_ => deliver(IpcSnapshot.Detail(Device())));
 
     /// <summary>Reads what the headset now says, and tells every client.</summary>
-    public void ReadSettings() => Post(_ => Announce(IpcSnapshot.Read(Device())));
+    /// <remarks>
+    /// Connecting reads all of this and announces it, so asking again straight afterwards is two
+    /// full readings back to back - and the second lands while a link that has just come up is
+    /// still settling, which is exactly when one of them times out and takes the connection down
+    /// again. The same guard <see cref="ReadEverything"/> carries, for the same reason.
+    /// </remarks>
+    public void ReadSettings() => Post(_ =>
+    {
+        bool alreadyConnected = _device is not null;
+        var device = Device();
+        if (alreadyConnected) Announce(IpcSnapshot.Read(device));
+    });
 
     /// <summary>
     /// Writes one setting and reads them all back, so a window shows what the headset now says
@@ -268,6 +285,29 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         IpcSnapshot.Write(device, id, value);
         Announce(IpcSnapshot.Read(device));
     });
+
+    /// <summary>
+    /// Corrects the one capability that is not the headset's to answer.
+    /// </summary>
+    /// <remarks>
+    /// The microphone level is a Windows capture endpoint, and at logon the dongle can be open
+    /// before Windows has enumerated it. <see cref="ReadEverything"/> already asks again on every
+    /// heartbeat so the panel's slider comes back to life - but the capability list is read once
+    /// per connection, so without this a deck's mic-level key would stay drawn as nothing and
+    /// refuse to be pressed for the whole connection, while the panel beside it worked.
+    /// </remarks>
+    private void ReviseMicLevel(bool available)
+    {
+        if (Capabilities is not { } current) return;
+
+        var revised = current.With(FeatureIds.MicLevel, available);
+        if (ReferenceEquals(revised, current)) return;
+
+        Capabilities = revised;
+
+        try { CapabilitiesRead?.Invoke(this, revised); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
+    }
 
     /// <summary>Tells every client what the headset has and what it now says.</summary>
     private void Announce(IpcSnapshot.DeviceReading reading)

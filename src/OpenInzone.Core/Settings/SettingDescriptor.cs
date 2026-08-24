@@ -32,15 +32,29 @@ public enum SettingKind
 /// takes the link down, so a reply shorter than expected reads as the bottom of the range.
 /// </remarks>
 /// <param name="Id">The name this setting travels under, on the wire and in the window's markup.</param>
+/// <param name="PacketBytes">How many bytes the packet this setting lives in carries.</param>
 public sealed record SettingDescriptor(
     string Id,
     EventId EventId,
     SettingKind Kind,
     int Minimum,
     int Maximum,
+    int PacketBytes,
     Func<byte[], int> ReadValue,
     Func<byte[], int, byte[]> WriteValue)
 {
+    /// <summary>
+    /// True when this setting is the whole packet, so a write can be composed outright.
+    /// </summary>
+    /// <remarks>
+    /// Everything else has to start from what the headset last reported: the ambient packet carries
+    /// two other settings, and the sidetone's second byte is the headset's own reading, which goes
+    /// back untouched. Reading first where there is nothing to preserve would be a round trip spent
+    /// for nothing — and one more chance for a bad moment on the link to take the connection down
+    /// on the way to ticking a checkbox.
+    /// </remarks>
+    public bool OwnsPacket => PacketBytes == 1;
+
     public int Clamp(int value) => Math.Clamp(value, Minimum, Maximum);
 
     public int Read(byte[] param) => ReadValue(param);

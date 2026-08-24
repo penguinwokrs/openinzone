@@ -76,8 +76,17 @@ public sealed class CapabilityMap
         new(EventId.ConnectionDestinationMode, 1),
     ];
 
-    /// <summary>The smallest battery reading <see cref="BatteryInfo.Parse"/> can make sense of.</summary>
-    private const int SmallestBattery = 2;
+    /// <summary>
+    /// The two battery widths the protocol records: six bytes on an earbud model, two on a headset
+    /// model. Anything else is a part 1 this build cannot account for.
+    /// </summary>
+    /// <remarks>
+    /// Naming them is what makes part 1 refusable at all. Taking whatever is left over as the
+    /// battery absorbs any discrepancy, so a model carrying one field this build does not know
+    /// would parse without complaint and put the volume, the balance and the sidetone at the wrong
+    /// offsets — answering confidently about the wrong ids, which is worse than not answering.
+    /// </remarks>
+    private static readonly int[] BatteryWidths = [6, 2];
 
     private readonly Dictionary<EventId, byte[]> _slots = [];
 
@@ -123,7 +132,7 @@ public sealed class CapabilityMap
 
         int fixedWidth = Part1Tail.Sum(slice => slice.Width);
         int battery = part.Length - Part1LeadingBytes - fixedWidth;
-        if (battery < SmallestBattery) return;
+        if (!Array.Exists(BatteryWidths, width => width == battery)) return;
 
         Slice[] layout = [new(EventId.BatteryInfo, battery), .. Part1Tail];
         Take(part, layout, Part1LeadingBytes);

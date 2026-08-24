@@ -240,7 +240,12 @@ by offset:
 
 The battery is the only slot whose width varies by model, and the only one that can be derived:
 everything after it in part 1 is fixed, so what is left over is the battery. A headset model
-reporting two battery bytes gives an eleven-byte part 1 and the same parse, with no model table.
+reporting two battery bytes gives a nine-byte part 1 and the same parse, with no model table.
+
+What is left over has to be one of the two widths above, though, or part 1 is refused like the
+others. Taking whatever remains would make part 1 the one part that can never fail to add up: a
+model carrying a single field this build does not know would parse without complaint and put the
+volume, the balance and the sidetone at the wrong offsets.
 
 A slot means the model has no such setting when **every** byte in it is `0xFF`. `00 FF FF` for the
 microphone is not that: the mute flag answered, and the other two bytes are the firmware's own

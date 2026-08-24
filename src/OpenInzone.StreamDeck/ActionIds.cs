@@ -29,13 +29,19 @@ internal static class ActionIds
     /// reads as nothing and does nothing, rather than one that quietly sends a command the headset
     /// has no answer for — the plugin cannot take a key off a deck, but it can stop pretending.
     /// </summary>
-    public static string Feature(string actionId) => actionId switch
+    /// <remarks>
+    /// Null for an action this build does not know, which gates it on nothing: whatever it is, it
+    /// is not the battery, and saying so would hide it behind a capability it never asked about.
+    /// <c>Decide</c> already answers null for such an action on its own.
+    /// </remarks>
+    public static string? Feature(string actionId) => actionId switch
     {
         Volume => FeatureIds.Volume,
         Balance => FeatureIds.Balance,
         MicMute => FeatureIds.MicMute,
         MicLevel => FeatureIds.MicLevel,
-        _ => FeatureIds.Battery,
+        Battery => FeatureIds.Battery,
+        _ => null,
     };
 
     /// <summary>

@@ -58,7 +58,11 @@ wide as that setting's parameter, and the parser walks the parts by those widths
 
 Battery is the only slot whose width varies by model, and it is the only one that can be derived:
 everything after it in part 1 is fixed, so its width is what is left over. A headset model reporting
-two battery bytes gives an eleven-byte part 1 and the same parse.
+two battery bytes gives a nine-byte part 1 and the same parse.
+
+What is left over must be one of those two widths. Accepting whatever remains would make part 1 the
+one part that can never fail to add up, and a model carrying one field this build does not know
+would then answer confidently about the wrong ids rather than sending the caller to probing.
 
 **A part whose length does not add up is not parsed at all.** It is not guessed at, and it is not
 allowed to produce a capability answer; the fallback below takes over for the settings it carries.

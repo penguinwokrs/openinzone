@@ -19,6 +19,20 @@ public class ActionFeatureTests
         Assert.All(ActionIds.All, actionId => Assert.Contains(ActionIds.Feature(actionId), FeatureIds.All));
     }
 
+    /// <summary>
+    /// An action this build does not know names no feature at all. It used to fall through to the
+    /// battery, so a future action whose case was forgotten would have been gated on a capability
+    /// it never asked about — quietly, since nothing iterates anything but the four known ones.
+    /// </summary>
+    [Fact]
+    public void An_action_this_build_does_not_know_is_gated_on_nothing()
+    {
+        Assert.Null(ActionIds.Feature("com.penguinwokrs.openinzone.something-later"));
+
+        var capabilities = new DeviceCapabilities([FeatureIds.Volume]);
+        Assert.True(capabilities.Allows(ActionIds.Feature("com.penguinwokrs.openinzone.something-later")));
+    }
+
     [Fact]
     public void Each_action_names_its_own_feature()
     {

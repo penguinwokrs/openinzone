@@ -35,16 +35,16 @@ public static class SettingCatalogue
     [
         // The ambient packet is four bytes: mode, level, a byte the earbuds do not report, and
         // voice focus. Three settings read and write their own byte of it.
-        Choice(AmbientMode, EventId.AmbientSetting, maximum: 2, index: 0),
-        Range(AmbientLevel, EventId.AmbientSetting, minimum: 1, maximum: 20, index: 1),
-        Toggle(VoiceFocus, EventId.AmbientSetting, index: 3),
+        Choice(AmbientMode, EventId.AmbientSetting, maximum: 2, index: 0, packetBytes: 4),
+        Range(AmbientLevel, EventId.AmbientSetting, minimum: 1, maximum: 20, index: 1, packetBytes: 4),
+        Toggle(VoiceFocus, EventId.AmbientSetting, index: 3, packetBytes: 4),
 
-        Range(Sidetone, EventId.SidetoneVolume, minimum: 0, maximum: 10, index: 0),
+        Range(Sidetone, EventId.SidetoneVolume, minimum: 0, maximum: 10, index: 0, packetBytes: 2),
 
-        Toggle(AutoPowerOff, EventId.AutoPowerOff, index: 0, onValue: AutoPowerOffOn),
-        Toggle(BluetoothAutoSwitch, EventId.IncomingPermission, index: 0),
-        Toggle(VoiceGuidance, EventId.Guidance, index: 0),
-        Choice(VoiceGuidanceLanguage, EventId.VoicePromptLanguage, maximum: 2, index: 0),
+        Toggle(AutoPowerOff, EventId.AutoPowerOff, index: 0, packetBytes: 1, onValue: AutoPowerOffOn),
+        Toggle(BluetoothAutoSwitch, EventId.IncomingPermission, index: 0, packetBytes: 1),
+        Toggle(VoiceGuidance, EventId.Guidance, index: 0, packetBytes: 1),
+        Choice(VoiceGuidanceLanguage, EventId.VoicePromptLanguage, maximum: 2, index: 0, packetBytes: 1),
     ];
 
     public static SettingDescriptor? ById(string id) =>
@@ -57,18 +57,21 @@ public static class SettingCatalogue
     /// <summary>Every distinct packet the settings live in, which is how many reads they cost.</summary>
     public static IEnumerable<EventId> Events => All.Select(setting => setting.EventId).Distinct();
 
-    private static SettingDescriptor Range(string id, EventId eventId, int minimum, int maximum, int index) =>
-        new(id, eventId, SettingKind.Range, minimum, maximum,
+    private static SettingDescriptor Range(
+        string id, EventId eventId, int minimum, int maximum, int index, int packetBytes) =>
+        new(id, eventId, SettingKind.Range, minimum, maximum, packetBytes,
             param => SettingDescriptor.At(param, index),
             (param, value) => SettingDescriptor.Replacing(param, index, (byte)value));
 
-    private static SettingDescriptor Choice(string id, EventId eventId, int maximum, int index) =>
-        new(id, eventId, SettingKind.Choice, 0, maximum,
+    private static SettingDescriptor Choice(
+        string id, EventId eventId, int maximum, int index, int packetBytes) =>
+        new(id, eventId, SettingKind.Choice, 0, maximum, packetBytes,
             param => SettingDescriptor.At(param, index),
             (param, value) => SettingDescriptor.Replacing(param, index, (byte)value));
 
-    private static SettingDescriptor Toggle(string id, EventId eventId, int index, byte onValue = 1) =>
-        new(id, eventId, SettingKind.Toggle, 0, 1,
+    private static SettingDescriptor Toggle(
+        string id, EventId eventId, int index, int packetBytes, byte onValue = 1) =>
+        new(id, eventId, SettingKind.Toggle, 0, 1, packetBytes,
             param => SettingDescriptor.At(param, index) == onValue ? 1 : 0,
             (param, value) => SettingDescriptor.Replacing(param, index, value == 1 ? onValue : (byte)0));
 }

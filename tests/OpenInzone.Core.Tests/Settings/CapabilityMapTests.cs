@@ -157,4 +157,33 @@ public class CapabilityMapTests
             .Slot(EventId.GameChatMixBalance));
         Assert.Null(CapabilityMap.Parse([], null, null).Slot(EventId.BatteryInfo));
     }
+
+    /// <summary>
+    /// Part 1 has to be refusable too, and taking whatever is left over as the battery meant it
+    /// never could be: any discrepancy was absorbed silently, and every slot after the battery
+    /// moved. A part carrying one field this build does not know would then have answered
+    /// confidently about the wrong ids — hiding or showing panel controls at random — where not
+    /// answering sends the caller to probing instead.
+    /// </summary>
+    [Fact]
+    public void A_part_one_whose_battery_is_neither_width_the_protocol_records_is_refused()
+    {
+        // Six bytes and two are the widths seen; five is a part this build cannot account for.
+        byte[] fiveByteBattery = [0x04, 0x00, 0x44, 0x00, 0x43, 0xFF, 0x00, 0x15, 0xFF, 0x32, 0x00, 0xFF];
+
+        var map = CapabilityMap.Parse(fiveByteBattery, null, null);
+
+        Assert.Null(map.Slot(EventId.BatteryInfo));
+        Assert.Null(map.Present(EventId.GameChatMixBalance));
+        Assert.True(map.IsEmpty);
+    }
+
+    [Fact]
+    public void Both_widths_the_protocol_records_are_taken()
+    {
+        Assert.NotNull(CapabilityMap.Parse(Part1, null, null).Slot(EventId.BatteryInfo));
+
+        byte[] headset = [0x00, 0x00, 0x55, 0x00, 0x15, 0xFF, 0x32, 0x00, 0xFF];
+        Assert.NotNull(CapabilityMap.Parse(headset, null, null).Slot(EventId.BatteryInfo));
+    }
 }

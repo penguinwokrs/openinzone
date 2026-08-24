@@ -119,6 +119,41 @@ public class SettingCatalogueTests
     }
 
     /// <summary>
+    /// A setting that is the whole packet has nothing to preserve, so a write is composed rather
+    /// than read back first. That read was a round trip spent for nothing — and one more chance for
+    /// a bad moment on the link to drop the headset on the way to ticking a checkbox.
+    /// </summary>
+    [Fact]
+    public void A_setting_that_is_the_whole_packet_needs_no_reading_first()
+    {
+        foreach (string id in new[]
+        {
+            "auto-power-off", "voice-guidance", "bluetooth-auto-switch", "voice-guidance-language",
+        })
+        {
+            Assert.True(SettingCatalogue.ById(id)!.OwnsPacket, id);
+        }
+    }
+
+    /// <summary>
+    /// And everything that shares its packet, or leaves a byte in it to the headset, does need one.
+    /// </summary>
+    [Fact]
+    public void Everything_with_something_to_preserve_does_not()
+    {
+        foreach (string id in new[] { "ambient-mode", "ambient-level", "voice-focus", "sidetone" })
+            Assert.False(SettingCatalogue.ById(id)!.OwnsPacket, id);
+    }
+
+    /// <summary>Owning the packet has to mean owning every byte of it, or a write would lose one.</summary>
+    [Fact]
+    public void Nothing_claims_a_packet_it_shares()
+    {
+        foreach (var setting in SettingCatalogue.All.Where(s => s.OwnsPacket))
+            Assert.Single(SettingCatalogue.ForEvent(setting.EventId));
+    }
+
+    /// <summary>
     /// Sidetone's second byte is the headset's own reading — 0xFF on INZONE Buds — and goes back
     /// untouched, as the headphone volume's percent byte does.
     /// </summary>
