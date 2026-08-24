@@ -41,8 +41,10 @@ public partial class FlyoutWindow : Window
         MicMuteButton.Click += (_, _) => _headset.ToggleMicMute();
 
         _headset.StateChanged += OnStateChanged;
+        _headset.CapabilitiesReceived += (_, _) => Dispatcher.BeginInvoke(ShowWhatTheModelHas);
         Deactivated += (_, _) => Hide();
 
+        ShowWhatTheModelHas();
         Render(_headset.State);
     }
 
@@ -103,6 +105,33 @@ public partial class FlyoutWindow : Window
         }
     }
 
+
+    /// <summary>
+    /// Leaves out what this model does not have.
+    /// </summary>
+    /// <remarks>
+    /// The panel used to draw all three sliders whatever was plugged in, because there was no way
+    /// to ask. There is now: the headset publishes what it carries, and a slider for something it
+    /// does not have is one nobody should be given. A model that has not said anything yet keeps
+    /// every control, which is what this did before it asked.
+    /// </remarks>
+    private void ShowWhatTheModelHas()
+    {
+        var capabilities = _headset.Capabilities;
+
+        Show(VolumeRow, capabilities.Allows(FeatureIds.Volume));
+        Show(BalanceRow, capabilities.Allows(FeatureIds.Balance));
+        Show(BatteryText, capabilities.Allows(FeatureIds.Battery));
+
+        // Two features share this row: the mute button is the headset's, the slider is the Windows
+        // capture endpoint. A model with no mute must not take the slider away with it, so the row
+        // goes only when neither is there.
+        Show(MicRow, capabilities.Allows(FeatureIds.MicMute) || capabilities.Allows(FeatureIds.MicLevel));
+        Show(MicMuteButton, capabilities.Allows(FeatureIds.MicMute));
+    }
+
+    private static void Show(UIElement element, bool present) =>
+        element.Visibility = present ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Places the panel at the corner the tray lives in, inside the working area.</summary>
     public void ShowNearTray()

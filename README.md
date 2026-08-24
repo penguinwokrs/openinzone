@@ -252,12 +252,18 @@ The settings INZONE Hub offers besides the three on the panel, except the equali
 | 音声ガイド | Spoken prompts, in English, Japanese or Chinese |
 
 Each one is written as you change it and then read back, so what you see is what the headset says
-rather than what it was asked for — change the mode and the level it kept comes back with it. A
-setting your model does not answer for is not shown at all, rather than shown as off; the tab is
-greyed out entirely while no headset is connected.
+rather than what it was asked for — change the mode and the level it kept comes back with it. The
+tab is greyed out entirely while no headset is connected.
+
+**A setting your model does not have is not shown at all**, rather than shown as off. Which ones
+those are is not guessed at: the headset publishes its own list of what it carries, and this reads
+it once per connection. The panel and the Stream Deck plugin go by the same answer, so a model with
+no game/chat balance is not given a balance slider or a balance key either.
 
 These are decoded from watching INZONE Hub work, packet by packet: see
-[docs/PROTOCOL.md](docs/PROTOCOL.md) for what each one sends.
+[docs/PROTOCOL.md](docs/PROTOCOL.md) for what each one sends, and
+[the capability map](docs/PROTOCOL.md#the-headset-publishes-its-own-capability-map-0x060x08) for
+how it answers what it has.
 
 If a combination cannot be registered when the tray starts, because something else claimed it
 first, a balloon names the commands affected. Every other hotkey still works.

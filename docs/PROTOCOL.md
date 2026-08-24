@@ -213,19 +213,53 @@ does not have one. Read from INZONE Buds on 2026-08-24, beside a GET of each id 
 0x08   03 | FF FF FF FF | 0F | FF | 01 | 01 | 00
 ```
 
-Part 3 reads as `0x43` noise cancelling startup mode, four ids this model does not have, `0x81`
-auto power off, `0x82` LED which it also does not have, `0x83` language, `0x84` voice guidance and
-`0x85` connection destination. Part 2 is `0x24` microphone, `0x41` ambient and `0x42`. Part 1 is
-battery, volume, balance and sidetone behind one leading byte not yet accounted for.
-
 Every `FF` sits where an id timed out when asked for on its own, and every value equals that id's
 own answer. One read therefore says what a model has, where asking setting by setting takes 1.5
 seconds per absent one and cannot tell an absent setting from a bad moment on the link.
 
+Each slot is as wide as that setting's own parameter, so the parts are walked by width rather than
+by offset:
+
+| Part | Slot | Width | |
+|---|---|---|---|
+| `0x06` | leading byte | 1 | Not accounted for. It reads `0x04` on INZONE Buds, which is also its model id — an observation, not a reading, and nothing here depends on it |
+| | `0x04` battery | *remainder* | Six bytes on an earbud model, two on a headset model |
+| | `0x21` headphone volume | 3 | |
+| | `0x22` game/chat balance | 1 | |
+| | `0x23` sidetone | 2 | |
+| `0x07` | `0x24` microphone | 3 | |
+| | `0x41` ambient sound | 4 | |
+| | `0x42` noise cancelling toggle | 3 | |
+| `0x08` | `0x43` NC startup mode | 1 | |
+| | `0x61`–`0x63` Bluetooth, and one more | 4 | Four bytes for three known ids; the fourth is unidentified |
+| | `0x81` auto power off | 1 | |
+| | `0x82` LED | 1 | |
+| | `0x83` voice prompt language | 1 | |
+| | `0x84` voice guidance | 1 | |
+| | `0x85` connection destination | 1 | |
+
+The battery is the only slot whose width varies by model, and the only one that can be derived:
+everything after it in part 1 is fixed, so what is left over is the battery. A headset model
+reporting two battery bytes gives a nine-byte part 1 and the same parse, with no model table.
+
+What is left over has to be one of the two widths above, though, or part 1 is refused like the
+others. Taking whatever remains would make part 1 the one part that can never fail to add up: a
+model carrying a single field this build does not know would parse without complaint and put the
+volume, the balance and the sidetone at the wrong offsets.
+
+A slot means the model has no such setting when **every** byte in it is `0xFF`. `00 FF FF` for the
+microphone is not that: the mute flag answered, and the other two bytes are the firmware's own
+"not reported" sentinel, which is a different thing.
+
+**`0x8E` is in none of the three parts.** Neither is the microphone level, which is a Windows
+capture endpoint rather than anything on this wire. So the map is not a complete answer, and this
+project probes for what it does not carry — the difference being that probing is now the fallback
+rather than the method.
+
 `0x7F` and `0xF0`, which nothing has, time out exactly as `0x05` and `0x25` do: an unsupported id
 is answered with silence rather than an error, so nothing else about a timeout can be read into.
 
-This is the ground for [#3](https://github.com/penguinwokrs/openinzone/issues/3), which is where
+This is what [#3](https://github.com/penguinwokrs/openinzone/issues/3) is built on, and where
 supporting a second model starts.
 
 ### Game/chat balance, `0x22`

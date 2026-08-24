@@ -22,12 +22,23 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
     private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
 
+    /// <summary>
+    /// What the connected model has, or null while the tray has not said. Null offers everything,
+    /// which is how the plugin behaved before it was told anything at all.
+    /// </summary>
+    private volatile DeviceCapabilities? _capabilities;
+
     public void Start()
     {
         deck.EventReceived += (_, inbound) => Handle(inbound);
         tray.SnapshotReceived += (_, snapshot) =>
         {
             _state = snapshot;
+            RedrawAll();
+        };
+        tray.CapabilitiesReceived += (_, capabilities) =>
+        {
+            _capabilities = capabilities;
             RedrawAll();
         };
         tray.ConnectionChanged += (_, connected) =>
@@ -103,7 +114,7 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
             ? configured
             : ActionIds.DefaultStep(instance.ActionId);
 
-        var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step);
+        var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step, _capabilities);
         if (decision is not null) tray.Send(decision.Value.Command, decision.Value.Value);
     }
 
@@ -116,10 +127,21 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     /// step is used. A dial's press is a button in its own right and never a step, which is why an
     /// encoder press contributes no delta: without that, pressing the volume dial would nudge the
     /// volume, and turning the mute dial would toggle the microphone on every tick.
+    ///
+    /// An input on a key for something the connected model does not have means nothing, exactly as
+    /// a dial press that has no shortcut means nothing. Deciding it here rather than in the caller
+    /// is what puts it where it can be checked without a deck and without that model.
     /// </remarks>
+    /// <param name="capabilities">
+    /// What the model has, or null when nothing has said — which offers everything, as this plugin
+    /// behaved before it could ask.
+    /// </param>
     internal static (string Command, int Value)? Decide(
-        string actionId, bool isEncoder, bool pressed, int ticks, int step)
+        string actionId, bool isEncoder, bool pressed, int ticks, int step,
+        DeviceCapabilities? capabilities = null)
     {
+        if (!capabilities.Allows(ActionIds.Feature(actionId))) return null;
+
         int delta = pressed ? (isEncoder ? 0 : step) : ticks * Math.Abs(step);
 
         return actionId switch
@@ -152,15 +174,24 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     {
         if (!_instances.TryGetValue(context, out var instance)) return;
         var state = _state;
+        var capabilities = _capabilities;
 
-        if (instance.IsEncoder) _ = deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state));
-        else _ = deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state));
+        if (instance.IsEncoder)
+            _ = deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state, capabilities));
+        else
+            _ = deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state, capabilities));
     }
 
     /// <summary>What a Stream Deck + dial shows: a name, a reading, and a bar for the travel.</summary>
-    internal static FeedbackPayload Feedback(string actionId, DeviceSnapshot state)
+    /// <remarks>
+    /// A dial for something this model does not have reads as nothing, which is the same as a
+    /// headset that is not answering — from the dial's point of view there is nothing to show
+    /// either way.
+    /// </remarks>
+    internal static FeedbackPayload Feedback(
+        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
     {
-        if (!state.Connected)
+        if (!state.Connected || !capabilities.Allows(ActionIds.Feature(actionId)))
             return new FeedbackPayload(Title(actionId), "--", new Indicator(0));
 
         return actionId switch

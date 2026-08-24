@@ -7,9 +7,11 @@
 #
 # Run on Windows:  pwsh -File assets\make-settings-screenshot.ps1 C:\somewhere
 #
-# Two things have to be undone before XamlReader will take the markup: x:Class, which it cannot
-# resolve without the compiled code-behind, and the event handlers, which this window attaches in
-# markup rather than in C# as the flyout does.
+# Three things have to be undone before XamlReader will take the markup: x:Class, which it cannot
+# resolve without the compiled code-behind; the event handlers, which this window attaches in
+# markup rather than in C# as the flyout does; and the device tab's Setting attached properties,
+# which live in the same code-behind assembly and are the tray's business rather than the
+# renderer's - what they would set is set below by hand anyway.
 #
 # SettingsWindow.xaml also carries xmlns:res="clr-namespace:OpenInzone.Resources;assembly=..." and
 # uses {x:Static res:Strings...} throughout. Both resolve while XamlReader parses the markup, so
@@ -47,6 +49,8 @@ New-Item -ItemType Directory -Path $OutDirectory -Force | Out-Null
 $xaml = $xaml -replace '\s*x:Class="[^"]*"', ''
 # \s+ rather than \s*: without it this also eats the Checked= inside a template's IsChecked=.
 $xaml = $xaml -replace '\s+(Click|Checked|Unchecked|ValueChanged|SelectionChanged)="[^"]*"', ''
+$xaml = $xaml -replace '\s+tray:Setting\.[A-Za-z]+="[^"]*"', ''
+$xaml = $xaml -replace '\s+xmlns:tray="[^"]*"', ''
 
 $app = New-Object System.Windows.Application
 $window = [System.Windows.Markup.XamlReader]::Parse($xaml)

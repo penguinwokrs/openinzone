@@ -4,6 +4,7 @@
 using OpenInzone.Ipc;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Control;
 
@@ -58,42 +59,125 @@ public static class IpcSnapshot
     }
 
     /// <summary>
-    /// The settings a window shows. A model that does not answer for one of them leaves it null
-    /// rather than failing the lot: INZONE Buds has no wearing detection and no LED, and another
-    /// model may not have ambient sound at all.
+    /// What one connection to a headset says: the settings it carries, and what it has at all.
     /// </summary>
-    public static DeviceSettings Settings(InzoneDevice device)
-    {
-        // Read once and used three times: the ambient packet carries mode, level and voice focus
-        // together, so asking for it once is a third of the exchanges and cannot see them change
-        // in between.
-        var ambient = Ask(device.GetAmbientSetting);
+    public sealed record DeviceReading(
+        IReadOnlyList<SettingValue> Settings, DeviceCapabilities Capabilities);
 
-        return new DeviceSettings(
-            Sidetone: Ask(() => (int)device.GetSidetoneVolume().Value),
-            AmbientMode: ambient is { } a ? (int)a.Mode : null,
-            AmbientLevel: ambient is { } level ? level.Level : null,
-            VoiceFocus: ambient?.VoiceFocus,
-            AutoPowerOff: Ask(() => device.GetAutoPowerOff().IsOn),
-            VoiceGuidance: Ask(() => device.GetVoiceGuidance().IsOn),
-            VoiceGuidanceLanguage: Ask(() => (int)device.GetVoiceGuidanceLanguage()),
-            BluetoothAutoSwitch: Ask(() => device.GetBluetoothAutoSwitch().IsOn));
+    /// <summary>
+    /// Panel features and the id whose slot in the map answers for them.
+    /// </summary>
+    /// <remarks>
+    /// The battery is not here, and cannot be: a slot of nothing but 0xFF means "no such setting"
+    /// only where 0xFF is not itself a reading. In the battery it is — it is the firmware's own
+    /// "this part is not reporting", which a headset model's two bytes can both carry at once while
+    /// nothing is docked. Reading that as a model with no battery would blank the panel's charge
+    /// line and the deck's battery key for the whole connection. Every INZONE product runs on one,
+    /// so it is offered unconditionally and the reading says the rest.
+    /// </remarks>
+    private static readonly (string Feature, EventId EventId)[] PanelFeatures =
+    [
+        (FeatureIds.Balance, EventId.GameChatMixBalance),
+        (FeatureIds.Volume, EventId.HeadphoneVolume),
+        (FeatureIds.MicMute, EventId.MicVolume),
+    ];
+
+    /// <summary>
+    /// Reads what this model has and what each of its settings now says.
+    /// </summary>
+    /// <remarks>
+    /// The headset's own capability map answers both at once: every slot holds that setting's
+    /// parameter bytes, and a slot of nothing but 0xFF is the model saying it has no such setting.
+    /// So where there used to be one exchange per setting, and 1.5 s of silence for each one the
+    /// model does not have, there are three.
+    ///
+    /// Probing survives for what the map does not cover. 0x8E, the Bluetooth automatic connection
+    /// switch, is in none of the three parts, and a model that answers none of them at all falls
+    /// back to probing for everything - which is exactly what this did before the map was read.
+    /// The difference is that a timeout is now the fallback rather than the answer.
+    /// </remarks>
+    public static DeviceReading Read(InzoneDevice device)
+    {
+        var map = device.ReadCapabilityMap();
+
+        // One entry per packet, not per setting: the ambient packet carries three of them, and
+        // asking for it once cannot see them change in between.
+        var answers = SettingCatalogue.Events.ToDictionary(
+            eventId => eventId, eventId => Answer(device, map, eventId));
+
+        var settings = new List<SettingValue>();
+        var features = new List<string>();
+
+        foreach (var setting in SettingCatalogue.All)
+        {
+            if (answers[setting.EventId] is not { } param) continue;
+            settings.Add(new SettingValue(setting.Id, setting.Read(param)));
+            features.Add(setting.Id);
+        }
+
+        // The capture endpoint is not on the headset's wire at all, so whether there is one is a
+        // question for Windows rather than for the map.
+        features.AddRange(Features(map, device.Microphone is not null));
+
+        return new DeviceReading(settings, new DeviceCapabilities(features));
     }
 
     /// <summary>
-    /// A setting this model does not carry answers with a timeout, and one setting being absent
-    /// must not cost the window the others. Only a timeout is swallowed: anything else means the
-    /// connection itself is in trouble, and the controller drops the device and says so - which is
-    /// a far better answer than a window quietly showing every setting as unsupported.
+    /// The features that are not settings: the three the panel draws, the charge, and the
+    /// microphone level.
     /// </summary>
-    private static T? Ask<T>(Func<T> read) where T : struct
+    /// <remarks>
+    /// Taken apart from the reading so that it can be checked without a headset, which is the only
+    /// way to see what a model this project does not own would be offered.
+    /// </remarks>
+    public static IEnumerable<string> Features(CapabilityMap map, bool micLevelAvailable)
     {
+        // Absent only when the headset said so. An id the map does not carry, or a map that could
+        // not be read, leaves the control where it has always been: shown.
+        foreach (var (feature, eventId) in PanelFeatures)
+            if (map.Present(eventId) != false) yield return feature;
+
+        yield return FeatureIds.Battery;
+
+        if (micLevelAvailable) yield return FeatureIds.MicLevel;
+    }
+
+    /// <summary>
+    /// Writes one setting, starting from what the headset currently reports so that a packet
+    /// carrying three settings keeps the two it was not asked about.
+    /// </summary>
+    /// <remarks>
+    /// Unless there is nothing to keep. A setting that is the whole packet is composed outright,
+    /// which is what the methods this replaced did: reading first would be a round trip spent for
+    /// nothing, and one more chance for a bad moment on the link to drop the headset on the way to
+    /// ticking a checkbox.
+    /// </remarks>
+    public static void Write(InzoneDevice device, string id, int value)
+    {
+        var setting = SettingCatalogue.ById(id)
+            ?? throw new InvalidOperationException($"No such setting: {id}.");
+
+        byte[] current = setting.OwnsPacket ? [] : device.Session.Get(setting.EventId);
+        device.Session.Set(setting.EventId, setting.Write(current, value));
+    }
+
+    /// <summary>
+    /// The bytes a setting's packet holds, or null when this model does not have it. Taken from
+    /// the map where the map carries it, and asked for otherwise.
+    /// </summary>
+    private static byte[]? Answer(InzoneDevice device, CapabilityMap map, EventId eventId)
+    {
+        if (map.Present(eventId) is bool present) return present ? map.Slot(eventId) : null;
+
         try
         {
-            return read();
+            return device.Session.Get(eventId);
         }
         catch (TimeoutException)
         {
+            // Only a timeout is swallowed, and only for an id the map did not answer for. Anything
+            // else means the connection itself is in trouble, and the controller drops the device
+            // and says so - a far better answer than a window quietly showing nothing at all.
             return null;
         }
     }

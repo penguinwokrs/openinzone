@@ -3,7 +3,7 @@
 
 using OpenInzone.Control;
 using OpenInzone.Ipc;
-using OpenInzone.Model;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Daemon;
 
@@ -26,7 +26,9 @@ internal sealed class IpcHost : IDisposable
     public IpcHost(DeviceController controller)
     {
         _controller = controller;
-        _server = new IpcServer(() => IpcSnapshot.From(controller.State));
+        _server = new IpcServer(
+            () => IpcSnapshot.From(controller.State),
+            currentCapabilities: () => controller.Capabilities);
         _server.CommandReceived += (_, message) => Execute(message);
         _server.Failed += (_, message) => Failed?.Invoke(this, message);
 
@@ -38,6 +40,11 @@ internal sealed class IpcHost : IDisposable
         // Raised on the controller's worker thread. Publishing does not block on any client, so a
         // deck that has stopped reading cannot hold up the headset.
         controller.StateChanged += (_, state) => _server.Publish(IpcSnapshot.From(state));
+
+        // Both are pushed rather than answered: a headset saying what it has on connect concerns
+        // every client, not only whichever one asked last.
+        controller.CapabilitiesRead += (_, capabilities) => _server.Publish(capabilities);
+        controller.SettingsRead += (_, settings) => _server.Publish(settings);
     }
 
     public void Start() => _server.Start();
@@ -66,41 +73,20 @@ internal sealed class IpcHost : IDisposable
             case IpcCommands.ToggleVolumeMute: _controller.ToggleVolumeMute(); break;
             case IpcCommands.Describe: _controller.Describe(detail => _server.Publish(detail)); break;
 
-            // Every one of these answers with the whole set read back from the headset, so a
-            // window shows what the headset now says rather than what it was asked for.
-            case IpcCommands.GetSettings: _controller.ReadSettings(Deliver); break;
-            case IpcCommands.SetSidetone: _controller.SetSidetone(message.Value, Deliver); break;
-            case IpcCommands.SetAutoPowerOff:
-                _controller.SetAutoPowerOff(message.Value != 0, Deliver);
-                break;
-            case IpcCommands.SetVoiceGuidance:
-                _controller.SetVoiceGuidance(message.Value != 0, Deliver);
-                break;
-            case IpcCommands.SetVoiceGuidanceLanguage:
-                _controller.SetVoiceGuidanceLanguage((VoiceGuidanceLanguage)message.Value, Deliver);
-                break;
-            case IpcCommands.SetBluetoothAutoSwitch:
-                _controller.SetBluetoothAutoSwitch(message.Value != 0, Deliver);
-                break;
-
-            // The ambient packet carries three settings at once, so each of these changes one
-            // field of what the headset currently says rather than composing a whole packet.
-            case IpcCommands.SetAmbientMode:
-                _controller.ChangeAmbient(
-                    current => current with { Mode = (AmbientMode)message.Value }, Deliver);
-                break;
-            case IpcCommands.SetAmbientLevel:
-                _controller.ChangeAmbient(
-                    current => current with { Level = AmbientSetting.ClampLevel(message.Value) }, Deliver);
-                break;
-            case IpcCommands.SetVoiceFocus:
-                _controller.ChangeAmbient(
-                    current => current with { VoiceFocus = message.Value != 0 }, Deliver);
+            // Both are answered by pushing everything the headset now says, so a window shows
+            // what it reports rather than what it was asked for.
+            case IpcCommands.GetSettings: _controller.ReadSettings(); break;
+            // Checked here rather than at the device: an id nothing describes would otherwise
+            // throw on the worker, and the worker treats a throw as a link that has gone - it
+            // would drop the headset over a client's typo.
+            case IpcCommands.SetSetting:
+                if (message.Setting is { } id && SettingCatalogue.ById(id) is not null)
+                    _controller.SetSetting(id, message.Value);
+                else
+                    _server.PublishError($"unknown setting '{message.Setting}'");
                 break;
         }
     }
-
-    private void Deliver(DeviceSettings settings) => _server.Publish(settings);
 
     public void Dispose() => _server.Dispose();
 }

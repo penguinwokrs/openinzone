@@ -7,17 +7,24 @@ using OpenInzone.Ipc;
 namespace OpenInzone.Tests.Ipc;
 
 /// <summary>
-/// The settings message is what the settings window draws from, and every one of its fields is
-/// nullable because a model that does not answer for a setting is not an error. These check that
-/// the difference between "off" and "not answered for" survives the trip, since the window shows
-/// the first and hides the second.
+/// The settings message is what the settings window draws from. It used to be a record with a
+/// nullable field per setting, where null meant "this model did not answer" and false meant "off",
+/// and adding a setting changed the wire. It is a list now: a setting a model does not have is
+/// simply not in it, which is the same distinction without the eight fields to keep in step.
 /// </summary>
 public class DeviceSettingsTests
 {
-    private static readonly DeviceSettings Sample = new(
-        Sidetone: 3, AmbientMode: 2, AmbientLevel: 14, VoiceFocus: true,
-        AutoPowerOff: true, VoiceGuidance: false, VoiceGuidanceLanguage: 2,
-        BluetoothAutoSwitch: true);
+    private static readonly IReadOnlyList<SettingValue> Sample =
+    [
+        new("sidetone", 3),
+        new("ambient-mode", 2),
+        new("ambient-level", 14),
+        new("voice-focus", 1),
+        new("auto-power-off", 1),
+        new("voice-guidance", 0),
+        new("voice-guidance-language", 2),
+        new("bluetooth-auto-switch", 1),
+    ];
 
     [Fact]
     public void The_settings_survive_the_wire_unchanged()
@@ -31,35 +38,60 @@ public class DeviceSettingsTests
     }
 
     /// <summary>
-    /// False and null both read as "not on" to careless code, so this pins that they stay apart:
-    /// a headset that answered "off" is shown as off, one that did not answer is not shown at all.
+    /// Off and absent both read as "not on" to careless code, so this pins that they stay apart:
+    /// a headset that answered off is shown as off, one that has no such setting is not shown.
     /// </summary>
     [Fact]
-    public void An_unanswered_setting_stays_distinct_from_one_that_answered_off()
+    public void A_setting_the_model_does_not_have_is_absent_rather_than_off()
     {
-        var off = new DeviceSettings(0, 0, 1, false, false, false, 0, false);
+        IReadOnlyList<SettingValue> off = [new("voice-guidance", 0)];
 
-        string offJson = JsonSerializer.Serialize(off, IpcJson.Default.DeviceSettings);
-        string noneJson = JsonSerializer.Serialize(DeviceSettings.None, IpcJson.Default.DeviceSettings);
-
-        Assert.NotEqual(offJson, noneJson);
-        Assert.Equal(off, JsonSerializer.Deserialize(offJson, IpcJson.Default.DeviceSettings));
-        Assert.Equal(DeviceSettings.None,
-            JsonSerializer.Deserialize(noneJson, IpcJson.Default.DeviceSettings));
+        Assert.Equal(0, off.Value("voice-guidance"));
+        Assert.Null(off.Value("auto-power-off"));
     }
 
     [Fact]
     public void Nothing_is_answered_for_before_anything_is_read()
     {
-        var none = DeviceSettings.None;
+        IReadOnlyList<SettingValue> none = [];
 
-        Assert.Null(none.Sidetone);
-        Assert.Null(none.AmbientMode);
-        Assert.Null(none.AmbientLevel);
-        Assert.Null(none.VoiceFocus);
-        Assert.Null(none.AutoPowerOff);
-        Assert.Null(none.VoiceGuidance);
-        Assert.Null(none.VoiceGuidanceLanguage);
-        Assert.Null(none.BluetoothAutoSwitch);
+        Assert.Null(none.Value("sidetone"));
+        Assert.Null(((IReadOnlyList<SettingValue>?)null).Value("sidetone"));
+    }
+
+    /// <summary>
+    /// A client told nothing offers everything, which is how this project behaved before it asked
+    /// the headset at all. Hiding a control on no information would be worse than showing one the
+    /// model turns out not to have.
+    /// </summary>
+    [Fact]
+    public void A_client_that_has_not_been_told_what_a_model_has_offers_everything()
+    {
+        DeviceCapabilities? untold = null;
+
+        Assert.True(untold.Allows(FeatureIds.Balance));
+        Assert.True(untold.Allows(FeatureIds.Sidetone));
+    }
+
+    [Fact]
+    public void A_client_that_has_been_told_offers_what_the_headset_reported()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.Volume, FeatureIds.Sidetone]);
+
+        Assert.True(capabilities.Allows(FeatureIds.Volume));
+        Assert.False(capabilities.Allows(FeatureIds.Balance));
+    }
+
+    [Fact]
+    public void The_capabilities_survive_the_wire_unchanged()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.Balance, FeatureIds.AutoPowerOff]);
+        var message = new ServerMessage(
+            ServerMessage.CapabilitiesUpdate, IpcProtocol.Version, Capabilities: capabilities);
+
+        string json = JsonSerializer.Serialize(message, IpcJson.Default.ServerMessage);
+        var back = JsonSerializer.Deserialize(json, IpcJson.Default.ServerMessage);
+
+        Assert.Equal(capabilities.Features, back!.Capabilities!.Features);
     }
 }

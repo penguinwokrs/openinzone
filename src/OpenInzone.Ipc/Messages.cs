@@ -29,23 +29,117 @@ public static class IpcCommands
     // The settings INZONE Hub also offers. Read together and answered with a settings message,
     // because a window showing all of them wants one round trip rather than eight.
     public const string GetSettings = "get-settings";
-    public const string SetSidetone = "set-sidetone";
-    public const string SetAmbientMode = "set-ambient-mode";
-    public const string SetAmbientLevel = "set-ambient-level";
-    public const string SetVoiceFocus = "set-voice-focus";
-    public const string SetAutoPowerOff = "set-auto-power-off";
-    public const string SetVoiceGuidance = "set-voice-guidance";
-    public const string SetVoiceGuidanceLanguage = "set-voice-guidance-language";
-    public const string SetBluetoothAutoSwitch = "set-bluetooth-auto-switch";
+
+    /// <summary>
+    /// Writes one setting, named in <see cref="ClientMessage.Setting"/>.
+    /// </summary>
+    /// <remarks>
+    /// One command for every setting, where there used to be one command each. A setting is
+    /// described once in the core and everything else walks that list, so adding one stops
+    /// touching the wire at all.
+    /// </remarks>
+    public const string SetSetting = "set-setting";
 
     public static bool IsKnown(string command) => command is
         Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
         or ToggleMicMute or AdjustMicLevel or SetMicLevel
         or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe
-        or GetSettings or SetSidetone or SetAmbientMode or SetAmbientLevel or SetVoiceFocus
-        or SetAutoPowerOff or SetVoiceGuidance or SetVoiceGuidanceLanguage
-        or SetBluetoothAutoSwitch;
+        or GetSettings or SetSetting;
 }
+
+/// <summary>
+/// The names of the things a headset may or may not have.
+/// </summary>
+/// <remarks>
+/// Declared here rather than taken from the core's setting catalogue because this assembly is the
+/// published contract and is all a client needs to reference — the Stream Deck plugin ships
+/// trimmed and has no business carrying the HID stack to learn what a setting is called. A test
+/// pins the two lists together so they cannot drift apart.
+/// </remarks>
+public static class FeatureIds
+{
+    // The panel, which until now was drawn whatever the model reported.
+    public const string Balance = "balance";
+    public const string Volume = "volume";
+    public const string MicMute = "mic-mute";
+
+    /// <summary>The Windows capture endpoint, which is not on the headset's wire at all.</summary>
+    public const string MicLevel = "mic-level";
+
+    public const string Battery = "battery";
+
+    // The settings tab.
+    public const string Sidetone = "sidetone";
+    public const string AmbientMode = "ambient-mode";
+    public const string AmbientLevel = "ambient-level";
+    public const string VoiceFocus = "voice-focus";
+    public const string AutoPowerOff = "auto-power-off";
+    public const string VoiceGuidance = "voice-guidance";
+    public const string VoiceGuidanceLanguage = "voice-guidance-language";
+    public const string BluetoothAutoSwitch = "bluetooth-auto-switch";
+
+    public static IReadOnlyList<string> All { get; } =
+    [
+        Balance, Volume, MicMute, MicLevel, Battery,
+        Sidetone, AmbientMode, AmbientLevel, VoiceFocus,
+        AutoPowerOff, VoiceGuidance, VoiceGuidanceLanguage, BluetoothAutoSwitch,
+    ];
+}
+
+/// <summary>What this model has, as the headset itself reports it.</summary>
+/// <remarks>
+/// Sent with the hello and again whenever a device connects, because the answer belongs to the
+/// headset that is plugged in rather than to the daemon. A feature that is absent is left out of
+/// the list; a client that has not been told anything yet is a different case, handled by
+/// <see cref="DeviceCapabilityExtensions.Allows"/>.
+/// </remarks>
+public sealed record DeviceCapabilities(
+    [property: JsonPropertyName("features")] IReadOnlyList<string> Features)
+{
+    public bool Has(string feature) => Features.Contains(feature);
+
+    /// <summary>The same set with one feature added or taken away.</summary>
+    /// <remarks>
+    /// For the one capability that is not the headset's to answer. The microphone level is a
+    /// Windows capture endpoint, and Windows can enumerate it after the dongle is already open, so
+    /// the answer given once per connection can be wrong for the rest of it.
+    /// </remarks>
+    public DeviceCapabilities With(string feature, bool present)
+    {
+        if (Has(feature) == present) return this;
+
+        var features = Features.Where(id => id != feature).ToList();
+        if (present) features.Add(feature);
+        return new DeviceCapabilities(features);
+    }
+}
+
+public static class DeviceCapabilityExtensions
+{
+    /// <summary>
+    /// Whether to offer a feature. A client that has not been told what the model has — nothing is
+    /// connected, or the daemon is an older build — offers everything, which is how this project
+    /// behaved before it asked at all. Hiding a control on no information would be worse than
+    /// showing one the model turns out not to have. A null feature is the same case seen from the
+    /// other side: nothing was named, so nothing is gated.
+    /// </summary>
+    public static bool Allows(this DeviceCapabilities? capabilities, string? feature) =>
+        capabilities is null || feature is null || capabilities.Has(feature);
+
+    /// <summary>The value of one setting, or null when the model did not answer for it.</summary>
+    public static int? Value(this IReadOnlyList<SettingValue>? settings, string id) =>
+        settings?.FirstOrDefault(setting => setting.Id == id)?.Value;
+}
+
+/// <summary>One setting, as the headset now reports it.</summary>
+/// <remarks>
+/// A list rather than a record of named fields. Every field of that record had to be nullable to
+/// keep "the model answered off" apart from "the model did not answer", and adding a setting meant
+/// changing the wire. A setting a model does not have is simply not in the list.
+/// </remarks>
+public sealed record SettingValue(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("value")] int Value);
 
 /// <summary>One battery reading. A null percentage means the part is not reporting, or is absent.</summary>
 public sealed record BatterySnapshot(
@@ -99,33 +193,6 @@ public sealed record DeviceDetail(
     /// <summary>The Windows capture endpoint, which is not part of the headset's own protocol.</summary>
     [property: JsonPropertyName("micLevel")] int? MicLevel);
 
-/// <summary>
-/// The settings INZONE Hub also offers, as a window would show them.
-/// </summary>
-/// <remarks>
-/// Kept out of <see cref="DeviceSnapshot"/> on purpose. The snapshot is what every client draws
-/// on a key or a slider and is read constantly; these are read when a settings window opens and
-/// written when someone changes one, and nothing else wants them.
-///
-/// Every field is nullable because a model that does not answer for one of these is not an error.
-/// INZONE Buds has no wearing detection and no LED; another model may have no ambient sound.
-/// </remarks>
-public sealed record DeviceSettings(
-    [property: JsonPropertyName("sidetone")] int? Sidetone,
-    /// 0 off, 1 noise cancelling, 2 ambient sound.
-    [property: JsonPropertyName("ambientMode")] int? AmbientMode,
-    [property: JsonPropertyName("ambientLevel")] int? AmbientLevel,
-    [property: JsonPropertyName("voiceFocus")] bool? VoiceFocus,
-    [property: JsonPropertyName("autoPowerOff")] bool? AutoPowerOff,
-    [property: JsonPropertyName("voiceGuidance")] bool? VoiceGuidance,
-    /// 0 English, 1 Japanese, 2 Chinese.
-    [property: JsonPropertyName("voiceGuidanceLanguage")] int? VoiceGuidanceLanguage,
-    [property: JsonPropertyName("bluetoothAutoSwitch")] bool? BluetoothAutoSwitch)
-{
-    /// <summary>Nothing answered for, which is what a client shows before it has asked.</summary>
-    public static DeviceSettings None { get; } = new(null, null, null, null, null, null, null, null);
-}
-
 /// <summary>A message from the daemon to a client.</summary>
 public sealed record ServerMessage(
     [property: JsonPropertyName("type")] string Type,
@@ -133,16 +200,20 @@ public sealed record ServerMessage(
     [property: JsonPropertyName("state")] DeviceSnapshot? State = null,
     [property: JsonPropertyName("message")] string? Message = null,
     [property: JsonPropertyName("detail")] DeviceDetail? Detail = null,
-    [property: JsonPropertyName("settings")] DeviceSettings? Settings = null)
+    [property: JsonPropertyName("settings")] IReadOnlyList<SettingValue>? Settings = null,
+    [property: JsonPropertyName("capabilities")] DeviceCapabilities? Capabilities = null)
 {
     public const string Hello = "hello";
     public const string StateUpdate = "state";
     public const string Error = "error";
     public const string DetailUpdate = "detail";
     public const string SettingsUpdate = "settings";
+    public const string CapabilitiesUpdate = "capabilities";
 }
 
 /// <summary>A message from a client to the tray.</summary>
 public sealed record ClientMessage(
     [property: JsonPropertyName("command")] string Command,
-    [property: JsonPropertyName("value")] int Value = 0);
+    [property: JsonPropertyName("value")] int Value = 0,
+    /// <summary>Which setting <see cref="IpcCommands.SetSetting"/> is about.</summary>
+    [property: JsonPropertyName("setting")] string? Setting = null);

@@ -50,6 +50,18 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// <summary>Raised when an action could not be applied. The message is fit to show a person.</summary>
     public event EventHandler<string>? Failed;
 
+    /// <summary>
+    /// Raised when a headset has said what it has, which is once per connection. Clients are told
+    /// rather than asked, because the answer belongs to the model that is plugged in.
+    /// </summary>
+    public event EventHandler<DeviceCapabilities>? CapabilitiesRead;
+
+    /// <summary>Raised after reading the settings, and after every change to one of them.</summary>
+    public event EventHandler<IReadOnlyList<SettingValue>>? SettingsRead;
+
+    /// <summary>What the connected model has, or null while nothing has said.</summary>
+    public DeviceCapabilities? Capabilities { get; private set; }
+
     public DeviceState State
     {
         get { lock (_stateLock) return _state; }
@@ -150,6 +162,11 @@ public sealed class DeviceController : IDeviceActions, IDisposable
 
     private void Drop()
     {
+        // What the last model had says nothing about the next one, and a client that connects
+        // while nothing is does better with no answer than with the previous headset's: being told
+        // nothing offers everything, which is where every interface starts.
+        Capabilities = null;
+
         if (_device is null) return;
         try { _device.Dispose(); } catch { /* already gone */ }
         _device = null;
@@ -182,6 +199,12 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             MicLevelAvailable: micLevelAvailable,
             Battery: device.GetBattery()));
 
+        // Asked once per connection, and asked of the headset rather than assumed: the three parts
+        // it publishes say what it has, where probing setting by setting can only say what did not
+        // answer in time. Every client is told, because a control for a setting the model does not
+        // carry is one nobody should be offered.
+        Announce(IpcSnapshot.Read(device));
+
         return device;
     }
 
@@ -190,7 +213,21 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         => Mutate(state => state.Apply(e.EventId, e.Param));
 
     /// <summary>Connects if needed and re-reads everything. Used on startup and when the flyout opens.</summary>
-    public void Refresh() => Post(_ => ReadEverything());
+    /// <remarks>
+    /// The reading is published even when it has not moved. Publishing only on a change is what
+    /// keeps the heartbeat from republishing the same state every few seconds and making every
+    /// client redraw for it - but this is not the heartbeat, which reads without coming through
+    /// here. This is a client that asked, and the answer to a question is owed whatever it says.
+    ///
+    /// Pressing a battery key on a deck was the case that showed it: the press asks for a re-read,
+    /// and a charge that had not moved since the last one produced no answer at all, so the key sat
+    /// there looking exactly as it does when nothing is working.
+    /// </remarks>
+    public void Refresh() => Post(_ =>
+    {
+        ReadEverything();
+        Announce(State);
+    });
 
     private void ReadEverything()
     {
@@ -212,6 +249,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         // caches only a successful search, so asking here is what lets the slider come back to life
         // instead of reading 利用不可 for the whole connection.
         bool micLevelAvailable = device.Microphone is not null;
+        ReviseMicLevel(micLevelAvailable);
         Mutate(state => state with
         {
             Balance = device.GetMixBalance(),
@@ -232,57 +270,70 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// </summary>
     public void Describe(Action<DeviceDetail> deliver) => Post(_ => deliver(IpcSnapshot.Detail(Device())));
 
-    /// <summary>Reads the settings a window shows, and hands them over.</summary>
-    public void ReadSettings(Action<DeviceSettings> deliver) =>
-        Post(_ => deliver(IpcSnapshot.Settings(Device())));
-
-    // Each of these changes one setting and then reads them all back, so a window is told what the
-    // headset now says rather than what it was asked for. The ambient packet carries three
-    // settings at once, so changing one of them starts from a reading rather than from nothing.
-
-    public void SetSidetone(int value, Action<DeviceSettings> deliver) => Post(_ =>
+    /// <summary>Reads what the headset now says, and tells every client.</summary>
+    /// <remarks>
+    /// Connecting reads all of this and announces it, so asking again straight afterwards is two
+    /// full readings back to back - and the second lands while a link that has just come up is
+    /// still settling, which is exactly when one of them times out and takes the connection down
+    /// again. The same guard <see cref="ReadEverything"/> carries, for the same reason.
+    /// </remarks>
+    public void ReadSettings() => Post(_ =>
     {
+        bool alreadyConnected = _device is not null;
         var device = Device();
-        device.SetSidetoneVolume(value);
-        deliver(IpcSnapshot.Settings(device));
+        if (alreadyConnected) Announce(IpcSnapshot.Read(device));
     });
 
-    public void ChangeAmbient(Func<AmbientSetting, AmbientSetting> change, Action<DeviceSettings> deliver) =>
-        Post(_ =>
-        {
-            var device = Device();
-            device.SetAmbientSetting(change(device.GetAmbientSetting()));
-            deliver(IpcSnapshot.Settings(device));
-        });
-
-    public void SetAutoPowerOff(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    /// <summary>
+    /// Writes one setting and reads them all back, so a window shows what the headset now says
+    /// rather than what it was asked for.
+    /// </summary>
+    /// <remarks>
+    /// One method for every setting, where there used to be one each. What a setting is - which
+    /// packet it lives in, which byte of it, and what range it has - is described once in the
+    /// core's catalogue, and this walks that description rather than repeating it.
+    /// </remarks>
+    public void SetSetting(string id, int value) => Post(_ =>
     {
         var device = Device();
-        device.SetAutoPowerOff(on);
-        deliver(IpcSnapshot.Settings(device));
+        IpcSnapshot.Write(device, id, value);
+        Announce(IpcSnapshot.Read(device));
     });
 
-    public void SetVoiceGuidance(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    /// <summary>
+    /// Corrects the one capability that is not the headset's to answer.
+    /// </summary>
+    /// <remarks>
+    /// The microphone level is a Windows capture endpoint, and at logon the dongle can be open
+    /// before Windows has enumerated it. <see cref="ReadEverything"/> already asks again on every
+    /// heartbeat so the panel's slider comes back to life - but the capability list is read once
+    /// per connection, so without this a deck's mic-level key would stay drawn as nothing and
+    /// refuse to be pressed for the whole connection, while the panel beside it worked.
+    /// </remarks>
+    private void ReviseMicLevel(bool available)
     {
-        var device = Device();
-        device.SetVoiceGuidance(on);
-        deliver(IpcSnapshot.Settings(device));
-    });
+        if (Capabilities is not { } current) return;
 
-    public void SetVoiceGuidanceLanguage(VoiceGuidanceLanguage language, Action<DeviceSettings> deliver) =>
-        Post(_ =>
-        {
-            var device = Device();
-            device.SetVoiceGuidanceLanguage(language);
-            deliver(IpcSnapshot.Settings(device));
-        });
+        var revised = current.With(FeatureIds.MicLevel, available);
+        if (ReferenceEquals(revised, current)) return;
 
-    public void SetBluetoothAutoSwitch(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+        Capabilities = revised;
+
+        try { CapabilitiesRead?.Invoke(this, revised); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
+    }
+
+    /// <summary>Tells every client what the headset has and what it now says.</summary>
+    private void Announce(IpcSnapshot.DeviceReading reading)
     {
-        var device = Device();
-        device.SetBluetoothAutoSwitch(on);
-        deliver(IpcSnapshot.Settings(device));
-    });
+        Capabilities = reading.Capabilities;
+
+        try { CapabilitiesRead?.Invoke(this, reading.Capabilities); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
+
+        try { SettingsRead?.Invoke(this, reading.Settings); }
+        catch { /* likewise */ }
+    }
 
     // ---- IDeviceActions ------------------------------------------------------
     // Each one queues; none of them block the caller. The adjusting methods connect via Device()

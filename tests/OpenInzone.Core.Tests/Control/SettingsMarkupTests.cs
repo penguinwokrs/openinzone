@@ -2,6 +2,7 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Xml.Linq;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Tests.Control;
 
@@ -52,5 +53,44 @@ public class SettingsMarkupTests
             .Select(attribute => $"{attribute.Parent!.Name.LocalName}.{attribute.Name.LocalName}");
 
         Assert.Empty(attached);
+    }
+
+    private static readonly XNamespace Tray = "clr-namespace:OpenInzone.Tray";
+
+    /// <summary>
+    /// Every setting named anywhere on the tab. A heading over several of them names them all,
+    /// separated by spaces, which is what lets it go away with the last of them.
+    /// </summary>
+    private static IEnumerable<string> NamedSettings() => DevicePanel()
+        .DescendantsAndSelf()
+        .Select(element => (string?)element.Attribute(Tray + "Setting.Id"))
+        .OfType<string>()
+        .SelectMany(ids => ids.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
+    /// The device tab is drawn by one binder that walks the markup looking for controls which name
+    /// the setting they are for. A name the catalogue does not have binds to nothing at all, and
+    /// nothing at runtime would say so — the control would simply sit there, filled by no one and
+    /// writing nowhere. So the markup is read here and checked against the catalogue.
+    /// </summary>
+    [Fact]
+    public void Every_control_that_names_a_setting_names_one_the_catalogue_has()
+    {
+        var named = NamedSettings().ToList();
+
+        Assert.NotEmpty(named);
+        Assert.All(named, id => Assert.NotNull(SettingCatalogue.ById(id)));
+    }
+
+    /// <summary>
+    /// And the other way round: a setting the catalogue describes but nothing in the markup names
+    /// is one the headset answers for and nobody is ever shown.
+    /// </summary>
+    [Fact]
+    public void Every_setting_the_catalogue_describes_is_somewhere_on_the_tab()
+    {
+        var named = NamedSettings().ToHashSet();
+
+        Assert.All(SettingCatalogue.All, setting => Assert.Contains(setting.Id, named));
     }
 }
