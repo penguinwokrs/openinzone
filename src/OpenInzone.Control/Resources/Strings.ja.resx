@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Hotkey_VolumeUp" xml:space="preserve">
+    <value>音量を上げる</value>
+  </data>
+  <data name="Hotkey_VolumeDown" xml:space="preserve">
+    <value>音量を下げる</value>
+  </data>
+  <data name="Hotkey_BalanceGame" xml:space="preserve">
+    <value>バランスをゲーム寄りに</value>
+  </data>
+  <data name="Hotkey_BalanceChat" xml:space="preserve">
+    <value>バランスをチャット寄りに</value>
+  </data>
+  <data name="Hotkey_BalanceCentre" xml:space="preserve">
+    <value>バランスを中央に</value>
+  </data>
+  <data name="Hotkey_MicMute" xml:space="preserve">
+    <value>マイクミュート切り替え</value>
+  </data>
+  <data name="Hotkey_MicUp" xml:space="preserve">
+    <value>マイクレベルを上げる</value>
+  </data>
+  <data name="Hotkey_MicDown" xml:space="preserve">
+    <value>マイクレベルを下げる</value>
+  </data>
+  <data name="Status_VolumeMuted" xml:space="preserve">
+    <value>{0}（ミュート）</value>
+  </data>
+  <data name="Status_BalanceCentre" xml:space="preserve">
+    <value>中央</value>
+  </data>
+  <data name="Status_BalanceGame" xml:space="preserve">
+    <value>ゲーム寄り {0:0.0}</value>
+  </data>
+  <data name="Status_BalanceChat" xml:space="preserve">
+    <value>チャット寄り {0:0.0}</value>
+  </data>
+  <data name="Status_MicUnavailable" xml:space="preserve">
+    <value>利用不可</value>
+  </data>
+  <data name="Status_BatteryCase" xml:space="preserve">
+    <value>ケース</value>
+  </data>
+</root>

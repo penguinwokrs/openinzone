@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Forms;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
+using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
 
@@ -24,10 +25,10 @@ public sealed class TrayIcon : IDisposable
     public TrayIcon()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("設定", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
-        menu.Items.Add("ヘルプ", null, (_, _) => ProjectLinks.Open(ProjectLinks.Repository));
+        menu.Items.Add(Strings.Tray_Settings, null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(Strings.Tray_Help, null, (_, _) => ProjectLinks.Open(ProjectLinks.Repository));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("終了", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(Strings.Tray_Exit, null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
         _icon = new NotifyIcon
         {
@@ -59,9 +60,9 @@ public sealed class TrayIcon : IDisposable
 
         // NotifyIcon.Text throws above 63 characters.
         string text = state.Connected
-            ? $"{state.Model}\n音量 {SnapshotText.VolumeWithMute(state)}\n" +
-              $"バッテリー {SnapshotText.Battery(state)}"
-            : "OpenInzone - 未接続";
+            ? $"{state.Model}\n{Strings.Tray_TooltipVolume} {SnapshotText.VolumeWithMute(state)}\n" +
+              $"{Strings.Tray_TooltipBattery} {SnapshotText.Battery(state)}"
+            : Strings.Tray_NotConnected;
         _icon.Text = text.Length <= 63 ? text : text[..63];
     }
 

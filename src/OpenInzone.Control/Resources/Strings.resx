@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Hotkey_VolumeUp" xml:space="preserve">
+    <value>Volume up</value>
+  </data>
+  <data name="Hotkey_VolumeDown" xml:space="preserve">
+    <value>Volume down</value>
+  </data>
+  <data name="Hotkey_BalanceGame" xml:space="preserve">
+    <value>Balance towards game</value>
+  </data>
+  <data name="Hotkey_BalanceChat" xml:space="preserve">
+    <value>Balance towards chat</value>
+  </data>
+  <data name="Hotkey_BalanceCentre" xml:space="preserve">
+    <value>Centre the balance</value>
+  </data>
+  <data name="Hotkey_MicMute" xml:space="preserve">
+    <value>Toggle microphone mute</value>
+  </data>
+  <data name="Hotkey_MicUp" xml:space="preserve">
+    <value>Microphone level up</value>
+  </data>
+  <data name="Hotkey_MicDown" xml:space="preserve">
+    <value>Microphone level down</value>
+  </data>
+  <data name="Status_VolumeMuted" xml:space="preserve">
+    <value>{0} (muted)</value>
+  </data>
+  <data name="Status_BalanceCentre" xml:space="preserve">
+    <value>Centre</value>
+  </data>
+  <data name="Status_BalanceGame" xml:space="preserve">
+    <value>Towards game {0:0.0}</value>
+    <comment>The side is named, not signed, because a reader of a bare "+2.0" has to already know
+which way the scale runs. `:0.0` is a .NET custom numeric format string, not literal text - keep
+it, but the word order and "towards"/its equivalent can move freely to fit the language.</comment>
+  </data>
+  <data name="Status_BalanceChat" xml:space="preserve">
+    <value>Towards chat {0:0.0}</value>
+  </data>
+  <data name="Status_MicUnavailable" xml:space="preserve">
+    <value>Unavailable</value>
+  </data>
+  <data name="Status_BatteryCase" xml:space="preserve">
+    <value>Case</value>
+  </data>
+</root>

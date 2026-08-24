@@ -25,6 +25,14 @@ public sealed class HotkeyConfig
     /// </summary>
     public string? PluginSaveFolder { get; set; }
 
+    /// <summary>
+    /// Which language the window is shown in, or null when nobody has chosen. Null rather than
+    /// "en" on purpose: it is what lets an installation fall through to the language the installer
+    /// detected, and what stops a hotkeys.json written before this existed from pinning itself to
+    /// English the first time it is read.
+    /// </summary>
+    public string? Language { get; set; }
+
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
     public static HotkeyConfig Default() => new()
@@ -57,6 +65,7 @@ public sealed class HotkeyConfig
             ["bindings"] = new JsonObject(Bindings.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
             ["checkForUpdatesAtStartup"] = CheckForUpdatesAtStartup,
             ["pluginSaveFolder"] = PluginSaveFolder,
+            ["language"] = Language,
         };
 
         // Write beside the file and move it into place, so a save interrupted part-way leaves the
@@ -82,6 +91,9 @@ public sealed class HotkeyConfig
         if (root["pluginSaveFolder"] is JsonValue folder && folder.TryGetValue(out string? path)
             && !string.IsNullOrWhiteSpace(path))
             config.PluginSaveFolder = path;
+
+        if (root["language"] is JsonValue language && language.TryGetValue(out string? tag))
+            config.Language = UiLanguage.Normalise(tag);
 
         switch (root["bindings"])
         {

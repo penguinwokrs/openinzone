@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Flyout_NotConnected" xml:space="preserve">
+    <value>未连接</value>
+  </data>
+  <data name="Flyout_Volume" xml:space="preserve">
+    <value>音量</value>
+  </data>
+  <data name="Flyout_MicMute" xml:space="preserve">
+    <value>麦克风静音</value>
+  </data>
+  <data name="Flyout_Game" xml:space="preserve">
+    <value>游戏</value>
+  </data>
+  <data name="Flyout_Chat" xml:space="preserve">
+    <value>聊天</value>
+  </data>
+  <data name="Tray_Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Tray_Help" xml:space="preserve">
+    <value>帮助</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="Tray_TooltipVolume" xml:space="preserve">
+    <value>音量</value>
+  </data>
+  <data name="Tray_TooltipBattery" xml:space="preserve">
+    <value>电量</value>
+  </data>
+  <data name="Tray_NotConnected" xml:space="preserve">
+    <value>OpenInzone - 未连接</value>
+  </data>
+  <data name="App_CannotConnectTitle" xml:space="preserve">
+    <value>无法连接耳机</value>
+  </data>
+  <data name="App_ConfigUnreadableTitle" xml:space="preserve">
+    <value>无法读取配置文件</value>
+  </data>
+  <data name="App_ConfigUnreadableBody" xml:space="preserve">
+    <value>已使用默认快捷键启动。请修正 {0}：{1}</value>
+  </data>
+  <data name="App_UpdateAvailableTitle" xml:space="preserve">
+    <value>有可用更新</value>
+  </data>
+  <data name="App_UpdateAvailableBody" xml:space="preserve">
+    <value>版本 {0} 可用。可在设置中更新。</value>
+  </data>
+  <data name="App_ErrorTitle" xml:space="preserve">
+    <value>发生错误</value>
+  </data>
+  <data name="App_HotkeyFailedTitle" xml:space="preserve">
+    <value>无法注册快捷键</value>
+  </data>
+  <data name="App_HotkeyFailedBody" xml:space="preserve">
+    <value>以下快捷键与其他应用冲突，已停用：{0}</value>
+  </data>
+  <data name="App_ListSeparator" xml:space="preserve">
+    <value>、</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>OpenInzone 设置</value>
+  </data>
+  <data name="Settings_Tab_General" xml:space="preserve">
+    <value>常规</value>
+  </data>
+  <data name="Settings_Tab_Device" xml:space="preserve">
+    <value>设备</value>
+  </data>
+  <data name="Settings_Tab_Hotkeys" xml:space="preserve">
+    <value>快捷键</value>
+  </data>
+  <data name="Settings_Tab_Update" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Settings_Tab_Plugin" xml:space="preserve">
+    <value>插件</value>
+  </data>
+  <data name="Settings_Autostart" xml:space="preserve">
+    <value>开机时随 Windows 启动</value>
+  </data>
+  <data name="Settings_AutostartHint" xml:space="preserve">
+    <value>登录时显示托盘图标。</value>
+  </data>
+  <data name="Settings_CheckUpdates" xml:space="preserve">
+    <value>启动时检查更新</value>
+  </data>
+  <data name="Settings_CheckUpdatesHint" xml:space="preserve">
+    <value>查看 GitHub 上的发布。失败时不作任何提示。</value>
+  </data>
+  <data name="Settings_UiLanguage" xml:space="preserve">
+    <value>显示语言</value>
+  </data>
+  <data name="Settings_UiLanguageHint" xml:space="preserve">
+    <value>重启托盘程序后生效。</value>
+  </data>
+  <data name="Settings_RestartTitle" xml:space="preserve">
+    <value>要重启 OpenInzone 吗？</value>
+  </data>
+  <data name="Settings_RestartPrompt" xml:space="preserve">
+    <value>显示语言将在托盘程序重启后更改。现在重启吗？</value>
+  </data>
+  <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
+    <value>更改即时生效，无需保存。</value>
+  </data>
+  <data name="Settings_DeviceQuerying" xml:space="preserve">
+    <value>正在查询耳机…</value>
+  </data>
+  <data name="Settings_Ambient" xml:space="preserve">
+    <value>环境声控制</value>
+  </data>
+  <data name="Settings_AmbientOff" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Settings_NoiseCancelling" xml:space="preserve">
+    <value>降噪</value>
+  </data>
+  <data name="Settings_AmbientOn" xml:space="preserve">
+    <value>环境声</value>
+  </data>
+  <data name="Settings_AmbientLevel" xml:space="preserve">
+    <value>环境声等级</value>
+  </data>
+  <data name="Settings_VoiceFocus" xml:space="preserve">
+    <value>人声聚焦</value>
+  </data>
+  <data name="Settings_Sidetone" xml:space="preserve">
+    <value>侧音</value>
+  </data>
+  <data name="Settings_Other" xml:space="preserve">
+    <value>其他</value>
+  </data>
+  <data name="Settings_AutoPowerOff" xml:space="preserve">
+    <value>自动关机</value>
+  </data>
+  <data name="Settings_BluetoothSwitch" xml:space="preserve">
+    <value>蓝牙拨出和来电时自动切换连接</value>
+  </data>
+  <data name="Settings_VoiceGuidance" xml:space="preserve">
+    <value>语音提示</value>
+  </data>
+  <data name="Settings_VoiceGuidanceLanguage" xml:space="preserve">
+    <value>语音提示语言</value>
+  </data>
+  <data name="Settings_VoiceLanguage_English" xml:space="preserve">
+    <value>英语</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Japanese" xml:space="preserve">
+    <value>日语</value>
+  </data>
+  <data name="Settings_VoiceLanguage_Chinese" xml:space="preserve">
+    <value>中文</value>
+  </data>
+  <data name="Settings_HotkeyHint" xml:space="preserve">
+    <value>选中一行后按下组合键即可分配。按 Esc 清除。</value>
+  </data>
+  <data name="Settings_ResetDefaults" xml:space="preserve">
+    <value>恢复默认</value>
+  </data>
+  <data name="Settings_CheckNow" xml:space="preserve">
+    <value>检查更新</value>
+  </data>
+  <data name="Settings_StreamDeckPlugin" xml:space="preserve">
+    <value>Stream Deck 插件</value>
+  </data>
+  <data name="Settings_PluginDescription" xml:space="preserve">
+    <value>可通过 Stream Deck 按键控制耳机的音量、平衡、麦克风和电量。导入后，即使不打开本应用也能使用。</value>
+  </data>
+  <data name="Settings_PluginDownload" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Settings_PluginImport" xml:space="preserve">
+    <value>导入到 Stream Deck</value>
+  </data>
+  <data name="Settings_OpenReleasePage" xml:space="preserve">
+    <value>打开发布页面</value>
+  </data>
+  <data name="Settings_HotkeyCapturing" xml:space="preserve">
+    <value>请按下组合键</value>
+  </data>
+  <data name="Settings_HotkeyConflict" xml:space="preserve">
+    <value>{0}（其他应用正在使用）</value>
+  </data>
+  <data name="Settings_HotkeyDuplicate" xml:space="preserve">
+    <value>{0}（重复）</value>
+  </data>
+  <data name="Settings_HotkeyUnassigned" xml:space="preserve">
+    <value>未分配</value>
+  </data>
+  <data name="Settings_CurrentVersion" xml:space="preserve">
+    <value>当前版本：{0}</value>
+  </data>
+  <data name="Settings_SaveFailed" xml:space="preserve">
+    <value>无法保存设置：{0}</value>
+  </data>
+  <data name="Settings_PluginChecking" xml:space="preserve">
+    <value>正在检查发布…</value>
+  </data>
+  <data name="Settings_PluginNotFound" xml:space="preserve">
+    <value>最新发布中未找到 Stream Deck 插件。请打开发布页面查看。</value>
+  </data>
+  <data name="Settings_PluginSaveTitle" xml:space="preserve">
+    <value>Stream Deck 插件的保存位置</value>
+  </data>
+  <data name="Settings_PluginFilter" xml:space="preserve">
+    <value>Stream Deck 插件 (*{0})|*{0}</value>
+  </data>
+  <data name="Settings_PluginDownloading" xml:space="preserve">
+    <value>正在下载… {0}%</value>
+  </data>
+  <data name="Settings_PluginSaved" xml:space="preserve">
+    <value>已保存：{0}</value>
+  </data>
+  <data name="Settings_PluginDownloadFailed" xml:space="preserve">
+    <value>下载失败：{0}</value>
+  </data>
+  <data name="Settings_PluginOpenFailed" xml:space="preserve">
+    <value>无法打开：{0}</value>
+  </data>
+  <data name="Settings_UpdateChecking" xml:space="preserve">
+    <value>正在检查…</value>
+  </data>
+  <data name="Settings_UpdateButtonInstall" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Settings_UpdateAvailable" xml:space="preserve">
+    <value>版本 {0} 可用。</value>
+  </data>
+  <data name="Settings_UpdateNoInstaller" xml:space="preserve">
+    <value>已发布新版本，但其中找不到安装程序。</value>
+  </data>
+  <data name="Settings_UpdateUnreadable" xml:space="preserve">
+    <value>无法读取 GitHub 的响应。</value>
+  </data>
+  <data name="Settings_UpdateUpToDate" xml:space="preserve">
+    <value>已是最新版本。</value>
+  </data>
+  <data name="Settings_UpdateCheckFailed" xml:space="preserve">
+    <value>检查失败：{0}</value>
+  </data>
+  <data name="Settings_UpdateDownloading" xml:space="preserve">
+    <value>正在下载… {0}%</value>
+  </data>
+  <data name="Settings_UpdateVerifyFailed" xml:space="preserve">
+    <value>下载的文件校验失败，已中止运行。</value>
+  </data>
+  <data name="Settings_UpdateNoDigest" xml:space="preserve">
+    <value>无法验证下载的安装程序（未提供 SHA-256）。仍要运行吗？</value>
+  </data>
+  <data name="Settings_UpdateCancelled" xml:space="preserve">
+    <value>已取消更新。</value>
+  </data>
+  <data name="Settings_UpdateFailed" xml:space="preserve">
+    <value>更新失败：{0}</value>
+  </data>
+  <data name="Settings_DeviceApplied" xml:space="preserve">
+    <value>更改即时生效。</value>
+  </data>
+  <data name="Settings_DeviceUnresponsive" xml:space="preserve">
+    <value>耳机没有响应。</value>
+  </data>
+</root>

@@ -251,4 +251,34 @@ public class HotkeyConfigTests
             Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
         }
     }
+
+    [Fact]
+    public void The_language_survives_a_save_and_load()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var config = HotkeyConfig.Default();
+            config.Language = "zh-Hans";
+            config.Save(path);
+
+            Assert.Equal("zh-Hans", HotkeyConfig.FromJson(File.ReadAllText(path)).Language);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void A_file_with_no_language_reads_as_no_choice_rather_than_English()
+    {
+        Assert.Null(HotkeyConfig.FromJson("""{"bindings":{}}""").Language);
+    }
+
+    [Fact]
+    public void A_language_the_build_does_not_have_is_dropped_rather_than_kept()
+    {
+        Assert.Null(HotkeyConfig.FromJson("""{"language":"fr-FR"}""").Language);
+    }
 }

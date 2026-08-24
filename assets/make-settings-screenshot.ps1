@@ -12,6 +12,13 @@
 # markup rather than in C# as the flyout does; and the device tab's Setting attached properties,
 # which live in the same code-behind assembly and are the tray's business rather than the
 # renderer's - what they would set is set below by hand anyway.
+#
+# SettingsWindow.xaml also carries xmlns:res="clr-namespace:OpenInzone.Resources;assembly=..." and
+# uses {x:Static res:Strings...} throughout. Both resolve while XamlReader parses the markup, so
+# the resource assembly - built if it is not already there, satellite directories and all - has to
+# be loaded, and the UI culture set to Japanese, before Parse runs below. This produces the
+# Japanese screenshots; an English Windows with no culture pinned would otherwise get English text
+# in pictures that are meant to show the Japanese UI.
 
 param(
   [Parameter(Mandatory = $true)][string]$OutDirectory,
@@ -22,6 +29,21 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
 $repo = Split-Path -Parent $PSScriptRoot
+
+# Built rather than assumed present, so this does not silently pick up a stale copy from an
+# unrelated earlier build. `dotnet build` also lays the ja\ and zh-Hans\ satellite directories down
+# beside the dll, which is what makes the Japanese strings reachable at all.
+$resourcesProject = Join-Path $repo 'src\OpenInzone.Resources'
+$resourcesDll = Join-Path $resourcesProject 'bin\Release\net8.0\OpenInzone.Resources.dll'
+dotnet build $resourcesProject -c Release | Out-Null
+if (-not (Test-Path $resourcesDll)) { throw "build did not produce $resourcesDll" }
+Add-Type -Path $resourcesDll
+
+# {x:Static} resolves at parse time, not render time, so this has to be set before Parse is called
+# below - setting it any later would leave the already-parsed text in whatever culture the host
+# happened to be running under.
+[System.Threading.Thread]::CurrentThread.CurrentUICulture = 'ja'
+
 $xaml = Get-Content (Join-Path $repo 'src\OpenInzone.Tray\SettingsWindow.xaml') -Raw -Encoding UTF8
 New-Item -ItemType Directory -Path $OutDirectory -Force | Out-Null
 $xaml = $xaml -replace '\s*x:Class="[^"]*"', ''

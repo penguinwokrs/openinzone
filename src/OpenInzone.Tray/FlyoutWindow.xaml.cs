@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
 using OpenInzone.Tray.Native;
+using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
 
@@ -77,7 +78,7 @@ public partial class FlyoutWindow : Window
         _updating = true;
         try
         {
-            ModelText.Text = state.Connected ? state.Model : "未接続";
+            ModelText.Text = state.Connected ? state.Model : Strings.Flyout_NotConnected;
 
             VolumeRow.IsEnabled = state.Connected;
             VolumeSlider.Value = state.Volume;

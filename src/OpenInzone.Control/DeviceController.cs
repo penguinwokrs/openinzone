@@ -179,7 +179,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         if (_device is not null) return _device;
 
         if (DateTime.UtcNow < _nextConnectAttempt)
-            throw new InvalidOperationException("ヘッドセットに接続されていません。");
+            throw new InvalidOperationException("The headset is not connected.");
 
         var device = InzoneDevice.Open();
         device.SettingChanged += OnSettingChanged;

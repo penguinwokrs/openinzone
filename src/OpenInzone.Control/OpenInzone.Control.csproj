@@ -14,10 +14,26 @@
       targets plain net8.0 so its logic stays unit-testable anywhere.
     -->
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+
+    <NeutralResourcesLanguage>en</NeutralResourcesLanguage>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OpenInzone.Core\OpenInzone.Core.csproj" />
     <ProjectReference Include="..\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- StronglyTyped* is MSBuild's own GenerateResource task doing the code generation, not the
+         Visual Studio designer's ResXFileCodeGenerator custom tool. That matters because the
+         release is published from WSL, where the designer does not exist: this way the class
+         regenerates on every `dotnet build` from the command line, same as any other source. -->
+    <EmbeddedResource Update="Resources\Strings.resx"
+                      StronglyTypedClassName="Strings"
+                      StronglyTypedNamespace="OpenInzone.Control.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)Strings.g.cs"
+                      StronglyTypedLanguage="CSharp"
+                      PublicClass="true"
+                      Generator="" />
   </ItemGroup>
 </Project>
