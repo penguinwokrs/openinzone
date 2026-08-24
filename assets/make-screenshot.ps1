@@ -30,13 +30,24 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 $repo = Split-Path -Parent $PSScriptRoot
 $trayDir = Join-Path $repo 'src\OpenInzone.Tray'
 
-# Built rather than assumed present, so this does not silently pick up a stale copy from an
-# unrelated earlier build. `dotnet build` also lays the ja\ and zh-Hans\ satellite directories down
-# beside the dll, which is what makes the Japanese strings reachable at all.
+# This checks for the resource assembly rather than building it. Building it from here was tried
+# and does not work: the .NET SDK lives on the WSL side of this machine and not the Windows side,
+# so `dotnet build` fails - and it failed *silently*, leaving whatever dll happened to be lying
+# around to be loaded as though the build had succeeded, which is the opposite of what building it
+# here was meant to guarantee.
+#
+# Build it first, from wherever you build this project:
+#     dotnet build src/OpenInzone.Resources -c Release
+#
+# That also lays the ja\ and zh-Hans\ satellite directories down beside the dll, which is what
+# makes the Japanese strings reachable at all. The timestamp is printed because a stale dll is the
+# one failure this cannot detect for you.
 $resourcesProject = Join-Path $repo 'src\OpenInzone.Resources'
 $resourcesDll = Join-Path $resourcesProject 'bin\Release\net8.0\OpenInzone.Resources.dll'
-dotnet build $resourcesProject -c Release | Out-Null
-if (-not (Test-Path $resourcesDll)) { throw "build did not produce $resourcesDll" }
+if (-not (Test-Path $resourcesDll)) {
+  throw "$resourcesDll is missing. Build it first: dotnet build src/OpenInzone.Resources -c Release"
+}
+Write-Host "using $resourcesDll (built $((Get-Item $resourcesDll).LastWriteTime))"
 Add-Type -Path $resourcesDll
 
 # {x:Static} resolves at parse time, not render time, so this has to be set before Parse is called
