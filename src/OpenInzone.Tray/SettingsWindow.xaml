@@ -126,7 +126,7 @@
                    Text="{x:Static res:Strings.Settings_CheckUpdatesHint}" />
 
         <TextBlock Text="{x:Static res:Strings.Settings_UiLanguage}" FontSize="13" Margin="0,20,0,0" />
-        <ComboBox x:Name="UiLanguageBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"
+        <ComboBox x:Name="UiLanguageBox" Width="200" Height="26" HorizontalAlignment="Left" Margin="0,8,0,0"
                   SelectionChanged="OnUiLanguageChanged">
           <!-- Each language named in its own script on purpose: somebody looking at a window they
                cannot read needs to find their language without knowing its English name first.

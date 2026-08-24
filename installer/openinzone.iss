@@ -198,16 +198,6 @@ begin
   end;
 end;
 
-{ Inno replaces a file by renaming the old copy aside, then moving the new one into place; a file
-  left behind by an earlier, incomplete uninstall sits in the way of that rename and it fails with
-  error 183 (ERROR_ALREADY_EXISTS) -- exactly what happened when 0.1.0 was uninstalled with the
-  tray still running, its files survived, and every install after it piled a new [unins0xx.*] pair
-  on top instead of replacing the old one. ssInstall fires after the wizard but before Inno writes
-  any payload, and Inno does not create its own uninstaller until the very end of installation, so
-  clearing the directory here wipes stale files -- including old unins*.* -- without touching the
-  uninstaller for the install now in progress. This is safe only because the payload is
-  self-contained: the app directory holds nothing but what we put there, so once it is recognisable
-  as a previous OpenInzone install, we own everything in it. }
 { What the wizard settled on, in the tags UiLanguage.Resolve understands. The application never
   asks Windows what language it is in - it reads this - so an installation is the only thing that
   ever decides, and the zip, which has no such file, stays English. }
@@ -221,6 +211,16 @@ begin
     Result := 'en';
 end;
 
+{ Inno replaces a file by renaming the old copy aside, then moving the new one into place; a file
+  left behind by an earlier, incomplete uninstall sits in the way of that rename and it fails with
+  error 183 (ERROR_ALREADY_EXISTS) -- exactly what happened when 0.1.0 was uninstalled with the
+  tray still running, its files survived, and every install after it piled a new [unins0xx.*] pair
+  on top instead of replacing the old one. ssInstall fires after the wizard but before Inno writes
+  any payload, and Inno does not create its own uninstaller until the very end of installation, so
+  clearing the directory here wipes stale files -- including old unins*.* -- without touching the
+  uninstaller for the install now in progress. This is safe only because the payload is
+  self-contained: the app directory holds nothing but what we put there, so once it is recognisable
+  as a previous OpenInzone install, we own everything in it. }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   AppDir: String;

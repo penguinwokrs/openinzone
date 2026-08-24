@@ -499,8 +499,8 @@ public partial class SettingsWindow : Window
             }
             else
             {
-                // Collapsing these into 最新バージョンです。 told someone whose newer release had
-                // no installer attached that they were current, which is the one thing this
+                // Collapsing these into Settings_UpdateUpToDate told someone whose newer release
+                // had no installer attached that they were current, which is the one thing this
                 // button exists to tell them the truth about.
                 UpdateStatusText.Text = update.Reason switch
                 {

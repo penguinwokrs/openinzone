@@ -116,10 +116,18 @@ public partial class App : System.Windows.Application
                 _instance?.Dispose();
                 _instance = null;
 
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(executable)
+                // By this point the mutex and the hotkeys are already released, so this process is
+                // no longer safely usable whether or not the launch succeeds: a caught failure
+                // still has to end in Shutdown(), not a tray left running with neither guard.
+                try
                 {
-                    UseShellExecute = true,
-                });
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(executable) { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    _tray?.ShowBalloon(Strings.App_ErrorTitle, ex.Message);
+                }
                 Shutdown();
             };
             _settings.Show();

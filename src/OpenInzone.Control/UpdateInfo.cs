@@ -7,8 +7,8 @@ namespace OpenInzone.Control;
 
 /// <summary>
 /// Why <see cref="UpdateInfo.Available"/> is false. The startup check ignores this and stays
-/// silent either way, but someone who pressed 更新を確認 is owed the difference between "there is
-/// nothing newer" and "there is something newer that cannot be installed from here".
+/// silent either way, but someone who pressed Settings_CheckNow is owed the difference between
+/// "there is nothing newer" and "there is something newer that cannot be installed from here".
 /// </summary>
 public enum UpdateUnavailableReason
 {

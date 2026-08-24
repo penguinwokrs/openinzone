@@ -6,7 +6,14 @@
     <RootNamespace>OpenInzone.Resources</RootNamespace>
     <AssemblyName>OpenInzone.Resources</AssemblyName>
     <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <Product>OpenInzone</Product>
+    <AssemblyTitle>OpenInzone</AssemblyTitle>
+    <Company>penguinwokrs</Company>
+    <!-- Its own assembly rather than living in OpenInzone.Tray because WPF cannot resolve a
+         same-assembly resx-generated class from XAML on this SDK - see the design document. -->
+    <Description>Localised window, tray and flyout text, held apart from the tray only because WPF cannot resolve a same-assembly resource class from XAML</Description>
+    <IsPackable>false</IsPackable>
     <!-- English is the neutral culture: a language with no satellite assembly gets English, which
          is the whole point. Japanese here would make every unsupported language fall back to
          Japanese instead. -->
