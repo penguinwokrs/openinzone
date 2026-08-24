@@ -507,27 +507,33 @@ public partial class SettingsWindow : Window
     /// installs rather than checks, and the line under it names the version. Nothing is composed
     /// here that <see cref="CheckForUpdateAsync"/> does not compose.
     ///
-    /// A check or an install already in flight owns <c>_pendingUpdate</c> until it finishes, so this
-    /// leaves that state alone while one is running - see the guard below for what would otherwise
-    /// go wrong.
+    /// Three things can go wrong between a notice being raised and being clicked, and this guards
+    /// against all of them the same way, by deciding what to keep before ever touching the tab: a
+    /// hotkey capture left running would turn the tab keyboard-dead and steal the first key
+    /// pressed into whatever row is capturing; a check or an install already in flight owns
+    /// <c>_pendingUpdate</c> until it finishes, and <see cref="InstallUpdateAsync"/> reads it again
+    /// after the download to verify the digest; and a notice that sat in the notification centre
+    /// for days can be older than an update a later check already found, in which case adopting it
+    /// would walk the window backwards.
     ///
     /// It does not start the download. Downloading because a notification was clicked would take
     /// the decision away from the person who clicked it.
     /// </remarks>
     public void ShowUpdate(UpdateInfo update)
     {
-        // Selecting the tab is what the click asked for and is always safe. The rest is not: a
-        // check or an install already running owns _pendingUpdate, and InstallUpdateAsync reads it
-        // again after the download to verify the digest - so replacing it in between would check
-        // the bytes it fetched against a different update's hash and fail an install that was
-        // going fine.
-        if (_updateBusy) { UpdateTab.IsSelected = true; return; }
+        // With a capture live, OnPreviewKeyDown marks every key handled at window level, so the
+        // tab this is about to select would be keyboard-dead and the first key pressed would be
+        // written into whatever row is still waiting. A no-op when nothing is capturing.
+        EndCapture();
 
-        if (!update.Available) return;
+        if (!_updateBusy && update.Available &&
+            (!_pendingUpdate.Available || update.Version > _pendingUpdate.Version))
+        {
+            _pendingUpdate = update;
+            UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
+            UpdateStatusText.Text = string.Format(Strings.Settings_UpdateAvailable, update.Version);
+        }
 
-        _pendingUpdate = update;
-        UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
-        UpdateStatusText.Text = string.Format(Strings.Settings_UpdateAvailable, update.Version);
         UpdateTab.IsSelected = true;
     }
 
