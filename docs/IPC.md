@@ -242,18 +242,34 @@ It went to 2 when the settings became a list and the nine named setting commands
 
 The version is in two names, not one. The pipe carries it so that a client built against another
 version finds nothing to connect to rather than misreading the traffic. The daemon's single-instance
-lock carries it for a reason that only appeared once there was a second version to have: a daemon
-holds that lock for as long as it serves, and a second one starting up steps aside on the reasoning
-that whoever is already serving will serve the client that tried to start it. Across versions that
-reasoning fails — the newer daemon's clients are looking for a different pipe — and because the lock
-goes to whoever started first, an old build left running beat every new one, silently and for as
-long as anything kept it alive.
+lock carries it because without it a daemon of an older version held the lock against every newer
+one, whose clients were looking for a different pipe and so were never served at all.
 
-So the two serve side by side while both have clients. That is two processes holding the headset,
-which is what [why one owner](#why-one-owner) is against, and it is accepted here as the lesser
-fault: these interfaces already share the channel with INZONE Hub, and a build that never works and
-says nothing about why is not comparable. It lasts only as long as a client of the older version
-keeps it alive — the daemon stops within a second of its last client leaving.
+## Which daemon holds the headset
+
+One daemon per version is one owner too many, and one daemon overall means whichever started first
+decides which half of the clients works — usually the older one, because an old client left behind
+is exactly what starts a daemon. **So the newest available daemon takes the headset and the others
+let go.**
+
+A daemon serving version N holds a signal named `OpenInzone.Daemon.StandDown.vN` for as long as it
+serves. A daemon starting up reads the pipes to see which versions are being served, and:
+
+| What it finds | What it does |
+|---|---|
+| A newer version serving | Stands down; that one is the owner |
+| An older version serving | Asks it to stop, waits up to three seconds, then takes the headset |
+| An older version that does not answer | Says so in the log and shares the headset with it |
+
+Being asked to stand down ends a daemon whatever else is true — `--resident`, clients still
+connected — because those clients are of a version something newer has arrived to replace. They
+then start a daemon of their own version, which finds the newer one serving and stands down again,
+so it settles rather than fighting.
+
+The last case is the one build that shipped before this existed: version 1 does not listen for the
+signal and cannot be taught to. It is left running rather than killed — its clients would only start
+it again, and a daemon shooting at another daemon every ten seconds is worse than two of them
+reading the same headset. Updating everything to the same release ends it.
 Because the version is in the pipe name, an older client then simply finds nothing to connect to.
 Adding a field to the snapshot does not require a new version: clients ignore what they do not
 know.

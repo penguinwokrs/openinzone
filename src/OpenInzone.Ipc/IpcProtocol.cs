@@ -26,12 +26,18 @@ public static class IpcProtocol
     /// Pipe names are machine-wide on Windows, so the user is part of the name: without it the
     /// first user to log in would own the name and every other session would fail to serve.
     /// </summary>
-    public static string PipeName(string? userName = null)
+    public static string PipeName(string? userName = null) => PipeNamePrefix(userName) + Version;
+
+    /// <summary>
+    /// Everything in the pipe name but the version, which is what makes the pipes a register of
+    /// which versions are being served rather than just a way to reach one.
+    /// </summary>
+    public static string PipeNamePrefix(string? userName = null)
     {
         var name = new StringBuilder("OpenInzone.Daemon.");
         foreach (char c in userName ?? Environment.UserName)
             name.Append(char.IsLetterOrDigit(c) ? c : '_');
-        return name.Append(".v").Append(Version).ToString();
+        return name.Append(".v").ToString();
     }
 
     /// <summary>
