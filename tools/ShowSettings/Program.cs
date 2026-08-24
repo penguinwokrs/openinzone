@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -39,15 +40,19 @@ internal static class Program
     private static int Main(string[] args)
     {
         bool lateStart = args.Contains("--late-start");
-        args = [.. args.Where(argument => argument != "--late-start")];
+        string? language = Argument(args, "--language");
+        args = [.. args.Where(argument => argument != "--late-start")
+                       .Where(argument => !argument.StartsWith("--language"))];
 
         if (args.Length == 0 || args[0] is "-h" or "--help")
         {
-            Console.WriteLine("usage: show-settings <output-directory> [seconds-to-wait] [--late-start]");
+            Console.WriteLine("usage: show-settings <output-directory> [seconds-to-wait] [--late-start] [--language=TAG]");
             Console.WriteLine();
             Console.WriteLine("  --late-start  open the window before the channel is up, as happens when");
             Console.WriteLine("                the daemon is starting. The window's first request for the");
             Console.WriteLine("                settings is lost, and it has to ask again.");
+            Console.WriteLine("  --language    en, ja or zh-Hans. Without it, the language the tray would");
+            Console.WriteLine("                choose: what is configured, else what the installer left.");
             return args.Length == 0 ? 2 : 0;
         }
 
@@ -58,7 +63,16 @@ internal static class Program
         var application = new Application();
         try
         {
-            var config = new HotkeyConfig();
+            // The language is resolved and applied exactly as App does at startup, because the
+            // window reads text out of the resource assembly as it is built: leaving the culture
+            // alone would draw the window in whatever language Windows is in while its own
+            // language box showed the one the tray would have picked. No bindings, though - see
+            // above.
+            var config = new HotkeyConfig { Language = language ?? ConfiguredLanguage() };
+            var culture = CultureInfo.GetCultureInfo(
+                UiLanguage.Resolve(config.Language, AppContext.BaseDirectory));
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            CultureInfo.CurrentUICulture = culture;
             using var headset = new IpcDeviceSurface();
             using var hotkeys = new HotkeyHost(headset);
 
@@ -105,6 +119,28 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    /// <summary>The value of a --name=value argument, or null when it was not given.</summary>
+    private static string? Argument(string[] args, string name) => args
+        .FirstOrDefault(argument => argument.StartsWith(name + "=", StringComparison.Ordinal))
+        ?.Split('=', 2)[1];
+
+    /// <summary>
+    /// What the tray would read: the language in the configuration file, if there is one. The
+    /// installer's marker file is the other half of that answer and is found by UiLanguage itself.
+    /// </summary>
+    private static string? ConfiguredLanguage()
+    {
+        try
+        {
+            string path = HotkeyConfig.DefaultPath;
+            return File.Exists(path) ? HotkeyConfig.FromJson(File.ReadAllText(path)).Language : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>Keeps the dispatcher running without a message loop of its own to stop.</summary>

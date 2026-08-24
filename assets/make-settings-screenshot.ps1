@@ -22,7 +22,8 @@
 
 param(
   [Parameter(Mandatory = $true)][string]$OutDirectory,
-  [double]$Scale = 2.0
+  [double]$Scale = 2.0,
+  [ValidateSet('en', 'ja', 'zh-Hans')][string]$Language = 'ja'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,10 +51,19 @@ if (-not (Test-Path $resourcesDll)) {
 Write-Host "using $resourcesDll (built $((Get-Item $resourcesDll).LastWriteTime))"
 Add-Type -Path $resourcesDll
 
+# The hotkey names are OpenInzone.Control's, not the window's, and the table below reads them from
+# the catalogue rather than repeating them. Found rather than built, for the same reason.
+$controlDll = Join-Path $repo 'src\OpenInzone.Control\bin\Release\net8.0\OpenInzone.Control.dll'
+if (-not (Test-Path $controlDll)) {
+  throw "$controlDll is missing. Build it first: dotnet build src/OpenInzone.Control -c Release"
+}
+Write-Host "using $controlDll (built $((Get-Item $controlDll).LastWriteTime))"
+Add-Type -Path $controlDll
+
 # {x:Static} resolves at parse time, not render time, so this has to be set before Parse is called
 # below - setting it any later would leave the already-parsed text in whatever culture the host
 # happened to be running under.
-[System.Threading.Thread]::CurrentThread.CurrentUICulture = 'ja'
+[System.Threading.Thread]::CurrentThread.CurrentUICulture = $Language
 
 $xaml = Get-Content (Join-Path $repo 'src\OpenInzone.Tray\SettingsWindow.xaml') -Raw -Encoding UTF8
 New-Item -ItemType Directory -Path $OutDirectory -Force | Out-Null
@@ -68,31 +78,41 @@ $window = [System.Windows.Markup.XamlReader]::Parse($xaml)
 
 function Find($name) { $window.FindName($name) }
 
-# The hotkey table binds to DisplayName / Display / Brush, which any object can supply.
-$rows = @(
-  @{ n='音量を上げる'; d='Ctrl + Alt + Right'; b='White' },
-  @{ n='音量を下げる'; d='Ctrl + Alt + Left'; b='White' },
-  @{ n='バランスをゲーム寄りに'; d='Ctrl + Alt + Up'; b='White' },
-  @{ n='バランスをチャット寄りに'; d='Ctrl + Alt + Down'; b='White' },
-  @{ n='バランスを中央に'; d='Ctrl + Alt + Home'; b='White' },
-  @{ n='マイクミュート切り替え'; d='Ctrl + Alt + Shift + M（他のアプリが使用中）'; b='IndianRed' },
-  @{ n='マイクレベルを上げる'; d='Ctrl + Alt + PageUp'; b='White' },
-  @{ n='マイクレベルを下げる'; d='未割り当て'; b='White' }
-) | ForEach-Object {
-  [pscustomobject]@{ DisplayName = $_.n; Display = $_.d; Id = $_.n
-    Brush = [System.Windows.Media.Brushes]::($_.b) }
+# The hotkey table binds to DisplayName / Display / Brush, which any object can supply. The names
+# and the keys come from the catalogue itself rather than being written out again here: a row that
+# disagreed with the application would be a picture that lies, and a language nobody updated this
+# list for would show Japanese names under English headings.
+#
+# Two rows are then put into the states worth photographing - one key another application already
+# holds, one left unassigned - using the same strings the window uses for them.
+$rows = [OpenInzone.Control.HotkeyCommand]::All | ForEach-Object {
+  $display = $_.DefaultCombo
+  $brush = 'White'
+  if ($_.Id -eq 'mic-mute') {
+    $display = [string]::Format([OpenInzone.Resources.Strings]::Settings_HotkeyConflict, $_.DefaultCombo)
+    $brush = 'IndianRed'
+  }
+  if ($_.Id -eq 'mic-down') { $display = [OpenInzone.Resources.Strings]::Settings_HotkeyUnassigned }
+
+  [pscustomobject]@{ DisplayName = $_.DisplayName; Display = $display; Id = $_.Id
+    Brush = [System.Windows.Media.Brushes]::($brush) }
 }
 (Find 'Rows').ItemsSource = $rows
 
-(Find 'VersionText').Text = '現在のバージョン: 0.3.0'
-(Find 'UpdateStatusText').Text = '最新バージョンです。'
-(Find 'PluginStatusText').Text = '保存しました: C:\Users\owner\Downloads\com.penguinwokrs.openinzone.streamDeckPlugin'
+# Everything the window would say for itself is taken from the resource assembly, so a picture in
+# one language has no leftovers from another. The version and the path are invented, because they
+# belong to the machine rather than to the application.
+(Find 'VersionText').Text =
+  [string]::Format([OpenInzone.Resources.Strings]::Settings_CurrentVersion, '0.3.0')
+(Find 'UpdateStatusText').Text = [OpenInzone.Resources.Strings]::Settings_UpdateUpToDate
+(Find 'PluginStatusText').Text = [string]::Format([OpenInzone.Resources.Strings]::Settings_PluginSaved,
+  'C:\Users\owner\Downloads\com.penguinwokrs.openinzone.streamDeckPlugin')
 (Find 'PluginOpenButton').Visibility = 'Visible'
 (Find 'AutostartBox').IsChecked = $true
 
 # The device tab, filled with a reading a connected headset would give.
 (Find 'DevicePanel').IsEnabled = $true
-(Find 'DeviceStatusText').Text = '変更はその場で反映されます。'
+(Find 'DeviceStatusText').Text = [OpenInzone.Resources.Strings]::Settings_DeviceApplied
 (Find 'AmbientButton').IsChecked = $true
 (Find 'AmbientLevelSlider').Value = 14
 (Find 'AmbientLevelText').Text = '14'
@@ -109,7 +129,7 @@ $rows = @(
 # The display language, which is a different thing from the voice guidance language above: this one
 # says what the window itself is in. The window's constructor is what normally selects it, and the
 # constructor never runs here, so without this the general tab is photographed with an empty combo.
-(Find 'UiLanguageBox').SelectedItem = (Find 'UiLanguageBox').Items | Where-Object { $_.Tag -eq 'ja' }
+(Find 'UiLanguageBox').SelectedItem = (Find 'UiLanguageBox').Items | Where-Object { $_.Tag -eq $Language }
 
 # A Window has no visual tree until it is shown, so its content is taken out and rendered on a
 # surface of the window's own colour instead.
