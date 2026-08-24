@@ -152,15 +152,19 @@ lines and the last line differ from what was in the lambda — `return` where it
         if (_settings is { IsVisible: true }) { _settings.Activate(); return _settings; }
         if (_hotkeys is null || _headset is null) return null;
 
-        // ... the existing body, verbatim, from "// The window applies as it goes" through
-        // "_settings.Show();" ...
+        // ... moved here unchanged ...
 
         return _settings;
     }
 ```
 
-Move the body verbatim. Do not reword the comments inside it — they explain ordering constraints
-that are still exactly as they were.
+What moves is every line from the comment beginning `// The window applies as it goes` down to and
+including `_settings.Show();` — the whole of the old lambda except the two guard lines above, which
+are already written out above, and the closing `});`.
+
+Move it verbatim, comments included. Those comments explain ordering constraints inside the
+`RestartRequested` handler that are still exactly as they were, and rewording them while moving them
+is how a careful explanation quietly becomes a wrong one.
 
 - [ ] **Step 2: Build**
 
@@ -196,6 +200,29 @@ git commit -m "Give the settings window one way in, not two"
 
 Add to `tests/OpenInzone.Core.Tests/Control/SettingsMarkupTests.cs`, inside the existing class:
 
+First, the existing `DevicePanel()` helper walks up to the solution and loads this same file. Pull
+that walk out so both tests read the markup one way — replace the body of `DevicePanel()` with:
+
+```csharp
+    private static XElement DevicePanel() => SettingsXaml()
+        .Descendants(Presentation + "StackPanel")
+        .Single(element => (string?)element.Attribute(Xaml + "Name") == "DevicePanel");
+
+    /// <summary>The settings window's markup, read off disk rather than from a built assembly.</summary>
+    private static XDocument SettingsXaml()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenInzone.sln")))
+            directory = directory.Parent;
+
+        Assert.NotNull(directory);
+        return XDocument.Load(Path.Combine(
+            directory.FullName, "src", "OpenInzone.Tray", "SettingsWindow.xaml"));
+    }
+```
+
+Then add the test:
+
 ```csharp
     /// <summary>
     /// Clicking the notice that an update is available opens this window on the update tab, which
@@ -205,15 +232,8 @@ Add to `tests/OpenInzone.Core.Tests/Control/SettingsMarkupTests.cs`, inside the 
     [Fact]
     public void The_update_tab_carries_the_name_the_code_selects_it_by()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenInzone.sln")))
-            directory = directory.Parent;
-
-        Assert.NotNull(directory);
-        var xaml = XDocument.Load(Path.Combine(
-            directory.FullName, "src", "OpenInzone.Tray", "SettingsWindow.xaml"));
-
-        var named = xaml.Descendants(Presentation + "TabItem")
+        var named = SettingsXaml()
+            .Descendants(Presentation + "TabItem")
             .Select(element => (string?)element.Attribute(Xaml + "Name"))
             .OfType<string>();
 
