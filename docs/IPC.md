@@ -175,10 +175,15 @@ commands collapsed into one: adding a setting should not change the wire. The va
 integers — 0 or 1 for a toggle, and the headset's own number for anything else.
 
 Where the answer comes from is [the headset's own capability map](PROTOCOL.md#the-headset-publishes-its-own-capability-map-0x060x08),
-read once per connection. Three exchanges say what the model has and what each setting now reads,
-where asking setting by setting cost one exchange each and 1.5 seconds of silence for every one the
-model turns out not to have — silence that could equally have been a bad moment on the wireless
-link. Settings the map does not carry are still probed for.
+read once per connection. Three exchanges say what the model has and what nearly every setting now
+reads, and `0x8E` is asked for on its own because no part carries it — four where asking setting by
+setting took six.
+
+Measured on INZONE Buds, where every setting answers: the three parts take about 700 ms, the whole
+read about 1.0 s, and probing the same settings one by one about 1.4 s. The saving there is only
+those two exchanges. What the map is really for does not show on this model at all: a setting the
+model does not have costs 1.5 seconds of silence to probe for, and that silence could equally have
+been a bad moment on the wireless link.
 
 ## Capabilities
 

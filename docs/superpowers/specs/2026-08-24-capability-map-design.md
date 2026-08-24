@@ -187,3 +187,9 @@ The parse, the catalogue, the wire shapes and the markup rule are unit tests, an
 runs — the solution builds and tests on Linux. The device itself is exercised by hand on Windows
 with `inzone`, the tray panel and `show-settings`, which is how every protocol change here has been
 checked.
+
+Measured against INZONE Buds on 2026-08-24: the three parts take about 700 ms, the whole settings
+read about 1.0 s, and probing the same settings one by one about 1.4 s — one exchange being about
+240 ms on this link. Every one of the thirteen features is reported, which is what this model
+having all of them should look like. Writing the ambient mode leaves the level and voice focus as
+the headset reported them, which is the one thing a packet carrying three settings can get wrong.

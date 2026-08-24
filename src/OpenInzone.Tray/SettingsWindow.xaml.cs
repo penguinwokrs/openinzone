@@ -650,7 +650,7 @@ public partial class SettingsWindow : Window
                 ? "変更はその場で反映されます。"
                 : "ヘッドセットが応答していません。";
 
-            foreach (var binding in _settings) binding.Show(settings.Value(binding.Id));
+            foreach (var binding in _settings) binding.Show(settings.Value);
 
             // The one thing no catalogue entry can say: the level belongs to ambient sound. The
             // headset keeps it in every mode, but showing it as adjustable while it does nothing

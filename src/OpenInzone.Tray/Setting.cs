@@ -23,6 +23,11 @@ public static class Setting
     /// The setting this element and everything inside it is for. Binding sites do not nest: the
     /// binder takes every control below one as belonging to that setting.
     /// </summary>
+    /// <remarks>
+    /// More than one id, separated by spaces, means "while any of these is here" — which is what a
+    /// heading over several settings needs, and the only thing it needs. A control still drives the
+    /// first id named, so anything with more than one is a label rather than a control.
+    /// </remarks>
     public static readonly DependencyProperty IdProperty = DependencyProperty.RegisterAttached(
         "Id", typeof(string), typeof(Setting), new PropertyMetadata(null));
 

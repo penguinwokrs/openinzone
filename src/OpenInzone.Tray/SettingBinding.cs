@@ -37,12 +37,16 @@ internal sealed class SettingBinding
     private readonly ComboBox? _combo;
     private readonly IReadOnlyList<RadioButton> _radios;
 
-    public string Id { get; }
+    /// <summary>Every setting this site is about. A control drives the first; a heading uses all.</summary>
+    public IReadOnlyList<string> Ids { get; }
 
-    private SettingBinding(FrameworkElement site, string id)
+    /// <summary>The setting a control here writes to.</summary>
+    public string Id => Ids[0];
+
+    private SettingBinding(FrameworkElement site, string ids)
     {
         _site = site;
-        Id = id;
+        Ids = ids.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         var parts = Parts(site).ToList();
         _slider = parts.OfType<Slider>().FirstOrDefault();
@@ -52,7 +56,7 @@ internal sealed class SettingBinding
         _radios = parts.OfType<RadioButton>().ToList();
     }
 
-    public static SettingBinding For(FrameworkElement site, string id) => new(site, id);
+    public static SettingBinding For(FrameworkElement site, string ids) => new(site, ids);
 
     /// <summary>
     /// An element and everything below it in the logical tree. The logical tree rather than the
@@ -68,13 +72,17 @@ internal sealed class SettingBinding
     }
 
     /// <summary>
-    /// Shows what the headset says, or hides the control when this model has no such setting.
-    /// Hidden rather than disabled: a control that does nothing is worse than no control.
+    /// Shows what the headset says, or hides the site when this model has none of what it is about.
+    /// Hidden rather than disabled: a control that does nothing is worse than no control, and a
+    /// heading standing over nothing is worse than no heading.
     /// </summary>
-    public void Show(int? value)
+    public void Show(Func<string, int?> reading)
     {
-        _site.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
-        if (value is not int number) return;
+        var answered = Ids.Select(reading).OfType<int>().ToList();
+        _site.Visibility = answered.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+
+        // Only the first, because only a single-id site has controls to fill.
+        if (reading(Id) is not int number) return;
 
         if (_slider is not null) _slider.Value = number;
         if (_valueText is not null) _valueText.Text = number.ToString();

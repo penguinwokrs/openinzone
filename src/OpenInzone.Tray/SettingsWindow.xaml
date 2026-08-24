@@ -177,7 +177,8 @@
                        HorizontalAlignment="Right" VerticalAlignment="Center" />
           </Grid>
 
-          <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0" />
+          <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0"
+                     tray:Setting.Id="auto-power-off bluetooth-auto-switch voice-guidance voice-guidance-language" />
           <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0"
                     tray:Setting.Id="auto-power-off" />
           <CheckBox x:Name="BluetoothAutoSwitchBox" Margin="0,8,0,0"

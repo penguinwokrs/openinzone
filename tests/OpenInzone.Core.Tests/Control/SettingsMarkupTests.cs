@@ -58,6 +58,16 @@ public class SettingsMarkupTests
     private static readonly XNamespace Tray = "clr-namespace:OpenInzone.Tray";
 
     /// <summary>
+    /// Every setting named anywhere on the tab. A heading over several of them names them all,
+    /// separated by spaces, which is what lets it go away with the last of them.
+    /// </summary>
+    private static IEnumerable<string> NamedSettings() => DevicePanel()
+        .DescendantsAndSelf()
+        .Select(element => (string?)element.Attribute(Tray + "Setting.Id"))
+        .OfType<string>()
+        .SelectMany(ids => ids.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
     /// The device tab is drawn by one binder that walks the markup looking for controls which name
     /// the setting they are for. A name the catalogue does not have binds to nothing at all, and
     /// nothing at runtime would say so — the control would simply sit there, filled by no one and
@@ -66,11 +76,7 @@ public class SettingsMarkupTests
     [Fact]
     public void Every_control_that_names_a_setting_names_one_the_catalogue_has()
     {
-        var named = DevicePanel()
-            .DescendantsAndSelf()
-            .Select(element => (string?)element.Attribute(Tray + "Setting.Id"))
-            .OfType<string>()
-            .ToList();
+        var named = NamedSettings().ToList();
 
         Assert.NotEmpty(named);
         Assert.All(named, id => Assert.NotNull(SettingCatalogue.ById(id)));
@@ -83,11 +89,7 @@ public class SettingsMarkupTests
     [Fact]
     public void Every_setting_the_catalogue_describes_is_somewhere_on_the_tab()
     {
-        var named = DevicePanel()
-            .DescendantsAndSelf()
-            .Select(element => (string?)element.Attribute(Tray + "Setting.Id"))
-            .OfType<string>()
-            .ToHashSet();
+        var named = NamedSettings().ToHashSet();
 
         Assert.All(SettingCatalogue.All, setting => Assert.Contains(setting.Id, named));
     }
