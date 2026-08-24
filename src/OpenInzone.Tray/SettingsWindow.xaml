@@ -230,9 +230,18 @@
                     <ColumnDefinition Width="*" /><ColumnDefinition Width="200" />
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Content="{Binding Display}" Tag="{Binding Id}"
-                          Click="OnCaptureClick" Height="28" Padding="8,0"
-                          Foreground="{Binding Brush}" Background="#FF2A2D31" />
+                  <!-- The key alone fits 200 px in any language; "in use by another application"
+                       does not, and was clipped mid-word in all three. Wrapping rather than
+                       widening, because the column that would have to give is the one carrying
+                       the command names, which are longer in English and Chinese than here. -->
+                  <!-- Height="Auto" because the implicit Button style pins every other button in
+                       the window to 30, and a wrapped second line was being clipped by it. -->
+                  <Button Grid.Column="1" Tag="{Binding Id}"
+                          Click="OnCaptureClick" Height="Auto" MinHeight="28" Padding="8,4"
+                          Foreground="{Binding Brush}" Background="#FF2A2D31">
+                    <TextBlock Text="{Binding Display}" TextWrapping="Wrap"
+                               TextAlignment="Center" />
+                  </Button>
                 </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
