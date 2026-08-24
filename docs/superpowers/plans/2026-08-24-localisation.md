@@ -1099,14 +1099,21 @@ and set the five values in markup again:
 
 Then remove the corresponding code-behind assignments Task 4 added to `FlyoutWindow.xaml.cs`, **including the `x:Name`s it added purely to reach those elements** (`VolumeIcon`, `GameIcon`, `ChatIcon`) if nothing else uses them. Leave `ModelText`'s runtime assignment alone — `ModelText.Text` is reassigned as the device connects and disconnects, so it needs both the markup default and the code-behind update.
 
-- [ ] **Step 6: Update the completeness test's directory list**
+- [ ] **Step 6: Repoint the two tests that read the resx off disk**
 
-In `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`, the tray path is now wrong:
+Both name the old location and will fail on a missing file after the move.
+
+In `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`:
 
 ```csharp
         data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
         data.Add(Path.Combine("src", "OpenInzone.Resources"));
 ```
+
+In `tests/OpenInzone.Core.Tests/Control/SnapshotTextTests.cs`, the tooltip-budget test reads
+`Tray_TooltipVolume` and `Tray_TooltipBattery` out of the resx files by path. Repoint it the same
+way — `src/OpenInzone.Resources/Strings.resx` and its `.ja` / `.zh-Hans` siblings. Grep for
+`OpenInzone.Tray` under `tests/` afterwards to be sure nothing else names the old path.
 
 - [ ] **Step 7: Build and test**
 
