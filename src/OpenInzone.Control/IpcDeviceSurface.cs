@@ -28,7 +28,17 @@ public sealed class IpcDeviceSurface : IHeadset, IDisposable
     /// Raised for the settings a window shows: once for each request, and again after every
     /// change, carrying what the headset says rather than what it was asked for.
     /// </summary>
-    public event EventHandler<DeviceSettings>? SettingsReceived;
+    public event EventHandler<IReadOnlyList<SettingValue>>? SettingsReceived;
+
+    /// <summary>Raised when a headset says what it has, which is once per connection.</summary>
+    public event EventHandler<DeviceCapabilities>? CapabilitiesReceived;
+
+    /// <summary>
+    /// What the connected model has, or null while nothing has said. Null is not "nothing": a
+    /// client that has not been told offers everything, which is what
+    /// <see cref="DeviceCapabilityExtensions.Allows"/> is for.
+    /// </summary>
+    public DeviceCapabilities? Capabilities { get; private set; }
 
     public IpcDeviceSurface(IpcClient? client = null)
     {
@@ -51,6 +61,14 @@ public sealed class IpcDeviceSurface : IHeadset, IDisposable
 
         _client.DaemonUnavailable += (_, message) => Unavailable?.Invoke(this, message);
         _client.SettingsReceived += (_, settings) => SettingsReceived?.Invoke(this, settings);
+
+        // Kept as well as raised: a window built after the hello has already gone past would
+        // otherwise have to ask for something the channel has no request for.
+        _client.CapabilitiesReceived += (_, capabilities) =>
+        {
+            Capabilities = capabilities;
+            CapabilitiesReceived?.Invoke(this, capabilities);
+        };
     }
 
     public DeviceSnapshot State => _state;
@@ -74,28 +92,18 @@ public sealed class IpcDeviceSurface : IHeadset, IDisposable
     public void SetMicLevel(int value) => _client.Send(IpcCommands.SetMicLevel, value);
 
     // ---- the settings INZONE Hub also offers -------------------------------------------------
-    // Nothing here returns anything: every one is answered by SettingsReceived, with the whole set
-    // as the headset now reports it.
+    // Neither of these returns anything: both are answered by SettingsReceived, with everything
+    // the headset now says.
 
     public void RequestSettings() => _client.Send(IpcCommands.GetSettings);
 
-    public void SetSidetone(int value) => _client.Send(IpcCommands.SetSidetone, value);
-
-    public void SetAmbientMode(int mode) => _client.Send(IpcCommands.SetAmbientMode, mode);
-
-    public void SetAmbientLevel(int level) => _client.Send(IpcCommands.SetAmbientLevel, level);
-
-    public void SetVoiceFocus(bool on) => _client.Send(IpcCommands.SetVoiceFocus, on ? 1 : 0);
-
-    public void SetAutoPowerOff(bool on) => _client.Send(IpcCommands.SetAutoPowerOff, on ? 1 : 0);
-
-    public void SetVoiceGuidance(bool on) => _client.Send(IpcCommands.SetVoiceGuidance, on ? 1 : 0);
-
-    public void SetVoiceGuidanceLanguage(int language) =>
-        _client.Send(IpcCommands.SetVoiceGuidanceLanguage, language);
-
-    public void SetBluetoothAutoSwitch(bool on) =>
-        _client.Send(IpcCommands.SetBluetoothAutoSwitch, on ? 1 : 0);
+    /// <summary>
+    /// Writes one setting, named by the id it travels under. One method for every setting, where
+    /// there used to be one each: what a setting is lives in the core's catalogue, and adding one
+    /// no longer touches the channel.
+    /// </summary>
+    public void SetSetting(string id, int value) =>
+        _client.Send(IpcCommands.SetSetting, value, id);
 
     public void Dispose() => _client.Dispose();
 }

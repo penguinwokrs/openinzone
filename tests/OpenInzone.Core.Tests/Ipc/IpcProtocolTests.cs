@@ -83,6 +83,61 @@ public class IpcProtocolTests
     }
 
     /// <summary>
+    /// Both names a daemon claims carry the protocol version, and for the same reason: a build can
+    /// only ever use the channel it speaks. The lock did not carry it once, and the effect was that
+    /// a daemon of an older version held it against every newer one — whose clients were looking for
+    /// a different pipe and so were never served at all. Whoever started first won, which during an
+    /// upgrade meant the old build won, silently and for as long as anything kept it alive.
+    /// </summary>
+    [Fact]
+    public void The_lock_a_daemon_holds_names_the_version_it_serves()
+    {
+        string version = $"v{IpcProtocol.Version}";
+
+        Assert.EndsWith(version, IpcProtocol.SingleInstanceName(), StringComparison.Ordinal);
+        Assert.EndsWith(version, IpcProtocol.PipeName("owner"), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The lock is not the pipe: one is machine-wide and names the user, the other is per session.
+    /// Using one name for both would make a second user's daemon stand down for the first's.
+    /// </summary>
+    [Fact]
+    public void The_lock_is_not_the_pipe()
+    {
+        Assert.NotEqual(IpcProtocol.PipeName("owner"), IpcProtocol.SingleInstanceName());
+        Assert.DoesNotContain("owner", IpcProtocol.SingleInstanceName(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The one command that carries more than a number. Which setting it is about travels beside
+    /// the value, so adding a setting no longer adds a command.
+    /// </summary>
+    [Fact]
+    public void A_setting_write_carries_the_setting_it_is_about()
+    {
+        var command = new ClientMessage(IpcCommands.SetSetting, 14, "ambient-level");
+
+        string json = JsonSerializer.Serialize(command, IpcJson.Default.ClientMessage);
+
+        Assert.Contains("\"setting\":\"ambient-level\"", json);
+        Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
+    }
+
+    /// <summary>
+    /// A command that is not about a setting says nothing about one, rather than naming an empty
+    /// string a daemon would then have to tell apart from a real id.
+    /// </summary>
+    [Fact]
+    public void A_command_that_is_not_about_a_setting_names_none()
+    {
+        string json = JsonSerializer.Serialize(
+            new ClientMessage(IpcCommands.Refresh), IpcJson.Default.ClientMessage);
+
+        Assert.DoesNotContain("setting", json);
+    }
+
+    /// <summary>
     /// Read off the class rather than listed by hand: a command named but left out of
     /// <see cref="IpcCommands.IsKnown"/> is rejected at the daemon, and a hand-written list is
     /// exactly the thing that gets forgotten when one is added.

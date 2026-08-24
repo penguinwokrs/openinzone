@@ -1,5 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:tray="clr-namespace:OpenInzone.Tray"
         x:Class="OpenInzone.Tray.SettingsWindow"
         Title="OpenInzone の設定" Width="560" Height="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
@@ -131,53 +132,62 @@
 
     <TabItem Header="デバイス">
       <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- Each part of this names the setting it is for; SettingsWindow's binder does the rest. -->
         <StackPanel x:Name="DevicePanel" Margin="6,12,14,0" IsEnabled="False">
           <TextBlock x:Name="DeviceStatusText" Foreground="{StaticResource Quiet}" FontSize="12"
                      Margin="0,0,0,12" Text="ヘッドセットに問い合わせています…" />
 
-          <TextBlock Text="外音コントロール" FontSize="13" />
-          <StackPanel x:Name="AmbientGroup" Margin="0,8,0,0">
+          <TextBlock Text="外音コントロール" FontSize="13" tray:Setting.Id="ambient-mode" />
+          <StackPanel x:Name="AmbientGroup" Margin="0,8,0,0" tray:Setting.Id="ambient-mode">
             <RadioButton x:Name="AmbientOffButton" GroupName="Ambient" Content="オフ"
                          Foreground="{StaticResource Text}" Tag="0" />
             <RadioButton x:Name="NoiseCancellingButton" GroupName="Ambient" Content="ノイズキャンセリング"
                          Foreground="{StaticResource Text}" Margin="0,6,0,0" Tag="1" />
             <RadioButton x:Name="AmbientButton" GroupName="Ambient" Content="外音取り込み"
                          Foreground="{StaticResource Text}" Margin="0,6,0,0" Tag="2" />
-
-            <Grid x:Name="AmbientLevelRow" Margin="22,8,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                <ColumnDefinition Width="40" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Text="取り込みレベル" FontSize="12" VerticalAlignment="Center"
-                         Foreground="{StaticResource Quiet}" />
-              <Slider x:Name="AmbientLevelSlider" Grid.Column="1" Minimum="1" Maximum="20"
-                      IsSnapToTickEnabled="True" TickFrequency="1" Margin="10,0"
-                      VerticalAlignment="Center" />
-              <TextBlock x:Name="AmbientLevelText" Grid.Column="2" FontSize="12"
-                         HorizontalAlignment="Right" VerticalAlignment="Center" />
-            </Grid>
-
-            <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0" />
           </StackPanel>
 
-          <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" />
-          <Grid Margin="0,8,0,0">
+          <Grid x:Name="AmbientLevelRow" Margin="22,8,0,0" tray:Setting.Id="ambient-level">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+              <ColumnDefinition Width="40" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="取り込みレベル" FontSize="12" VerticalAlignment="Center"
+                       Foreground="{StaticResource Quiet}" />
+            <Slider x:Name="AmbientLevelSlider" Grid.Column="1" Minimum="1" Maximum="20"
+                    IsSnapToTickEnabled="True" TickFrequency="1" Margin="10,0"
+                    VerticalAlignment="Center" />
+            <TextBlock x:Name="AmbientLevelText" Grid.Column="2" FontSize="12"
+                       tray:Setting.ShowsValue="True"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+          </Grid>
+
+          <CheckBox x:Name="VoiceFocusBox" Content="ボイスフォーカス" Margin="22,10,0,0"
+                    tray:Setting.Id="voice-focus" />
+
+          <TextBlock Text="サイドトーン" FontSize="13" Margin="0,20,0,0" tray:Setting.Id="sidetone" />
+          <Grid x:Name="SidetoneRow" Margin="0,8,0,0" tray:Setting.Id="sidetone">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" /><ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
             <Slider x:Name="SidetoneSlider" Minimum="0" Maximum="10" IsSnapToTickEnabled="True"
                     TickFrequency="1" VerticalAlignment="Center" Margin="0,0,10,0" />
             <TextBlock x:Name="SidetoneText" Grid.Column="1" FontSize="12"
+                       tray:Setting.ShowsValue="True"
                        HorizontalAlignment="Right" VerticalAlignment="Center" />
           </Grid>
 
-          <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0" />
-          <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0" />
+          <TextBlock Text="その他" FontSize="13" Margin="0,20,0,0"
+                     tray:Setting.Id="auto-power-off bluetooth-auto-switch voice-guidance voice-guidance-language" />
+          <CheckBox x:Name="AutoPowerOffBox" Content="自動電源オフ" Margin="0,8,0,0"
+                    tray:Setting.Id="auto-power-off" />
           <CheckBox x:Name="BluetoothAutoSwitchBox" Margin="0,8,0,0"
+                    tray:Setting.Id="bluetooth-auto-switch"
                     Content="Bluetooth の発信・着信時に自動で接続を切り替える" />
-          <CheckBox x:Name="VoiceGuidanceBox" Content="音声ガイド" Margin="0,8,0,0" />
-          <StackPanel x:Name="LanguageRow" Orientation="Horizontal" Margin="22,8,0,14">
+          <CheckBox x:Name="VoiceGuidanceBox" Content="音声ガイド" Margin="0,8,0,0"
+                    tray:Setting.Id="voice-guidance" />
+          <StackPanel x:Name="LanguageRow" Orientation="Horizontal" Margin="22,8,0,14"
+                      tray:Setting.Id="voice-guidance-language">
             <TextBlock Text="言語" FontSize="12" VerticalAlignment="Center"
                        Foreground="{StaticResource Quiet}" />
             <ComboBox x:Name="LanguageBox" Width="130" Margin="10,0,0,0" Height="26">

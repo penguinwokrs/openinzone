@@ -44,7 +44,7 @@ which lives inside Stream Deck's plugins folder, find it at all.
 
 | | |
 |---|---|
-| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v1` |
+| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v2` |
 | Framing | one JSON object per line, `\n`, UTF-8 |
 | Access | `PipeOptions.CurrentUserOnly` — the same user, on the same machine |
 | Line limit | 64 KiB; a longer line drops the connection |
@@ -63,19 +63,26 @@ request, and one that misses a push converges on the next.
 On connect:
 
 ```json
-{"type":"hello","version":1,"state":{ ... }}
+{"type":"hello","version":2,"state":{ ... },"capabilities":{"features":[ ... ]}}
+```
+
+The capabilities say what the connected model has, and are sent again whenever a device connects,
+because the answer belongs to the headset that is plugged in rather than to the daemon:
+
+```json
+{"type":"capabilities","version":2,"capabilities":{"features":["balance","volume","sidetone"]}}
 ```
 
 After every change, from any source — a deck key, the tray's panel, the earbuds themselves:
 
 ```json
-{"type":"state","version":1,"state":{ ... }}
+{"type":"state","version":2,"state":{ ... }}
 ```
 
 When a command cannot be understood:
 
 ```json
-{"type":"error","version":1,"message":"unknown command 'format-c'"}
+{"type":"error","version":2,"message":"unknown command 'format-c'"}
 ```
 
 From the client:
@@ -104,26 +111,30 @@ other way round.
 | `toggle-volume-mute` | — | Toggle it |
 | `describe` | — | Read the device again and answer with a `detail` |
 | `get-settings` | — | Read the settings below and answer with a `settings` |
-| `set-sidetone` | 0–10 | How much of your own voice comes back |
-| `set-ambient-mode` | 0, 1, 2 | Off, noise cancelling, ambient sound |
-| `set-ambient-level` | 1–20 | How much of the world comes through |
-| `set-voice-focus` | 0 or 1 | Voice focus within ambient sound |
-| `set-auto-power-off` | 0 or 1 | Power off when taken off and left |
-| `set-voice-guidance` | 0 or 1 | Spoken prompts |
-| `set-voice-guidance-language` | 0, 1, 2 | English, Japanese, Chinese |
-| `set-bluetooth-auto-switch` | 0 or 1 | Switch connection on an incoming or outgoing call |
+| `set-setting` | the setting's own value | Write the setting named in `setting` |
 
 Anything else is answered with an `error` and not acted on.
 
-Every one of the setting commands is answered with a `settings` read back from the headset, so a
-window shows what the headset now says rather than what it was asked for.
+`set-setting` carries the setting beside the value:
+
+```json
+{"command":"set-setting","setting":"ambient-level","value":14}
+```
+
+One command for every setting, where there used to be one command each. What a setting is — which
+packet it lives in, which byte of it, and what range it has — is described once in the core, so
+adding one no longer touches this channel at all. A value outside the setting's range is clamped
+rather than refused.
+
+`get-settings` and `set-setting` are both answered with a `settings` read back from the headset, so
+a window shows what the headset now says rather than what it was asked for.
 
 ## Detail
 
 `describe` is answered with the device's own replies, unparsed:
 
 ```json
-{"type":"detail","version":1,"detail":{
+{"type":"detail","version":2,"detail":{
   "model":"BAAiEQAA","battery":"AGEAXgA+","balance":"KA==",
   "volume":"ABA1","mic":"Af//","sidetone":"Ax4=",
   "micLevel":75}}
@@ -144,21 +155,56 @@ the one that asked. A client with a `describe` outstanding takes the next one th
 
 ## Settings
 
-`get-settings`, and every command that writes one of them, is answered with the whole set:
+`get-settings`, and every write, is answered with the whole set:
 
 ```json
-{"type":"settings","version":1,"settings":{
-  "sidetone":3,"ambientMode":2,"ambientLevel":14,"voiceFocus":true,
-  "autoPowerOff":true,"voiceGuidance":false,"voiceGuidanceLanguage":2,
-  "bluetoothAutoSwitch":true}}
+{"type":"settings","version":2,"settings":[
+  {"id":"ambient-mode","value":2},{"id":"ambient-level","value":14},{"id":"voice-focus","value":1},
+  {"id":"sidetone","value":3},{"id":"auto-power-off","value":1},
+  {"id":"bluetooth-auto-switch","value":1},{"id":"voice-guidance","value":0},
+  {"id":"voice-guidance-language","value":2}]}
 ```
 
 Unlike a detail, this is decoded — it is what a settings window draws, not what a protocol tool
-reads. Every field is nullable, and null is not the same as off: it means this model did not answer
-for that setting, and a client should leave it out rather than show it as off.
+reads. A setting this model does not have is simply **not in the list**; that is not an error, and
+it is a different thing from a setting that answered off. INZONE Buds has no wearing detection and
+no LED, and another model may have no ambient sound at all.
 
-These are kept out of the snapshot on purpose. The snapshot is read constantly, by every client
-that draws a key or a slider; these are read when a settings window opens.
+It is a list rather than a record with a field per setting, and that is the same reason the
+commands collapsed into one: adding a setting should not change the wire. The values are plain
+integers — 0 or 1 for a toggle, and the headset's own number for anything else.
+
+Where the answer comes from is [the headset's own capability map](PROTOCOL.md#the-headset-publishes-its-own-capability-map-0x060x08),
+read once per connection. Three exchanges say what the model has and what nearly every setting now
+reads, and `0x8E` is asked for on its own because no part carries it — four where asking setting by
+setting took six.
+
+Measured on INZONE Buds, where every setting answers: the three parts take about 700 ms, the whole
+read about 1.0 s, and probing the same settings one by one about 1.4 s. The saving there is only
+those two exchanges. What the map is really for does not show on this model at all: a setting the
+model does not have costs 1.5 seconds of silence to probe for, and that silence could equally have
+been a bad moment on the wireless link.
+
+## Capabilities
+
+```json
+{"type":"capabilities","version":2,"capabilities":{"features":[
+  "ambient-mode","ambient-level","voice-focus","sidetone","auto-power-off",
+  "bluetooth-auto-switch","voice-guidance","voice-guidance-language",
+  "balance","volume","mic-mute","battery","mic-level"]}}
+```
+
+A flat list of names, spanning the panel as well as the settings tab: a model with no game/chat
+balance should not be given a balance slider or a balance key on a Stream Deck either. A feature
+the model does not have is left out.
+
+**A client that has not been told anything offers everything.** No capabilities message is not an
+empty one — nothing is connected, or the daemon is an older build — and hiding every control on no
+information would be a worse answer than showing one the model turns out not to have. This is also
+how every client behaved before it could ask.
+
+`mic-level` is the Windows capture endpoint rather than anything on the headset's wire, and is
+present when Windows exposes one.
 
 ## The snapshot
 
@@ -192,6 +238,22 @@ reading rather than as a number.
 ## Versioning
 
 `IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
+It went to 2 when the settings became a list and the nine named setting commands became one.
+
+The version is in two names, not one. The pipe carries it so that a client built against another
+version finds nothing to connect to rather than misreading the traffic. The daemon's single-instance
+lock carries it for a reason that only appeared once there was a second version to have: a daemon
+holds that lock for as long as it serves, and a second one starting up steps aside on the reasoning
+that whoever is already serving will serve the client that tried to start it. Across versions that
+reasoning fails — the newer daemon's clients are looking for a different pipe — and because the lock
+goes to whoever started first, an old build left running beat every new one, silently and for as
+long as anything kept it alive.
+
+So the two serve side by side while both have clients. That is two processes holding the headset,
+which is what [why one owner](#why-one-owner) is against, and it is accepted here as the lesser
+fault: these interfaces already share the channel with INZONE Hub, and a build that never works and
+says nothing about why is not comparable. It lasts only as long as a client of the older version
+keeps it alive — the daemon stops within a second of its last client leaving.
 Because the version is in the pipe name, an older client then simply finds nothing to connect to.
 Adding a field to the snapshot does not require a new version: clients ignore what they do not
 know.

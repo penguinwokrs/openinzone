@@ -42,7 +42,10 @@ public sealed class IpcClient : IDisposable
     public event EventHandler<DeviceDetail>? DetailReceived;
 
     /// <summary>Raised for the settings a window shows, after asking and after each change.</summary>
-    public event EventHandler<DeviceSettings>? SettingsReceived;
+    public event EventHandler<IReadOnlyList<SettingValue>>? SettingsReceived;
+
+    /// <summary>Raised with the hello, and again whenever a device connects.</summary>
+    public event EventHandler<DeviceCapabilities>? CapabilitiesReceived;
 
     /// <summary>Raised when the daemon rejects something, cannot carry it out, or speaks a version this build cannot read.</summary>
     public event EventHandler<string>? ServerError;
@@ -76,13 +79,13 @@ public sealed class IpcClient : IDisposable
     /// the order they are made: turning a dial and then pressing it must not arrive the other way
     /// round, which would centre the balance and then move it off centre again.
     /// </summary>
-    public bool Send(string command, int value = 0)
+    public bool Send(string command, int value = 0, string? setting = null)
     {
         var outbound = _outbound;
         if (outbound is null) return false;
 
         return outbound.Post(JsonSerializer.SerializeToUtf8Bytes(
-            new ClientMessage(command, value), IpcJson.Default.ClientMessage));
+            new ClientMessage(command, value, setting), IpcJson.Default.ClientMessage));
     }
 
     private async Task RunAsync()
@@ -184,7 +187,13 @@ public sealed class IpcClient : IDisposable
 
                 case ServerMessage.Hello:
                 case ServerMessage.StateUpdate:
+                    if (message.Capabilities is not null)
+                        CapabilitiesReceived?.Invoke(this, message.Capabilities);
                     if (message.State is not null) SnapshotReceived?.Invoke(this, message.State);
+                    break;
+
+                case ServerMessage.CapabilitiesUpdate when message.Capabilities is not null:
+                    CapabilitiesReceived?.Invoke(this, message.Capabilities);
                     break;
 
                 case ServerMessage.DetailUpdate when message.Detail is not null:

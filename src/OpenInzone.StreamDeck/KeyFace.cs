@@ -22,7 +22,21 @@ internal static class KeyFace
     private const string Accent = "#4c9aff";
     private const string Warning = "#ff5c5c";
 
-    public static string For(string actionId, DeviceSnapshot state) => actionId switch
+    /// <param name="capabilities">
+    /// What the model has, or null when nothing has said — which draws everything, as this plugin
+    /// did before it could ask. A key for something the model does not have is drawn as no reading,
+    /// the same as a headset that is not answering: from the key's point of view there is nothing
+    /// there either way.
+    /// </param>
+    public static string For(
+        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
+    {
+        if (!capabilities.Allows(ActionIds.Feature(actionId))) state = DeviceSnapshot.Disconnected;
+
+        return Face(actionId, state);
+    }
+
+    private static string Face(string actionId, DeviceSnapshot state) => actionId switch
     {
         ActionIds.Volume => Reading("VOL", state.Connected ? $"{state.Volume}" : null,
             state.Connected ? $"/ {state.VolumeMax}" : null),

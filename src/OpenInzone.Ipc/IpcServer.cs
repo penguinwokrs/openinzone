@@ -22,6 +22,7 @@ public sealed class IpcServer : IDisposable
     private const int MaxClients = 8;
 
     private readonly Func<DeviceSnapshot> _currentState;
+    private readonly Func<DeviceCapabilities?> _currentCapabilities;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<Client, byte> _clients = new();
@@ -33,9 +34,18 @@ public sealed class IpcServer : IDisposable
     /// <summary>Raised when the accept loop cannot continue, with a message fit for a log.</summary>
     public event EventHandler<string>? Failed;
 
-    public IpcServer(Func<DeviceSnapshot> currentState, string? pipeName = null)
+    /// <param name="currentCapabilities">
+    /// What the connected model has, or null while nothing is connected and there is nothing to
+    /// say. A client told nothing offers everything, which is how this project behaved before it
+    /// asked the headset at all.
+    /// </param>
+    public IpcServer(
+        Func<DeviceSnapshot> currentState,
+        string? pipeName = null,
+        Func<DeviceCapabilities?>? currentCapabilities = null)
     {
         _currentState = currentState;
+        _currentCapabilities = currentCapabilities ?? (() => null);
         _pipeName = pipeName ?? IpcProtocol.PipeName();
     }
 
@@ -63,8 +73,16 @@ public sealed class IpcServer : IDisposable
         new ServerMessage(ServerMessage.DetailUpdate, IpcProtocol.Version, Detail: detail));
 
     /// <summary>Pushes the settings a window shows, after reading them or after one changes.</summary>
-    public void Publish(DeviceSettings settings) => Broadcast(
+    public void Publish(IReadOnlyList<SettingValue> settings) => Broadcast(
         new ServerMessage(ServerMessage.SettingsUpdate, IpcProtocol.Version, Settings: settings));
+
+    /// <summary>
+    /// Pushes what the connected model has. Sent on every connect rather than only at hello,
+    /// because the answer belongs to the headset that is plugged in: unplugging one model and
+    /// plugging in another must not leave a client drawing the first one's controls.
+    /// </summary>
+    public void Publish(DeviceCapabilities capabilities) => Broadcast(
+        new ServerMessage(ServerMessage.CapabilitiesUpdate, IpcProtocol.Version, Capabilities: capabilities));
 
     /// <summary>Tells every client that something could not be done, in words fit to print.</summary>
     public void PublishError(string message) => Broadcast(
@@ -158,7 +176,8 @@ public sealed class IpcServer : IDisposable
         {
             try
             {
-                Send(new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState()));
+                Send(new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState(),
+                    Capabilities: _server._currentCapabilities()));
 
                 while (!cancellation.IsCancellationRequested)
                 {

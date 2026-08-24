@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Ipc;
+
 namespace OpenInzone.StreamDeck;
 
 /// <summary>
@@ -21,6 +23,26 @@ internal static class ActionIds
     public const string Battery = Prefix + ".battery";
 
     public static readonly string[] All = [Volume, Balance, MicMute, MicLevel, Battery];
+
+    /// <summary>
+    /// Which of the headset's features a key needs. A model that does not have one gets a key that
+    /// reads as nothing and does nothing, rather than one that quietly sends a command the headset
+    /// has no answer for — the plugin cannot take a key off a deck, but it can stop pretending.
+    /// </summary>
+    /// <remarks>
+    /// Null for an action this build does not know, which gates it on nothing: whatever it is, it
+    /// is not the battery, and saying so would hide it behind a capability it never asked about.
+    /// <c>Decide</c> already answers null for such an action on its own.
+    /// </remarks>
+    public static string? Feature(string actionId) => actionId switch
+    {
+        Volume => FeatureIds.Volume,
+        Balance => FeatureIds.Balance,
+        MicMute => FeatureIds.MicMute,
+        MicLevel => FeatureIds.MicLevel,
+        Battery => FeatureIds.Battery,
+        _ => null,
+    };
 
     /// <summary>
     /// How far one press moves each setting when the Property Inspector says nothing. Volume runs
