@@ -18,6 +18,16 @@ public partial class App : System.Windows.Application
     private HotkeyConfig _config = HotkeyConfig.Default();
     private SettingsWindow? _settings;
 
+    /// <summary>
+    /// How long to leave the login alone before asking GitHub anything. This runs while Windows is
+    /// still logging the user in, which is the busiest minute the machine has, and nothing about an
+    /// update is urgent enough to be part of it.
+    /// </summary>
+    private static readonly TimeSpan StartupCheckDelay = TimeSpan.FromSeconds(30);
+
+    /// <summary>Ends the startup check when the application does, rather than after it.</summary>
+    private readonly CancellationTokenSource _stopping = new();
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -194,18 +204,22 @@ public partial class App : System.Windows.Application
     {
         try
         {
-            var update = await UpdateChecker.CheckAsync().ConfigureAwait(false);
+            await Task.Delay(StartupCheckDelay, _stopping.Token).ConfigureAwait(false);
+
+            var update = await UpdateChecker.CheckAsync(_stopping.Token).ConfigureAwait(false);
             if (!update.Available) return;
 
-            // Discarded: this async method has nothing further to do once the balloon is queued, so
+            // Discarded: this async method has nothing further to do once the notice is queued, so
             // there is nothing to await the dispatcher operation for.
-            _ = Dispatcher.BeginInvoke(() => _tray?.ShowBalloon(Strings.App_UpdateAvailableTitle,
-                string.Format(Strings.App_UpdateAvailableBody, update.Version)));
+            _ = Dispatcher.BeginInvoke(() => _tray?.ShowNotice(
+                Strings.App_UpdateAvailableTitle,
+                string.Format(Strings.App_UpdateAvailableBody, update.Version),
+                () => OpenSettings()?.ShowUpdate(update)));
         }
         catch (Exception)
         {
-            // No network, a rate limit, a malformed response - none of it is worth interrupting a
-            // login over.
+            // No network, a rate limit, a malformed response, or the application closing before the
+            // delay was up - none of it is worth interrupting a login over.
         }
     }
 
@@ -236,6 +250,9 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // First: a check still waiting out its delay would otherwise raise a notice into an icon
+        // this method is about to dispose.
+        _stopping.Cancel();
         _flyout?.Close();
         _hotkeys?.Dispose();
         // Before the tray icon: closing the channel reports a last state into the icon, and
@@ -244,6 +261,7 @@ public partial class App : System.Windows.Application
         _headset?.Dispose();
         _tray?.Dispose();
         _instance?.Dispose();
+        _stopping.Dispose();
         base.OnExit(e);
     }
 }
