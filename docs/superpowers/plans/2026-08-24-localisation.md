@@ -1339,7 +1339,7 @@ Expected: 0 warnings, 0 errors. A typo in a `{x:Static}` key is a compile error 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/OpenInzone.Tray tests/OpenInzone.Core.Tests/Control/VoiceGuidanceLanguageTests.cs
+git add src tests
 git commit -m "Read the settings window's labels from resources"
 ```
 
@@ -1516,7 +1516,7 @@ Expected: 0 warnings, 0 errors, all tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/OpenInzone.Tray
+git add src
 git commit -m "Read the settings window's messages from resources"
 ```
 
@@ -1639,7 +1639,7 @@ Expected: 0 warnings, all tests pass. `SettingsMarkupTests` must still pass — 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/OpenInzone.Tray
+git add src
 git commit -m "Let someone change the display language, and offer the restart it needs"
 ```
 
