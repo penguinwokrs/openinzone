@@ -8,6 +8,12 @@ namespace OpenInzone.Control;
 /// made once, by the installer, and then only changes when someone changes it. Reading
 /// CurrentUICulture here instead would mean a machine that switches to Korean silently switches
 /// the tray to English, having never been asked.
+///
+/// This governs CurrentUICulture only. Number formatting - the decimal point in a balance reading,
+/// the digit grouping in a byte count - follows CurrentCulture, which this class leaves alone and
+/// which therefore keeps following the operating system. A reader who set Windows to a German
+/// locale keeps seeing "1,5" regardless of which of the three UI languages they picked; that split
+/// is deliberate, not an oversight.
 /// </summary>
 public static class UiLanguage
 {

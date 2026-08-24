@@ -54,9 +54,9 @@ public class SnapshotTextTests
 
         InCulture("en", () =>
         {
-            Assert.Equal("Game 1.0", SnapshotText.Balance(Live));
+            Assert.Equal("Towards game 1.0", SnapshotText.Balance(Live));
             Assert.Equal("Centre", SnapshotText.Balance(Live with { Balance = 50 }));
-            Assert.Equal("Chat 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
+            Assert.Equal("Towards chat 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
         });
     }
 
@@ -175,22 +175,28 @@ public class SnapshotTextTests
     }
 
     /// <summary>
-    /// Runs a block with the UI culture pinned. The strings under test now come from resources, so
-    /// without this the assertions would depend on whatever culture the test host happened to be
-    /// in - which on a build agent is not Japanese.
+    /// Runs a block with both the UI culture and the formatting culture pinned. The strings under
+    /// test come from resources, so without pinning CurrentUICulture the assertions would depend on
+    /// whatever culture the test host happened to be in - which on a build agent is not Japanese.
+    /// CurrentCulture has to be pinned too: <see cref="SnapshotText.Balance"/> formats "{0:0.0}"
+    /// against it, not against CurrentUICulture, so on a de-DE host that number would come back
+    /// "1,5" and the assertion would go red even though the resource text is correct.
     /// </summary>
     private static void InCulture(string tag, Action body)
     {
-        var previous = System.Globalization.CultureInfo.CurrentUICulture;
+        var previousUi = System.Globalization.CultureInfo.CurrentUICulture;
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
         try
         {
-            System.Globalization.CultureInfo.CurrentUICulture =
-                System.Globalization.CultureInfo.GetCultureInfo(tag);
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(tag);
+            System.Globalization.CultureInfo.CurrentUICulture = culture;
+            System.Globalization.CultureInfo.CurrentCulture = culture;
             body();
         }
         finally
         {
-            System.Globalization.CultureInfo.CurrentUICulture = previous;
+            System.Globalization.CultureInfo.CurrentUICulture = previousUi;
+            System.Globalization.CultureInfo.CurrentCulture = previous;
         }
     }
 }
