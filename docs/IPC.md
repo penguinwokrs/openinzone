@@ -239,6 +239,21 @@ reading rather than as a number.
 
 `IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
 It went to 2 when the settings became a list and the nine named setting commands became one.
+
+The version is in two names, not one. The pipe carries it so that a client built against another
+version finds nothing to connect to rather than misreading the traffic. The daemon's single-instance
+lock carries it for a reason that only appeared once there was a second version to have: a daemon
+holds that lock for as long as it serves, and a second one starting up steps aside on the reasoning
+that whoever is already serving will serve the client that tried to start it. Across versions that
+reasoning fails — the newer daemon's clients are looking for a different pipe — and because the lock
+goes to whoever started first, an old build left running beat every new one, silently and for as
+long as anything kept it alive.
+
+So the two serve side by side while both have clients. That is two processes holding the headset,
+which is what [why one owner](#why-one-owner) is against, and it is accepted here as the lesser
+fault: these interfaces already share the channel with INZONE Hub, and a build that never works and
+says nothing about why is not comparable. It lasts only as long as a client of the older version
+keeps it alive — the daemon stops within a second of its last client leaving.
 Because the version is in the pipe name, an older client then simply finds nothing to connect to.
 Adding a field to the snapshot does not require a new version: clients ignore what they do not
 know.

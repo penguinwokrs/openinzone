@@ -83,6 +83,33 @@ public class IpcProtocolTests
     }
 
     /// <summary>
+    /// Both names a daemon claims carry the protocol version, and for the same reason: a build can
+    /// only ever use the channel it speaks. The lock did not carry it once, and the effect was that
+    /// a daemon of an older version held it against every newer one — whose clients were looking for
+    /// a different pipe and so were never served at all. Whoever started first won, which during an
+    /// upgrade meant the old build won, silently and for as long as anything kept it alive.
+    /// </summary>
+    [Fact]
+    public void The_lock_a_daemon_holds_names_the_version_it_serves()
+    {
+        string version = $"v{IpcProtocol.Version}";
+
+        Assert.EndsWith(version, IpcProtocol.SingleInstanceName(), StringComparison.Ordinal);
+        Assert.EndsWith(version, IpcProtocol.PipeName("owner"), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The lock is not the pipe: one is machine-wide and names the user, the other is per session.
+    /// Using one name for both would make a second user's daemon stand down for the first's.
+    /// </summary>
+    [Fact]
+    public void The_lock_is_not_the_pipe()
+    {
+        Assert.NotEqual(IpcProtocol.PipeName("owner"), IpcProtocol.SingleInstanceName());
+        Assert.DoesNotContain("owner", IpcProtocol.SingleInstanceName(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// The one command that carries more than a number. Which setting it is about travels beside
     /// the value, so adding a setting no longer adds a command.
     /// </summary>

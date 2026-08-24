@@ -37,12 +37,16 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        // Whoever gets here first serves; a second copy started by another client at the same
-        // moment simply steps aside, and that client's retry finds the first one's pipe.
-        using var single = new Mutex(initiallyOwned: true, "OpenInzone.Daemon.SingleInstance", out bool first);
+        // Whoever gets here first serves this channel; a second copy started by another client at
+        // the same moment simply steps aside, and that client's retry finds the first one's pipe.
+        // The name carries the protocol version, so "already serving" means serving the channel
+        // this build speaks - a daemon of another version is not one whose pipe our clients could
+        // ever use, and standing down for it would strand them for as long as it ran.
+        using var single = new Mutex(
+            initiallyOwned: true, OpenInzone.Ipc.IpcProtocol.SingleInstanceName(), out bool first);
         if (!first)
         {
-            Log("another daemon is already serving");
+            Log("another daemon is already serving this channel");
             return 0;
         }
 

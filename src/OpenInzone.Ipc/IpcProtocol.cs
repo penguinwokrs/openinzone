@@ -33,4 +33,28 @@ public static class IpcProtocol
             name.Append(char.IsLetterOrDigit(c) ? c : '_');
         return name.Append(".v").Append(Version).ToString();
     }
+
+    /// <summary>
+    /// Names the lock that keeps one daemon serving this channel.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The version belongs here for the same reason it belongs in the pipe name, and leaving it out
+    /// was a bug that only appeared once there was a second version to have. A daemon holds this
+    /// lock for as long as it serves; a newer one starting up would find it held and step aside, on
+    /// the reasoning that whoever is already serving will serve the client that tried to start it.
+    /// That reasoning holds only while both speak the same version. Across versions the newer
+    /// daemon's clients are looking for a different pipe, so they are never served at all — and
+    /// because the lock goes to whoever started first, an old build left running beats every new
+    /// one, silently and indefinitely.
+    /// </para>
+    /// <para>
+    /// So the two versions serve side by side for as long as a client of the older one keeps it
+    /// alive. That means two processes holding the headset, which is the thing the daemon exists to
+    /// prevent — but it is the lesser fault by a wide margin. The interfaces already share this
+    /// channel with INZONE Hub, which does the same thing; a new build that never works at all and
+    /// says nothing about why is not comparable.
+    /// </para>
+    /// </remarks>
+    public static string SingleInstanceName() => $"OpenInzone.Daemon.SingleInstance.v{Version}";
 }
