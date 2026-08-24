@@ -15,25 +15,28 @@ namespace OpenInzone.Tests.Control;
 /// renderer that draws the tabs strips the handlers out before parsing.
 ///
 /// So the rule is checked instead: the device tab attaches its handlers in code, once everything
-/// they touch exists.
+/// they touch exists. It also holds one test unrelated to that rule: that the update tab still
+/// carries the name the code selects it by.
 /// </summary>
 public class SettingsMarkupTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
-    private static XElement DevicePanel()
+    private static XElement DevicePanel() => SettingsXaml()
+        .Descendants(Presentation + "StackPanel")
+        .Single(element => (string?)element.Attribute(Xaml + "Name") == "DevicePanel");
+
+    /// <summary>The settings window's markup, read off disk rather than from a built assembly.</summary>
+    private static XDocument SettingsXaml()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenInzone.sln")))
             directory = directory.Parent;
 
         Assert.NotNull(directory);
-        var xaml = XDocument.Load(Path.Combine(
+        return XDocument.Load(Path.Combine(
             directory.FullName, "src", "OpenInzone.Tray", "SettingsWindow.xaml"));
-
-        return xaml.Descendants(Presentation + "StackPanel")
-            .Single(element => (string?)element.Attribute(Xaml + "Name") == "DevicePanel");
     }
 
     /// <summary>
@@ -108,5 +111,23 @@ public class SettingsMarkupTests
             .Single(element => (string?)element.Attribute(Xaml + "Name") == "AmbientButton");
 
         Assert.Equal(SettingCatalogue.AmbientSoundMode, int.Parse((string)radio.Attribute("Tag")!));
+    }
+
+    /// <summary>
+    /// Clicking the notice that an update is available opens this window on the update tab, which
+    /// the code does by name. Losing the name alone would not get past a build - <c>ShowUpdate</c>
+    /// refers to <c>UpdateTab</c> directly, so the field the name generates has to still exist. What
+    /// this catches is someone removing the name and every line that uses it together: a build that
+    /// still succeeds, with the notice landing on whatever tab happens to be first instead.
+    /// </summary>
+    [Fact]
+    public void The_update_tab_carries_the_name_the_code_selects_it_by()
+    {
+        var named = SettingsXaml()
+            .Descendants(Presentation + "TabItem")
+            .Select(element => (string?)element.Attribute(Xaml + "Name"))
+            .OfType<string>();
+
+        Assert.Contains("UpdateTab", named);
     }
 }

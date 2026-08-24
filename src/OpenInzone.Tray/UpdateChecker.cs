@@ -34,8 +34,11 @@ public static class UpdateChecker
 
     private static HttpClient CreateClient()
     {
-        // A short timeout keeps a slow or absent network from holding the tray icon back at
-        // startup - this call happens before anything else the user asked for is on screen.
+        // A short timeout keeps a slow or absent network from leaving something hanging. The
+        // startup check now runs thirty seconds after everything else the user asked for is
+        // already on screen, so it no longer needs protecting from that - but the settings
+        // window's on-demand check is a button someone just pressed, and HttpClient's own default
+        // of a hundred seconds is a bad place to leave it hanging.
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
         // GitHub's API rejects a request with no User-Agent at all.

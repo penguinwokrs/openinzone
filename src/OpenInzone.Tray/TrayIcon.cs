@@ -17,6 +17,7 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _icon;
     private bool _disposed;
+    private Action? _balloonAction;
 
     public event EventHandler? LeftClicked;
     public event EventHandler? SettingsRequested;
@@ -42,6 +43,10 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button == MouseButtons.Left) LeftClicked?.Invoke(this, EventArgs.Empty);
         };
+
+        // Raised on this thread: the icon is built on the UI thread, so its messages are pumped by
+        // the same dispatcher the action needs.
+        _icon.BalloonTipClicked += (_, _) => _balloonAction?.Invoke();
     }
 
     private static Icon LoadIcon()
@@ -67,8 +72,42 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>The tray has no window to put a dialog in, so a balloon is the only unsolicited way to reach the user.</summary>
-    public void ShowBalloon(string title, string text) =>
-        _icon.ShowBalloonTip(10000, title, text, ToolTipIcon.Warning);
+    public void ShowBalloon(string title, string text) => Show(title, text, ToolTipIcon.Warning, null);
+
+    /// <summary>
+    /// Something worth knowing rather than worrying about, with somewhere to go when it is clicked.
+    /// </summary>
+    /// <remarks>
+    /// Asking for no system icon is how this asks for the application's own. Windows draws the tray
+    /// icon in the notification either way; what <see cref="ToolTipIcon"/> adds is a badge over it,
+    /// and there is no value meaning "mine" - that is <c>NIIF_USER</c>, which <see cref="NotifyIcon"/>
+    /// does not expose. A release being available is not a warning and not an error, and an
+    /// information badge is still a badge over a perfectly good icon.
+    /// </remarks>
+    public void ShowNotice(string title, string text, Action onClick) =>
+        Show(title, text, ToolTipIcon.None, onClick);
+
+    /// <summary>
+    /// Raises a balloon and remembers what clicking it should do.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="NotifyIcon"/> raises one <c>BalloonTipClicked</c> for the icon and does not say
+    /// which balloon was clicked - there is only ever one at a time - so the action is kept here
+    /// until another balloon replaces it. It is deliberately not cleared when the balloon closes: a
+    /// notification that has gone to the notification centre is still clickable an hour later, and
+    /// that click should still work.
+    ///
+    /// The disposed guard is the one <see cref="Update"/> already carries, for the same reason and
+    /// now a likelier one: a notice raised thirty seconds after startup can arrive after the icon
+    /// has been torn down.
+    /// </remarks>
+    private void Show(string title, string text, ToolTipIcon icon, Action? onClick)
+    {
+        if (_disposed) return;
+
+        _balloonAction = onClick;
+        _icon.ShowBalloonTip(10000, title, text, icon);
+    }
 
     public void Dispose()
     {

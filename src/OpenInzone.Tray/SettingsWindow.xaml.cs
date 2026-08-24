@@ -500,6 +500,44 @@ public partial class SettingsWindow : Window
         ProjectLinks.Open(ProjectLinks.LatestRelease);
 
     /// <summary>
+    /// Opens on the update tab with an update someone else has already found.
+    /// </summary>
+    /// <remarks>
+    /// The state a check made on this window would have left behind, set the same way: the button
+    /// installs rather than checks, and the line under it names the version. Nothing is composed
+    /// here that <see cref="CheckForUpdateAsync"/> does not compose.
+    ///
+    /// Three things can go wrong between a notice being raised and being clicked, and this guards
+    /// against all of them the same way, by deciding what to keep before ever touching the tab: a
+    /// hotkey capture left running would turn the tab keyboard-dead and steal the first key
+    /// pressed into whatever row is capturing; a check or an install already in flight owns
+    /// <c>_pendingUpdate</c> until it finishes, and <see cref="InstallUpdateAsync"/> reads it again
+    /// after the download to verify the digest; and a notice that sat in the notification centre
+    /// for days can be older than an update a later check already found, in which case adopting it
+    /// would walk the window backwards.
+    ///
+    /// It does not start the download. Downloading because a notification was clicked would take
+    /// the decision away from the person who clicked it.
+    /// </remarks>
+    public void ShowUpdate(UpdateInfo update)
+    {
+        // With a capture live, OnPreviewKeyDown marks every key handled at window level, so the
+        // tab this is about to select would be keyboard-dead and the first key pressed would be
+        // written into whatever row is still waiting. A no-op when nothing is capturing.
+        EndCapture();
+
+        if (!_updateBusy && update.Available &&
+            (!_pendingUpdate.Available || update.Version > _pendingUpdate.Version))
+        {
+            _pendingUpdate = update;
+            UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
+            UpdateStatusText.Text = string.Format(Strings.Settings_UpdateAvailable, update.Version);
+        }
+
+        UpdateTab.IsSelected = true;
+    }
+
+    /// <summary>
     /// Doubles as "check now" and "install now": the button becomes Settings_UpdateButtonInstall the
     /// moment a check finds something, and a second click on that button installs it rather than
     /// checking again. This is how someone checks on demand when the startup setting is off, so it

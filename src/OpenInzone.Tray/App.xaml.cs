@@ -18,6 +18,16 @@ public partial class App : System.Windows.Application
     private HotkeyConfig _config = HotkeyConfig.Default();
     private SettingsWindow? _settings;
 
+    /// <summary>
+    /// How long to leave the login alone before asking GitHub anything. This runs while Windows is
+    /// still logging the user in, which is the busiest minute the machine has, and nothing about an
+    /// update is urgent enough to be part of it.
+    /// </summary>
+    private static readonly TimeSpan StartupCheckDelay = TimeSpan.FromSeconds(30);
+
+    /// <summary>Ends the startup check when the application does, rather than after it.</summary>
+    private readonly CancellationTokenSource _stopping = new();
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -74,64 +84,102 @@ public partial class App : System.Windows.Application
 
         if (_config.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
 
-        _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() =>
+        _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() => OpenSettings());
+    }
+
+    /// <summary>
+    /// Shows the settings window, or brings the one already open to the front.
+    /// </summary>
+    /// <remarks>
+    /// A method rather than the body of the tray menu's handler because there are two ways in now:
+    /// the menu, and clicking the notice that an update is available. Two copies of this would have
+    /// to agree about the one already being open, and would eventually not.
+    /// </remarks>
+    /// <returns>The window on screen, or null when the application is not far enough up to build one.</returns>
+    private SettingsWindow? OpenSettings()
+    {
+        if (_settings is { IsVisible: true }) { BringToFront(_settings); return _settings; }
+        if (_hotkeys is null || _headset is null) return null;
+
+        // The window applies as it goes and holds the hotkeys off only while it is waiting for
+        // a key, so there is nothing to suspend or resume around its lifetime any more - and
+        // nothing to do when it closes, because everything it was asked to do is already done.
+        _settings = new SettingsWindow(_config, _hotkeys, _headset);
+        _settings.Rejected += (_, rejected) => SurfaceRejected(rejected);
+        _settings.RestartRequested += (_, _) =>
         {
-            if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
-            if (_hotkeys is null || _headset is null) return;
+            // Environment.ProcessPath is the executable as launched, which is what has to come
+            // back.
+            string? executable = Environment.ProcessPath;
+            if (executable is null) return;
 
-            // The window applies as it goes and holds the hotkeys off only while it is waiting for
-            // a key, so there is nothing to suspend or resume around its lifetime any more - and
-            // nothing to do when it closes, because everything it was asked to do is already done.
-            _settings = new SettingsWindow(_config, _hotkeys, _headset);
-            _settings.Rejected += (_, rejected) => SurfaceRejected(rejected);
-            _settings.RestartRequested += (_, _) =>
+            // Closing the window is not just cleanup here - it has to happen before _hotkeys is
+            // touched below. SettingsWindow keeps its own reference to the same HotkeyHost, and
+            // Shutdown() further down closes any windows still open as part of tearing down; if
+            // a hotkey capture is still in progress on the Hotkeys tab, that close runs
+            // OnClosed -> EndCapture -> ApplyHotkeys, which reaches into _hotkeys. Doing it here
+            // instead means that call lands while the host is still alive and behaves normally,
+            // and it also means Shutdown() later has no open window left to close at all.
+            _settings?.Close();
+
+            // The single-instance mutex and the registered hotkeys are OS-level resources: the
+            // mutex's named kernel object survives until this process's handle to it is
+            // closed, and RegisterHotKey refuses a combination another window still holds,
+            // this process's own message-only window included. Process.Start only waits for
+            // the new process to exist, not for it to run any code, so starting it before
+            // releasing these would race the new instance's own startup check - and losing
+            // that race means the new copy sees itself as the second instance and exits
+            // immediately, leaving no tray at all. Releasing them here first makes that
+            // deterministic instead of a timing bet. This ordering constraint is layered on top
+            // of the one above: the window must close before either resource is released, and
+            // both must be released before the replacement process starts.
+            _hotkeys?.Dispose();
+            _hotkeys = null;
+            _instance?.Dispose();
+            _instance = null;
+
+            // By this point the mutex and the hotkeys are already released, so this process is
+            // no longer safely usable whether or not the launch succeeds: a caught failure
+            // still has to end in Shutdown(), not a tray left running with neither guard.
+            try
             {
-                // Environment.ProcessPath is the executable as launched, which is what has to come
-                // back.
-                string? executable = Environment.ProcessPath;
-                if (executable is null) return;
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(executable) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _tray?.ShowBalloon(Strings.App_ErrorTitle, ex.Message);
+            }
+            Shutdown();
+        };
+        _settings.Show();
+        BringToFront(_settings);
 
-                // Closing the window is not just cleanup here - it has to happen before _hotkeys is
-                // touched below. SettingsWindow keeps its own reference to the same HotkeyHost, and
-                // Shutdown() further down closes any windows still open as part of tearing down; if
-                // a hotkey capture is still in progress on the Hotkeys tab, that close runs
-                // OnClosed -> EndCapture -> ApplyHotkeys, which reaches into _hotkeys. Doing it here
-                // instead means that call lands while the host is still alive and behaves normally,
-                // and it also means Shutdown() later has no open window left to close at all.
-                _settings?.Close();
+        return _settings;
+    }
 
-                // The single-instance mutex and the registered hotkeys are OS-level resources: the
-                // mutex's named kernel object survives until this process's handle to it is
-                // closed, and RegisterHotKey refuses a combination another window still holds,
-                // this process's own message-only window included. Process.Start only waits for
-                // the new process to exist, not for it to run any code, so starting it before
-                // releasing these would race the new instance's own startup check - and losing
-                // that race means the new copy sees itself as the second instance and exits
-                // immediately, leaving no tray at all. Releasing them here first makes that
-                // deterministic instead of a timing bet. This ordering constraint is layered on top
-                // of the one above: the window must close before either resource is released, and
-                // both must be released before the replacement process starts.
-                _hotkeys?.Dispose();
-                _hotkeys = null;
-                _instance?.Dispose();
-                _instance = null;
+    /// <summary>
+    /// Puts the settings window in front of whatever else is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Window.Activate"/> on its own is not enough, and the case this exists for is the
+    /// one where it fails: Windows lets only the process that owns the foreground window hand the
+    /// foreground over, and a click on a notification is answered by the shell rather than by us.
+    /// The window comes back where it was - behind the game or the browser the person was looking
+    /// at - which from their side is a click that did nothing.
+    ///
+    /// Raising it above everything and letting go again does not depend on who owns the foreground.
+    /// The flyout is <c>Topmost</c> for the same reason; this window only needs it for the moment
+    /// it arrives.
+    /// </remarks>
+    private static void BringToFront(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
 
-                // By this point the mutex and the hotkeys are already released, so this process is
-                // no longer safely usable whether or not the launch succeeds: a caught failure
-                // still has to end in Shutdown(), not a tray left running with neither guard.
-                try
-                {
-                    System.Diagnostics.Process.Start(
-                        new System.Diagnostics.ProcessStartInfo(executable) { UseShellExecute = true });
-                }
-                catch (Exception ex)
-                {
-                    _tray?.ShowBalloon(Strings.App_ErrorTitle, ex.Message);
-                }
-                Shutdown();
-            };
-            _settings.Show();
-        });
+        window.Activate();
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
     }
 
     /// <summary>
@@ -181,18 +229,29 @@ public partial class App : System.Windows.Application
     {
         try
         {
-            var update = await UpdateChecker.CheckAsync().ConfigureAwait(false);
+            await Task.Delay(StartupCheckDelay, _stopping.Token).ConfigureAwait(false);
+
+            var update = await UpdateChecker.CheckAsync(_stopping.Token).ConfigureAwait(false);
             if (!update.Available) return;
 
-            // Discarded: this async method has nothing further to do once the balloon is queued, so
+            // Discarded: this async method has nothing further to do once the notice is queued, so
             // there is nothing to await the dispatcher operation for.
-            _ = Dispatcher.BeginInvoke(() => _tray?.ShowBalloon(Strings.App_UpdateAvailableTitle,
-                string.Format(Strings.App_UpdateAvailableBody, update.Version)));
+            _ = Dispatcher.BeginInvoke(() => _tray?.ShowNotice(
+                Strings.App_UpdateAvailableTitle,
+                string.Format(Strings.App_UpdateAvailableBody, update.Version),
+                // BalloonTipClicked already runs on this thread, so Dispatcher.Invoke is not here
+                // for marshalling - it is here because Invoke is what feeds an exception into
+                // DispatcherUnhandledException. Called directly, an exception building the settings
+                // window - which has crashed and reached a release before - would unwind through
+                // WinForms' own message loop instead, past that handler entirely, and end the
+                // process with no icon and no balloon. SettingsRequested below goes through the
+                // same Invoke for the same reason.
+                () => Dispatcher.Invoke(() => OpenSettings()?.ShowUpdate(update))));
         }
         catch (Exception)
         {
-            // No network, a rate limit, a malformed response - none of it is worth interrupting a
-            // login over.
+            // No network, a rate limit, a malformed response, or the application closing before the
+            // delay was up - none of it is worth interrupting a login over.
         }
     }
 
@@ -223,6 +282,9 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // First: a check still waiting out its delay would otherwise raise a notice into an icon
+        // this method is about to dispose.
+        _stopping.Cancel();
         _flyout?.Close();
         _hotkeys?.Dispose();
         // Before the tray icon: closing the channel reports a last state into the icon, and
