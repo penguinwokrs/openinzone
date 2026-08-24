@@ -4,6 +4,11 @@
 
 [English](README.md) · 日本語
 
+[![build](https://img.shields.io/github/actions/workflow/status/penguinwokrs/openinzone/ci.yml?branch=main)](https://github.com/penguinwokrs/openinzone/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/penguinwokrs/openinzone)](https://github.com/penguinwokrs/openinzone/releases/latest)
+[![platform](https://img.shields.io/badge/platform-Windows-0078D4)](#動作環境)
+[![license](https://img.shields.io/github/license/penguinwokrs/openinzone)](LICENSE)
+
 INZONE Hub のデバイス制御を独自に実装しなおした、非公式のオープンソース実装です。Windows 向けの
 常駐トレイアプリケーション、コマンドラインツール、Stream Deck プラグインが入っています。
 

@@ -4,6 +4,11 @@
 
 English · [日本語](README.ja.md)
 
+[![build](https://img.shields.io/github/actions/workflow/status/penguinwokrs/openinzone/ci.yml?branch=main)](https://github.com/penguinwokrs/openinzone/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/penguinwokrs/openinzone)](https://github.com/penguinwokrs/openinzone/releases/latest)
+[![platform](https://img.shields.io/badge/platform-Windows-0078D4)](#requirements)
+[![license](https://img.shields.io/github/license/penguinwokrs/openinzone)](LICENSE)
+
 An open, unofficial reimplementation of INZONE Hub's device control for Windows: a tray
 application, a command line tool, and a Stream Deck plugin.
 
