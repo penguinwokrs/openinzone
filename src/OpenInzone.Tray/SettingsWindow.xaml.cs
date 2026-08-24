@@ -505,14 +505,24 @@ public partial class SettingsWindow : Window
     /// <remarks>
     /// The state a check made on this window would have left behind, set the same way: the button
     /// installs rather than checks, and the line under it names the version. Nothing is composed
-    /// here that <see cref="CheckForUpdateAsync"/> does not compose, so the two cannot drift into
-    /// showing different things about the same update.
+    /// here that <see cref="CheckForUpdateAsync"/> does not compose.
+    ///
+    /// A check or an install already in flight owns <c>_pendingUpdate</c> until it finishes, so this
+    /// leaves that state alone while one is running - see the guard below for what would otherwise
+    /// go wrong.
     ///
     /// It does not start the download. Downloading because a notification was clicked would take
     /// the decision away from the person who clicked it.
     /// </remarks>
     public void ShowUpdate(UpdateInfo update)
     {
+        // Selecting the tab is what the click asked for and is always safe. The rest is not: a
+        // check or an install already running owns _pendingUpdate, and InstallUpdateAsync reads it
+        // again after the download to verify the digest - so replacing it in between would check
+        // the bytes it fetched against a different update's hash and fail an install that was
+        // going fine.
+        if (_updateBusy) { UpdateTab.IsSelected = true; return; }
+
         if (!update.Available) return;
 
         _pendingUpdate = update;

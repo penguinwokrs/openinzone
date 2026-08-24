@@ -114,8 +114,10 @@ public class SettingsMarkupTests
 
     /// <summary>
     /// Clicking the notice that an update is available opens this window on the update tab, which
-    /// the code does by name. A tab renamed or lost in the markup would leave that click opening
-    /// the window on whatever tab happened to be first, and nothing at build time would say so.
+    /// the code does by name. Losing the name alone would not get past a build - <c>ShowUpdate</c>
+    /// refers to <c>UpdateTab</c> directly, so the field the name generates has to still exist. What
+    /// this catches is someone removing the name and the line that uses it together: a build that
+    /// still succeeds, with the notice landing on whatever tab happens to be first instead.
     /// </summary>
     [Fact]
     public void The_update_tab_carries_the_name_the_code_selects_it_by()
