@@ -91,6 +91,15 @@ public partial class App : System.Windows.Application
                 string? executable = Environment.ProcessPath;
                 if (executable is null) return;
 
+                // Closing the window is not just cleanup here - it has to happen before _hotkeys is
+                // touched below. SettingsWindow keeps its own reference to the same HotkeyHost, and
+                // Shutdown() further down closes any windows still open as part of tearing down; if
+                // a hotkey capture is still in progress on the Hotkeys tab, that close runs
+                // OnClosed -> EndCapture -> ApplyHotkeys, which reaches into _hotkeys. Doing it here
+                // instead means that call lands while the host is still alive and behaves normally,
+                // and it also means Shutdown() later has no open window left to close at all.
+                _settings?.Close();
+
                 // The single-instance mutex and the registered hotkeys are OS-level resources: the
                 // mutex's named kernel object survives until this process's handle to it is
                 // closed, and RegisterHotKey refuses a combination another window still holds,
@@ -99,7 +108,9 @@ public partial class App : System.Windows.Application
                 // releasing these would race the new instance's own startup check - and losing
                 // that race means the new copy sees itself as the second instance and exits
                 // immediately, leaving no tray at all. Releasing them here first makes that
-                // deterministic instead of a timing bet.
+                // deterministic instead of a timing bet. This ordering constraint is layered on top
+                // of the one above: the window must close before either resource is released, and
+                // both must be released before the replacement process starts.
                 _hotkeys?.Dispose();
                 _hotkeys = null;
                 _instance?.Dispose();
