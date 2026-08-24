@@ -459,10 +459,13 @@ public class ResourceCompletenessTests
         return directory.FullName;
     }
 
+    /// <summary>
+    /// Every resource directory in the repository. Task 4 adds the tray's; until then this names
+    /// only the one that exists, so each task finishes with the suite green.
+    /// </summary>
     public static TheoryData<string> ResourceDirectories() =>
     [
         Path.Combine("src", "OpenInzone.Control", "Resources"),
-        Path.Combine("src", "OpenInzone.Tray", "Resources"),
     ];
 
     private static string[] KeysIn(string path) =>
@@ -505,11 +508,14 @@ public class ResourceCompletenessTests
 }
 ```
 
-**Note:** this test also reads `src/OpenInzone.Tray/Resources/`, which Task 4 creates. Until then the theory case for the tray fails on a missing file. That is correct and intended — it is the reminder that the second set is still owed. Run only the Control case until Task 4 lands:
+Run it:
 
 ```bash
-dotnet test --filter "ResourceCompletenessTests"
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test --filter ResourceCompletenessTests
 ```
+
+Expected: PASS. `ResourceDirectories` names only the Control set for now — Task 4 adds the tray's directory to that list once the files exist, so this task and the next both end with the whole suite green.
 
 - [ ] **Step 6: Verify the generated class exists**
 
@@ -698,7 +704,7 @@ Update the two assertions in `tests/OpenInzone.Core.Tests/Ipc/IpcRoundTripTests.
 dotnet test
 ```
 
-Expected: 0 failures. The tray resource case of `ResourceCompletenessTests` still fails until Task 4 — if it is the only failure, that is expected and this task is done.
+Expected: 0 failures.
 
 - [ ] **Step 7: Confirm the tray still builds**
 
@@ -776,14 +782,26 @@ and a new `<ItemGroup>`:
   </ItemGroup>
 ```
 
-- [ ] **Step 3: Confirm the completeness test now covers both sets**
+- [ ] **Step 3: Bring the tray's resources under the completeness test**
+
+The tray's files now exist, so add them to the list in `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`:
+
+```csharp
+    public static TheoryData<string> ResourceDirectories() =>
+    [
+        Path.Combine("src", "OpenInzone.Control", "Resources"),
+        Path.Combine("src", "OpenInzone.Tray", "Resources"),
+    ];
+```
+
+and drop the now-stale sentence from its doc comment about Task 4 adding the tray's directory.
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
 dotnet test --filter ResourceCompletenessTests
 ```
 
-Expected: PASS for both theory cases. This is the first point at which the test from Task 2 fully passes.
+Expected: PASS for both theory cases.
 
 - [ ] **Step 4: Apply the culture at startup, before anything with text on it exists**
 
