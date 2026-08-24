@@ -50,6 +50,18 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// <summary>Raised when an action could not be applied. The message is fit to show a person.</summary>
     public event EventHandler<string>? Failed;
 
+    /// <summary>
+    /// Raised when a headset has said what it has, which is once per connection. Clients are told
+    /// rather than asked, because the answer belongs to the model that is plugged in.
+    /// </summary>
+    public event EventHandler<DeviceCapabilities>? CapabilitiesRead;
+
+    /// <summary>Raised after reading the settings, and after every change to one of them.</summary>
+    public event EventHandler<IReadOnlyList<SettingValue>>? SettingsRead;
+
+    /// <summary>What the connected model has, or null while nothing has said.</summary>
+    public DeviceCapabilities? Capabilities { get; private set; }
+
     public DeviceState State
     {
         get { lock (_stateLock) return _state; }
@@ -182,6 +194,12 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             MicLevelAvailable: micLevelAvailable,
             Battery: device.GetBattery()));
 
+        // Asked once per connection, and asked of the headset rather than assumed: the three parts
+        // it publishes say what it has, where probing setting by setting can only say what did not
+        // answer in time. Every client is told, because a control for a setting the model does not
+        // carry is one nobody should be offered.
+        Announce(IpcSnapshot.Read(device));
+
         return device;
     }
 
@@ -232,57 +250,36 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// </summary>
     public void Describe(Action<DeviceDetail> deliver) => Post(_ => deliver(IpcSnapshot.Detail(Device())));
 
-    /// <summary>Reads the settings a window shows, and hands them over.</summary>
-    public void ReadSettings(Action<DeviceSettings> deliver) =>
-        Post(_ => deliver(IpcSnapshot.Settings(Device())));
+    /// <summary>Reads what the headset now says, and tells every client.</summary>
+    public void ReadSettings() => Post(_ => Announce(IpcSnapshot.Read(Device())));
 
-    // Each of these changes one setting and then reads them all back, so a window is told what the
-    // headset now says rather than what it was asked for. The ambient packet carries three
-    // settings at once, so changing one of them starts from a reading rather than from nothing.
-
-    public void SetSidetone(int value, Action<DeviceSettings> deliver) => Post(_ =>
+    /// <summary>
+    /// Writes one setting and reads them all back, so a window shows what the headset now says
+    /// rather than what it was asked for.
+    /// </summary>
+    /// <remarks>
+    /// One method for every setting, where there used to be one each. What a setting is - which
+    /// packet it lives in, which byte of it, and what range it has - is described once in the
+    /// core's catalogue, and this walks that description rather than repeating it.
+    /// </remarks>
+    public void SetSetting(string id, int value) => Post(_ =>
     {
         var device = Device();
-        device.SetSidetoneVolume(value);
-        deliver(IpcSnapshot.Settings(device));
+        IpcSnapshot.Write(device, id, value);
+        Announce(IpcSnapshot.Read(device));
     });
 
-    public void ChangeAmbient(Func<AmbientSetting, AmbientSetting> change, Action<DeviceSettings> deliver) =>
-        Post(_ =>
-        {
-            var device = Device();
-            device.SetAmbientSetting(change(device.GetAmbientSetting()));
-            deliver(IpcSnapshot.Settings(device));
-        });
-
-    public void SetAutoPowerOff(bool on, Action<DeviceSettings> deliver) => Post(_ =>
+    /// <summary>Tells every client what the headset has and what it now says.</summary>
+    private void Announce(IpcSnapshot.DeviceReading reading)
     {
-        var device = Device();
-        device.SetAutoPowerOff(on);
-        deliver(IpcSnapshot.Settings(device));
-    });
+        Capabilities = reading.Capabilities;
 
-    public void SetVoiceGuidance(bool on, Action<DeviceSettings> deliver) => Post(_ =>
-    {
-        var device = Device();
-        device.SetVoiceGuidance(on);
-        deliver(IpcSnapshot.Settings(device));
-    });
+        try { CapabilitiesRead?.Invoke(this, reading.Capabilities); }
+        catch { /* a misbehaving subscriber must not kill the worker */ }
 
-    public void SetVoiceGuidanceLanguage(VoiceGuidanceLanguage language, Action<DeviceSettings> deliver) =>
-        Post(_ =>
-        {
-            var device = Device();
-            device.SetVoiceGuidanceLanguage(language);
-            deliver(IpcSnapshot.Settings(device));
-        });
-
-    public void SetBluetoothAutoSwitch(bool on, Action<DeviceSettings> deliver) => Post(_ =>
-    {
-        var device = Device();
-        device.SetBluetoothAutoSwitch(on);
-        deliver(IpcSnapshot.Settings(device));
-    });
+        try { SettingsRead?.Invoke(this, reading.Settings); }
+        catch { /* likewise */ }
+    }
 
     // ---- IDeviceActions ------------------------------------------------------
     // Each one queues; none of them block the caller. The adjusting methods connect via Device()

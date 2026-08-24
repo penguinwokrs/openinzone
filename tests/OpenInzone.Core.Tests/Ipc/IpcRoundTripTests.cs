@@ -134,7 +134,10 @@ public class IpcRoundTripTests
     public async Task Asking_for_the_settings_brings_them_back()
     {
         string pipeName = UniquePipeName();
-        var settings = new DeviceSettings(3, 2, 14, true, true, false, 2, true);
+        IReadOnlyList<SettingValue> settings =
+        [
+            new("sidetone", 3), new("ambient-mode", 2), new("ambient-level", 14),
+        ];
 
         using var server = new IpcServer(() => Sample, pipeName);
         server.CommandReceived += (sender, message) =>
@@ -144,7 +147,8 @@ public class IpcRoundTripTests
         server.Start();
 
         var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var arrived = new TaskCompletionSource<DeviceSettings>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var arrived = new TaskCompletionSource<IReadOnlyList<SettingValue>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         using var client = new IpcClient(pipeName);
         client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
         client.SettingsReceived += (_, s) => arrived.TrySetResult(s);

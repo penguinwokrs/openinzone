@@ -17,7 +17,7 @@ namespace OpenInzone.Ipc;
 public static class IpcProtocol
 {
     /// <summary>Raised when the wire format changes in a way an older client cannot read.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     /// <summary>A line longer than this is treated as a broken peer rather than parsed.</summary>
     public const int MaxLineBytes = 64 * 1024;

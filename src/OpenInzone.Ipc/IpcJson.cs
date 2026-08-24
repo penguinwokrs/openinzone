@@ -16,5 +16,7 @@ namespace OpenInzone.Ipc;
 [JsonSerializable(typeof(DeviceSnapshot))]
 [JsonSerializable(typeof(BatterySnapshot))]
 [JsonSerializable(typeof(DeviceDetail))]
-[JsonSerializable(typeof(DeviceSettings))]
+[JsonSerializable(typeof(SettingValue))]
+[JsonSerializable(typeof(IReadOnlyList<SettingValue>))]
+[JsonSerializable(typeof(DeviceCapabilities))]
 public sealed partial class IpcJson : JsonSerializerContext;

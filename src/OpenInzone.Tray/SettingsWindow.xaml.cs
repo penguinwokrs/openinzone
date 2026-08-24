@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Tray;
 
@@ -102,6 +103,9 @@ public partial class SettingsWindow : Window
 
     private readonly Dictionary<string, Action> _pendingSettingWrites = [];
 
+    /// <summary>Every control on the device tab that names a setting, found once as it is built.</summary>
+    private readonly List<SettingBinding> _settings = [];
+
     // NoUpdate until an on-demand check finds one; that transition is what turns the button from
     // "確認" into "更新" and tells a second click to install rather than check again.
     private UpdateInfo _pendingUpdate = UpdateInfo.NoUpdate;
@@ -169,26 +173,52 @@ public partial class SettingsWindow : Window
         _headset.RequestSettings();
     }
 
+    /// <summary>
+    /// Finds every control that names a setting and wires it up.
+    /// </summary>
+    /// <remarks>
+    /// One pass over the markup rather than a handler per control. What each control is for is
+    /// declared where it is arranged, so adding a setting is a line of markup and an entry in the
+    /// core's catalogue, not an edit in six files.
+    /// </remarks>
     private void AttachDeviceHandlers()
     {
-        foreach (var button in new[] { AmbientOffButton, NoiseCancellingButton, AmbientButton })
-            button.Checked += OnAmbientModeChanged;
-
-        AmbientLevelSlider.ValueChanged += OnAmbientLevelChanged;
-        SidetoneSlider.ValueChanged += OnSidetoneChanged;
-        LanguageBox.SelectionChanged += OnLanguageChanged;
-
-        foreach (var (box, handler) in new (System.Windows.Controls.CheckBox, RoutedEventHandler)[]
+        foreach (var site in Sites(DevicePanel))
         {
-            (VoiceFocusBox, OnVoiceFocusChanged),
-            (AutoPowerOffBox, OnAutoPowerOffChanged),
-            (BluetoothAutoSwitchBox, OnBluetoothAutoSwitchChanged),
-            (VoiceGuidanceBox, OnVoiceGuidanceChanged),
-        })
-        {
-            box.Checked += handler;
-            box.Unchecked += handler;
+            var binding = SettingBinding.For(site, Setting.GetId(site)!);
+            _settings.Add(binding);
+            binding.Attach(WriteSetting);
         }
+    }
+
+    /// <summary>
+    /// Every element naming a setting. Binding sites do not nest, so the search stops at one
+    /// rather than looking inside it — the controls below a site belong to that site.
+    /// </summary>
+    private static IEnumerable<FrameworkElement> Sites(DependencyObject root)
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is FrameworkElement element && Setting.GetId(element) is not null)
+            {
+                yield return element;
+                continue;
+            }
+
+            foreach (var found in Sites(child)) yield return found;
+        }
+    }
+
+    /// <summary>
+    /// What every control on the tab does when it is used: write, and be told what the headset
+    /// then says. A slider's writes are coalesced; nothing else needs it.
+    /// </summary>
+    private void WriteSetting(SettingBinding binding, int value, bool coalesce)
+    {
+        if (_showingSettings) return;
+
+        if (coalesce) QueueSettingWrite(binding.Id, () => _headset.SetSetting(binding.Id, value));
+        else _headset.SetSetting(binding.Id, value);
     }
 
     // ---- applying -----------------------------------------------------------------------------
@@ -585,7 +615,7 @@ public partial class SettingsWindow : Window
     // arrives here. Nothing is composed locally: a mode change comes back with the level the
     // headset kept, and a failed write comes back as the value that is still in force.
 
-    private void OnSettingsReceived(object? sender, DeviceSettings settings)
+    private void OnSettingsReceived(object? sender, IReadOnlyList<SettingValue> settings)
     {
         _settingsArrived = true;
         Dispatcher.BeginInvoke(() => ShowSettings(settings));
@@ -601,83 +631,37 @@ public partial class SettingsWindow : Window
         if (_settingsArrived) return;
 
         if (state.Connected) _headset.RequestSettings();
-        else Dispatcher.BeginInvoke(() => ShowSettings(DeviceSettings.None));
+        else Dispatcher.BeginInvoke(() => ShowSettings([]));
     }
 
-    private void ShowSettings(DeviceSettings settings)
+    /// <summary>
+    /// Draws what the headset now says. A setting this model does not have is not in the list at
+    /// all, and its control is hidden rather than shown doing nothing — which is the same rule as
+    /// before, now answered by the headset's own capability map instead of by a timeout.
+    /// </summary>
+    private void ShowSettings(IReadOnlyList<SettingValue> settings)
     {
         _showingSettings = true;
         try
         {
-            bool anything = settings != DeviceSettings.None;
+            bool anything = settings.Count > 0;
             DevicePanel.IsEnabled = anything;
             DeviceStatusText.Text = anything
                 ? "変更はその場で反映されます。"
                 : "ヘッドセットが応答していません。";
 
-            Show(AmbientGroup, settings.AmbientMode is not null);
-            switch (settings.AmbientMode)
-            {
-                case 1: NoiseCancellingButton.IsChecked = true; break;
-                case 2: AmbientButton.IsChecked = true; break;
-                default: AmbientOffButton.IsChecked = true; break;
-            }
+            foreach (var binding in _settings) binding.Show(settings.Value(binding.Id));
 
-            // The level belongs to ambient sound; the headset keeps it in every mode, but showing
-            // it as adjustable while it does nothing would be a lie.
-            AmbientLevelRow.IsEnabled = settings.AmbientMode == 2;
-            if (settings.AmbientLevel is int level)
-            {
-                AmbientLevelSlider.Value = level;
-                AmbientLevelText.Text = level.ToString();
-            }
-
-            Show(VoiceFocusBox, settings.VoiceFocus is not null);
-            VoiceFocusBox.IsChecked = settings.VoiceFocus == true;
-
-            if (settings.Sidetone is int sidetone)
-            {
-                SidetoneSlider.Value = sidetone;
-                SidetoneText.Text = sidetone.ToString();
-            }
-
-            Show(AutoPowerOffBox, settings.AutoPowerOff is not null);
-            AutoPowerOffBox.IsChecked = settings.AutoPowerOff == true;
-
-            Show(BluetoothAutoSwitchBox, settings.BluetoothAutoSwitch is not null);
-            BluetoothAutoSwitchBox.IsChecked = settings.BluetoothAutoSwitch == true;
-
-            Show(VoiceGuidanceBox, settings.VoiceGuidance is not null);
-            VoiceGuidanceBox.IsChecked = settings.VoiceGuidance == true;
-
-            Show(LanguageRow, settings.VoiceGuidanceLanguage is not null);
-            SelectLanguage(settings.VoiceGuidanceLanguage);
+            // The one thing no catalogue entry can say: the level belongs to ambient sound. The
+            // headset keeps it in every mode, but showing it as adjustable while it does nothing
+            // would be a lie.
+            AmbientLevelRow.IsEnabled = settings.Value(SettingCatalogue.AmbientMode) == 2;
         }
         finally
         {
             _showingSettings = false;
         }
     }
-
-    /// <summary>
-    /// Picks the item whose Tag is the byte the headset sent, rather than the item at that index.
-    /// The two agree only while the list happens to be written in value order, and a list that is
-    /// reordered for reading - or a value this build does not know - would otherwise silently
-    /// select the wrong language.
-    /// </summary>
-    private void SelectLanguage(int? value)
-    {
-        LanguageBox.SelectedItem = LanguageBox.Items
-            .OfType<System.Windows.Controls.ComboBoxItem>()
-            .FirstOrDefault(item => int.Parse((string)item.Tag) == value);
-    }
-
-    /// <summary>
-    /// Hides what this model does not answer for, rather than showing a control that does nothing.
-    /// INZONE Buds has no wearing detection and no LED; another model may have no ambient sound.
-    /// </summary>
-    private static void Show(System.Windows.UIElement element, bool present) =>
-        element.Visibility = present ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Replaces that control's pending write; one slider never cancels another's.</summary>
     private void QueueSettingWrite(string control, Action write)
@@ -696,55 +680,4 @@ public partial class SettingsWindow : Window
         _pendingSettingWrites.Clear();
     }
 
-    private void OnAmbientModeChanged(object sender, RoutedEventArgs e)
-    {
-        if (_showingSettings) return;
-
-        int mode = int.Parse((string)((System.Windows.Controls.RadioButton)sender).Tag);
-        AmbientLevelRow.IsEnabled = mode == 2;
-        _headset.SetAmbientMode(mode);
-    }
-
-    private void OnAmbientLevelChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_showingSettings) return;
-
-        AmbientLevelText.Text = ((int)e.NewValue).ToString();
-        QueueSettingWrite("ambient-level", () => _headset.SetAmbientLevel((int)e.NewValue));
-    }
-
-    private void OnVoiceFocusChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_showingSettings) _headset.SetVoiceFocus(VoiceFocusBox.IsChecked == true);
-    }
-
-    private void OnSidetoneChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_showingSettings) return;
-
-        SidetoneText.Text = ((int)e.NewValue).ToString();
-        QueueSettingWrite("sidetone", () => _headset.SetSidetone((int)e.NewValue));
-    }
-
-    private void OnAutoPowerOffChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_showingSettings) _headset.SetAutoPowerOff(AutoPowerOffBox.IsChecked == true);
-    }
-
-    private void OnVoiceGuidanceChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_showingSettings) _headset.SetVoiceGuidance(VoiceGuidanceBox.IsChecked == true);
-    }
-
-    private void OnBluetoothAutoSwitchChanged(object sender, RoutedEventArgs e)
-    {
-        if (!_showingSettings) _headset.SetBluetoothAutoSwitch(BluetoothAutoSwitchBox.IsChecked == true);
-    }
-
-    private void OnLanguageChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-    {
-        if (_showingSettings || LanguageBox.SelectedItem is not System.Windows.Controls.ComboBoxItem item) return;
-
-        _headset.SetVoiceGuidanceLanguage(int.Parse((string)item.Tag));
-    }
 }

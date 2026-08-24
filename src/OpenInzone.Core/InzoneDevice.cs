@@ -5,6 +5,7 @@ using OpenInzone.Audio;
 using OpenInzone.Hid;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
+using OpenInzone.Settings;
 
 namespace OpenInzone;
 
@@ -268,6 +269,30 @@ public sealed class InzoneDevice : IDisposable
     {
         _session.Set(EventId.VoicePromptLanguage, [(byte)language]);
         return language;
+    }
+
+    // ---- What this model has -------------------------------------------------
+
+    /// <summary>
+    /// Asks the headset what it carries, from the three parts it publishes.
+    /// </summary>
+    /// <remarks>
+    /// A part that does not answer is left out rather than failing the read: a model that has none
+    /// of them is one this build falls back to probing for, which is what it did before this
+    /// existed. Nothing else here treats a timeout as an answer, and neither does this.
+    /// </remarks>
+    public CapabilityMap ReadCapabilityMap()
+    {
+        byte[]? Part(EventId eventId)
+        {
+            try { return _session.Get(eventId); }
+            catch (TimeoutException) { return null; }
+        }
+
+        return CapabilityMap.Parse(
+            Part(EventId.AllFunctionSettingsPart1),
+            Part(EventId.AllFunctionSettingsPart2),
+            Part(EventId.AllFunctionSettingsPart3));
     }
 
     // ---- Status --------------------------------------------------------------
