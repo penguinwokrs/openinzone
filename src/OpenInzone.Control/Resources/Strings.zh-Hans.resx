@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Hotkey_VolumeUp" xml:space="preserve">
+    <value>提高音量</value>
+  </data>
+  <data name="Hotkey_VolumeDown" xml:space="preserve">
+    <value>降低音量</value>
+  </data>
+  <data name="Hotkey_BalanceGame" xml:space="preserve">
+    <value>平衡偏向游戏</value>
+  </data>
+  <data name="Hotkey_BalanceChat" xml:space="preserve">
+    <value>平衡偏向语音</value>
+  </data>
+  <data name="Hotkey_BalanceCentre" xml:space="preserve">
+    <value>平衡居中</value>
+  </data>
+  <data name="Hotkey_MicMute" xml:space="preserve">
+    <value>切换麦克风静音</value>
+  </data>
+  <data name="Hotkey_MicUp" xml:space="preserve">
+    <value>提高麦克风电平</value>
+  </data>
+  <data name="Hotkey_MicDown" xml:space="preserve">
+    <value>降低麦克风电平</value>
+  </data>
+  <data name="Status_VolumeMuted" xml:space="preserve">
+    <value>{0}（已静音）</value>
+  </data>
+  <data name="Status_BalanceCentre" xml:space="preserve">
+    <value>居中</value>
+  </data>
+  <data name="Status_BalanceGame" xml:space="preserve">
+    <value>偏向游戏 {0:0.0}</value>
+  </data>
+  <data name="Status_BalanceChat" xml:space="preserve">
+    <value>偏向语音 {0:0.0}</value>
+  </data>
+  <data name="Status_MicUnavailable" xml:space="preserve">
+    <value>不可用</value>
+  </data>
+  <data name="Status_BatteryCase" xml:space="preserve">
+    <value>充电盒</value>
+  </data>
+</root>
