@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using System.Xml.Linq;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
 
@@ -122,14 +123,26 @@ public class SnapshotTextTests
     /// but a model name plus two readings should not be reaching that in the first place. Checked
     /// in all three languages, not just Japanese: the tray's own tooltip words come from resources
     /// now, and "Volume"/"Battery" in English are longer than 音量/バッテリー, so English rather
-    /// than Japanese may be the worst case.
+    /// than Japanese may be the worst case. The label words are read from the resx files
+    /// themselves, not retyped here, so a future edit to those resources is what this test
+    /// actually measures rather than a stale copy of them.
     /// </summary>
+    public static TheoryData<string> TooltipCultures() =>
+        // Not a collection expression: xunit 2.5.3's TheoryData does not support one (CS0029).
+        new()
+        {
+            "en",
+            "ja",
+            "zh-Hans",
+        };
+
     [Theory]
-    [InlineData("en", "Volume", "Battery")]
-    [InlineData("ja", "音量", "バッテリー")]
-    [InlineData("zh-Hans", "音量", "电量")]
-    public void The_tooltip_fits_in_what_a_tray_icon_accepts(string culture, string volumeWord, string batteryWord)
+    [MemberData(nameof(TooltipCultures))]
+    public void The_tooltip_fits_in_what_a_tray_icon_accepts(string culture)
     {
+        string volumeWord = TrayResourceValue(culture, "Tray_TooltipVolume");
+        string batteryWord = TrayResourceValue(culture, "Tray_TooltipBattery");
+
         InCulture(culture, () =>
         {
             string tooltip = $"{Live.Model}\n{volumeWord} {SnapshotText.VolumeWithMute(Live)}\n" +
@@ -137,6 +150,28 @@ public class SnapshotTextTests
 
             Assert.True(tooltip.Length <= 63, $"{culture}: {tooltip.Length} characters: {tooltip}");
         });
+    }
+
+    /// <summary>
+    /// Reads a single tray resource value straight off disk, the same way
+    /// <see cref="ResourceCompletenessTests"/> does, so this test measures the tooltip words the
+    /// tray will actually render rather than a copy of them typed into the test.
+    /// </summary>
+    private static string TrayResourceValue(string culture, string key)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenInzone.sln")))
+            directory = directory.Parent;
+
+        Assert.NotNull(directory);
+
+        string fileName = culture == "en" ? "Strings.resx" : $"Strings.{culture}.resx";
+        string path = Path.Combine(directory.FullName, "src", "OpenInzone.Tray", "Resources", fileName);
+
+        var entry = XDocument.Load(path).Root!.Elements("data")
+            .Single(d => (string)d.Attribute("name")! == key);
+
+        return (string)entry.Element("value")!;
     }
 
     /// <summary>
