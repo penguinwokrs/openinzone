@@ -77,8 +77,15 @@ public sealed class TrayIcon : IDisposable
     /// <summary>
     /// Something worth knowing rather than worrying about, with somewhere to go when it is clicked.
     /// </summary>
+    /// <remarks>
+    /// Asking for no system icon is how this asks for the application's own. Windows draws the tray
+    /// icon in the notification either way; what <see cref="ToolTipIcon"/> adds is a badge over it,
+    /// and there is no value meaning "mine" - that is <c>NIIF_USER</c>, which <see cref="NotifyIcon"/>
+    /// does not expose. A release being available is not a warning and not an error, and an
+    /// information badge is still a badge over a perfectly good icon.
+    /// </remarks>
     public void ShowNotice(string title, string text, Action onClick) =>
-        Show(title, text, ToolTipIcon.Info, onClick);
+        Show(title, text, ToolTipIcon.None, onClick);
 
     /// <summary>
     /// Raises a balloon and remembers what clicking it should do.

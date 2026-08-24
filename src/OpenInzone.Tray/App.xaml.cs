@@ -98,7 +98,7 @@ public partial class App : System.Windows.Application
     /// <returns>The window on screen, or null when the application is not far enough up to build one.</returns>
     private SettingsWindow? OpenSettings()
     {
-        if (_settings is { IsVisible: true }) { _settings.Activate(); return _settings; }
+        if (_settings is { IsVisible: true }) { BringToFront(_settings); return _settings; }
         if (_hotkeys is null || _headset is null) return null;
 
         // The window applies as it goes and holds the hotkeys off only while it is waiting for
@@ -153,8 +153,33 @@ public partial class App : System.Windows.Application
             Shutdown();
         };
         _settings.Show();
+        BringToFront(_settings);
 
         return _settings;
+    }
+
+    /// <summary>
+    /// Puts the settings window in front of whatever else is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Window.Activate"/> on its own is not enough, and the case this exists for is the
+    /// one where it fails: Windows lets only the process that owns the foreground window hand the
+    /// foreground over, and a click on a notification is answered by the shell rather than by us.
+    /// The window comes back where it was - behind the game or the browser the person was looking
+    /// at - which from their side is a click that did nothing.
+    ///
+    /// Raising it above everything and letting go again does not depend on who owns the foreground.
+    /// The flyout is <c>Topmost</c> for the same reason; this window only needs it for the moment
+    /// it arrives.
+    /// </remarks>
+    private static void BringToFront(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+
+        window.Activate();
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
     }
 
     /// <summary>
