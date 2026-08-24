@@ -23,7 +23,7 @@
     <value>平衡偏向游戏</value>
   </data>
   <data name="Hotkey_BalanceChat" xml:space="preserve">
-    <value>平衡偏向语音</value>
+    <value>平衡偏向聊天</value>
   </data>
   <data name="Hotkey_BalanceCentre" xml:space="preserve">
     <value>平衡居中</value>
@@ -47,7 +47,7 @@
     <value>偏向游戏 {0:0.0}</value>
   </data>
   <data name="Status_BalanceChat" xml:space="preserve">
-    <value>偏向语音 {0:0.0}</value>
+    <value>偏向聊天 {0:0.0}</value>
   </data>
   <data name="Status_MicUnavailable" xml:space="preserve">
     <value>不可用</value>

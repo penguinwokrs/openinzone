@@ -26,7 +26,7 @@
     <value>游戏</value>
   </data>
   <data name="Flyout_Chat" xml:space="preserve">
-    <value>语音</value>
+    <value>聊天</value>
   </data>
   <data name="Tray_Settings" xml:space="preserve">
     <value>设置</value>
@@ -164,7 +164,7 @@
     <value>日语</value>
   </data>
   <data name="Settings_VoiceLanguage_Chinese" xml:space="preserve">
-    <value>汉语</value>
+    <value>中文</value>
   </data>
   <data name="Settings_HotkeyHint" xml:space="preserve">
     <value>选中一行后按下组合键即可分配。按 Esc 清除。</value>

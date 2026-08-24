@@ -155,7 +155,7 @@
     <value>音声ガイド</value>
   </data>
   <data name="Settings_VoiceGuidanceLanguage" xml:space="preserve">
-    <value>音声ガイダンスの言語</value>
+    <value>音声ガイドの言語</value>
   </data>
   <data name="Settings_VoiceLanguage_English" xml:space="preserve">
     <value>英語</value>

@@ -54,6 +54,8 @@
   </data>
   <data name="App_ConfigUnreadableBody" xml:space="preserve">
     <value>Started with the default hotkeys. Correct {0}: {1}</value>
+    <comment>{0} is a file path, {1} is the underlying error message. Keep them in this order:
+swapping them would put the error text where the path belongs.</comment>
   </data>
   <data name="App_UpdateAvailableTitle" xml:space="preserve">
     <value>An update is available</value>
@@ -72,6 +74,8 @@
   </data>
   <data name="App_ListSeparator" xml:space="preserve">
     <value>, </value>
+    <comment>Not prose - this joins a list of hotkey names (e.g. "A, B, C"). The trailing space in
+the English value is deliberate; do not trim it, and do not add surrounding punctuation.</comment>
   </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>OpenInzone Settings</value>
@@ -219,6 +223,10 @@
   </data>
   <data name="Settings_PluginFilter" xml:space="preserve">
     <value>Stream Deck plugin (*{0})|*{0}</value>
+    <comment>A Win32 file-dialog filter string: "&lt;display text&gt;|&lt;pattern&gt;". The `|` is a
+delimiter the dialog parses and must survive translation. {0} is a file extension such as
+".streamDeckPlugin" and appears twice - once in the text shown to the user, once in the pattern
+after the `|` - and both occurrences must stay.</comment>
   </data>
   <data name="Settings_PluginDownloading" xml:space="preserve">
     <value>Downloading… {0}%</value>

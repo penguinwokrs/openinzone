@@ -44,10 +44,13 @@
     <value>Centre</value>
   </data>
   <data name="Status_BalanceGame" xml:space="preserve">
-    <value>Game {0:0.0}</value>
+    <value>Towards game {0:0.0}</value>
+    <comment>The side is named, not signed, because a reader of a bare "+2.0" has to already know
+which way the scale runs. `:0.0` is a .NET custom numeric format string, not literal text - keep
+it, but the word order and "towards"/its equivalent can move freely to fit the language.</comment>
   </data>
   <data name="Status_BalanceChat" xml:space="preserve">
-    <value>Chat {0:0.0}</value>
+    <value>Towards chat {0:0.0}</value>
   </data>
   <data name="Status_MicUnavailable" xml:space="preserve">
     <value>Unavailable</value>
