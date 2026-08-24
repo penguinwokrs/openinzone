@@ -688,10 +688,13 @@ public partial class SettingsWindow : Window
 
             foreach (var binding in _settings) binding.Show(settings.Value);
 
-            // The one thing no catalogue entry can say: the level belongs to ambient sound. The
-            // headset keeps it in every mode, but showing it as adjustable while it does nothing
-            // would be a lie.
-            AmbientLevelRow.IsEnabled = settings.Value(SettingCatalogue.AmbientMode) == 2;
+            // The one thing no catalogue entry can say: these two belong to ambient sound. The
+            // headset keeps them in every mode, but showing them as adjustable while they do
+            // nothing would be a lie. Both keep the value the headset holds while they are greyed,
+            // so switching back to ambient sound has no surprises in it.
+            bool ambient = settings.Value(SettingCatalogue.AmbientMode) == SettingCatalogue.AmbientSoundMode;
+            AmbientLevelRow.IsEnabled = ambient;
+            VoiceFocusBox.IsEnabled = ambient;
         }
         finally
         {
