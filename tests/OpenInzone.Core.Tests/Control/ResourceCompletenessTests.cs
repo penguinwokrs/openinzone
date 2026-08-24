@@ -26,13 +26,14 @@ public class ResourceCompletenessTests
     }
 
     /// <summary>
-    /// Every resource directory in the repository. Task 4 adds the tray's; until then this names
-    /// only the one that exists, so each task finishes with the suite green.
+    /// Every resource directory in the repository.
     /// </summary>
     public static TheoryData<string> ResourceDirectories()
     {
+        // Not a collection expression: xunit 2.5.3's TheoryData does not support one (CS0029).
         var data = new TheoryData<string>();
         data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
+        data.Add(Path.Combine("src", "OpenInzone.Tray", "Resources"));
         return data;
     }
 

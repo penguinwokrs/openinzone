@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Flyout_NotConnected" xml:space="preserve">
+    <value>未接続</value>
+  </data>
+  <data name="Flyout_Volume" xml:space="preserve">
+    <value>音量</value>
+  </data>
+  <data name="Flyout_MicMute" xml:space="preserve">
+    <value>マイクミュート</value>
+  </data>
+  <data name="Flyout_Game" xml:space="preserve">
+    <value>ゲーム</value>
+  </data>
+  <data name="Flyout_Chat" xml:space="preserve">
+    <value>チャット</value>
+  </data>
+  <data name="Tray_Settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Tray_Help" xml:space="preserve">
+    <value>ヘルプ</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="Tray_TooltipVolume" xml:space="preserve">
+    <value>音量</value>
+  </data>
+  <data name="Tray_TooltipBattery" xml:space="preserve">
+    <value>バッテリー</value>
+  </data>
+  <data name="Tray_NotConnected" xml:space="preserve">
+    <value>OpenInzone - 未接続</value>
+  </data>
+  <data name="App_CannotConnectTitle" xml:space="preserve">
+    <value>ヘッドセットに接続できません</value>
+  </data>
+  <data name="App_ConfigUnreadableTitle" xml:space="preserve">
+    <value>設定ファイルを読み込めませんでした</value>
+  </data>
+  <data name="App_ConfigUnreadableBody" xml:space="preserve">
+    <value>既定のホットキーで起動しました。{0} を修正してください: {1}</value>
+  </data>
+  <data name="App_UpdateAvailableTitle" xml:space="preserve">
+    <value>アップデートがあります</value>
+  </data>
+  <data name="App_UpdateAvailableBody" xml:space="preserve">
+    <value>バージョン {0} が利用可能です。設定から更新できます。</value>
+  </data>
+  <data name="App_ErrorTitle" xml:space="preserve">
+    <value>エラーが発生しました</value>
+  </data>
+  <data name="App_HotkeyFailedTitle" xml:space="preserve">
+    <value>ホットキーを登録できませんでした</value>
+  </data>
+  <data name="App_HotkeyFailedBody" xml:space="preserve">
+    <value>他のアプリと競合しているため、次のショートカットは無効です: {0}</value>
+  </data>
+  <data name="App_ListSeparator" xml:space="preserve">
+    <value>、</value>
+  </data>
+</root>

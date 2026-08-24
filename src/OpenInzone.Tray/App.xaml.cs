@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using System.IO;
 using System.Windows;
 using OpenInzone.Control;
+using OpenInzone.Tray.Resources;
 
 namespace OpenInzone.Tray;
 
@@ -28,6 +30,14 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Before the tray icon, whose menu is built in its constructor, and before the flyout.
+        // Anything constructed above this line keeps the culture it was built under; no later
+        // assignment moves text that already exists.
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(
+            UiLanguage.Resolve(ConfiguredLanguage(), AppContext.BaseDirectory));
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+        System.Globalization.CultureInfo.CurrentUICulture = culture;
+
         // The tray icon comes first because it owns the balloon, which is the only way anything
         // below can reach the user: nothing here has a window yet, and there is no console.
         _tray = new TrayIcon();
@@ -44,7 +54,7 @@ public partial class App : System.Windows.Application
         // reach the same daemon, which is what keeps two processes from talking over each other.
         _headset = new IpcDeviceSurface();
         _headset.Unavailable += (_, message) => Dispatcher.BeginInvoke(() =>
-            _tray?.ShowBalloon("ヘッドセットに接続できません", message));
+            _tray?.ShowBalloon(Strings.App_CannotConnectTitle, message));
 
         _headset.StateChanged += (_, state) => Dispatcher.BeginInvoke(() => _tray.Update(state));
         _tray.ExitRequested += (_, _) => Shutdown();
@@ -79,6 +89,26 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
+    /// The language out of hotkeys.json, or null if it cannot be had. Deliberately a second, cheap
+    /// read of the file that LoadConfig reads properly further down: the culture has to be settled
+    /// before the tray icon is built, and LoadConfig cannot run that early because it reports its
+    /// failures through a balloon the tray does not own yet. A malformed file is silent here and
+    /// loud there, which is the right way round.
+    /// </summary>
+    private static string? ConfiguredLanguage()
+    {
+        try
+        {
+            string path = HotkeyConfig.DefaultPath;
+            return File.Exists(path) ? HotkeyConfig.FromJson(File.ReadAllText(path)).Language : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// A hand-edited or half-written configuration must not cost the user their tray icon: the
     /// defaults stand in and the balloon says which file to go and fix.
     /// </summary>
@@ -90,8 +120,8 @@ public partial class App : System.Windows.Application
         }
         catch (Exception ex)
         {
-            _tray?.ShowBalloon("設定ファイルを読み込めませんでした",
-                $"既定のホットキーで起動しました。{HotkeyConfig.DefaultPath} を修正してください: {ex.Message}");
+            _tray?.ShowBalloon(Strings.App_ConfigUnreadableTitle,
+                string.Format(Strings.App_ConfigUnreadableBody, HotkeyConfig.DefaultPath, ex.Message));
             return HotkeyConfig.Default();
         }
     }
@@ -110,8 +140,8 @@ public partial class App : System.Windows.Application
 
             // Discarded: this async method has nothing further to do once the balloon is queued, so
             // there is nothing to await the dispatcher operation for.
-            _ = Dispatcher.BeginInvoke(() => _tray?.ShowBalloon("アップデートがあります",
-                $"バージョン {update.Version} が利用可能です。設定から更新できます。"));
+            _ = Dispatcher.BeginInvoke(() => _tray?.ShowBalloon(Strings.App_UpdateAvailableTitle,
+                string.Format(Strings.App_UpdateAvailableBody, update.Version)));
         }
         catch (Exception)
         {
@@ -128,7 +158,7 @@ public partial class App : System.Windows.Application
         System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         e.Handled = true;
-        _tray?.ShowBalloon("エラーが発生しました", e.Exception.Message);
+        _tray?.ShowBalloon(Strings.App_ErrorTitle, e.Exception.Message);
     }
 
     /// <summary>
@@ -141,8 +171,8 @@ public partial class App : System.Windows.Application
         if (rejected.Count == 0) return;
 
         var names = rejected.Select(id => HotkeyCommand.ById(id)?.DisplayName ?? id);
-        _tray?.ShowBalloon("ホットキーを登録できませんでした",
-            $"他のアプリと競合しているため、次のショートカットは無効です: {string.Join("、", names)}");
+        _tray?.ShowBalloon(Strings.App_HotkeyFailedTitle,
+            string.Format(Strings.App_HotkeyFailedBody, string.Join(Strings.App_ListSeparator, names)));
     }
 
     protected override void OnExit(ExitEventArgs e)

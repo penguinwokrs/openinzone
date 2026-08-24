@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Flyout_NotConnected" xml:space="preserve">
+    <value>Not connected</value>
+  </data>
+  <data name="Flyout_Volume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Flyout_MicMute" xml:space="preserve">
+    <value>Microphone mute</value>
+  </data>
+  <data name="Flyout_Game" xml:space="preserve">
+    <value>Game</value>
+  </data>
+  <data name="Flyout_Chat" xml:space="preserve">
+    <value>Chat</value>
+  </data>
+  <data name="Tray_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Tray_Help" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="Tray_TooltipVolume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Tray_TooltipBattery" xml:space="preserve">
+    <value>Battery</value>
+  </data>
+  <data name="Tray_NotConnected" xml:space="preserve">
+    <value>OpenInzone - Not connected</value>
+  </data>
+  <data name="App_CannotConnectTitle" xml:space="preserve">
+    <value>Cannot reach the headset</value>
+  </data>
+  <data name="App_ConfigUnreadableTitle" xml:space="preserve">
+    <value>The configuration could not be read</value>
+  </data>
+  <data name="App_ConfigUnreadableBody" xml:space="preserve">
+    <value>Started with the default hotkeys. Correct {0}: {1}</value>
+  </data>
+  <data name="App_UpdateAvailableTitle" xml:space="preserve">
+    <value>An update is available</value>
+  </data>
+  <data name="App_UpdateAvailableBody" xml:space="preserve">
+    <value>Version {0} is available. You can install it from Settings.</value>
+  </data>
+  <data name="App_ErrorTitle" xml:space="preserve">
+    <value>Something went wrong</value>
+  </data>
+  <data name="App_HotkeyFailedTitle" xml:space="preserve">
+    <value>The hotkeys could not be registered</value>
+  </data>
+  <data name="App_HotkeyFailedBody" xml:space="preserve">
+    <value>Another application is already using these, so they are inactive: {0}</value>
+  </data>
+  <data name="App_ListSeparator" xml:space="preserve">
+    <value>, </value>
+  </data>
+</root>

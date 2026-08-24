@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
 using OpenInzone.Tray.Native;
+using OpenInzone.Tray.Resources;
 
 namespace OpenInzone.Tray;
 
@@ -30,6 +31,17 @@ public partial class FlyoutWindow : Window
     {
         InitializeComponent();
         _headset = headset;
+
+        // Set from code rather than with {x:Static} in the XAML: a markup extension referencing a
+        // type generated into this same assembly by the resx's StronglyTyped* build step forces
+        // WPF's local-type-reference compilation path, whose temporary-assembly pass runs before
+        // resource generation and so never sees the generated Strings class - the build fails
+        // every time with the class reported missing. Plain code-behind has no such ordering
+        // problem: CoreCompile always runs after the resx has been turned into Strings.g.cs.
+        VolumeIcon.ToolTip = Strings.Flyout_Volume;
+        MicMuteButton.ToolTip = Strings.Flyout_MicMute;
+        GameIcon.ToolTip = Strings.Flyout_Game;
+        ChatIcon.ToolTip = Strings.Flyout_Chat;
 
         _writeTimer.Tick += (_, _) => Flush();
 
@@ -75,7 +87,7 @@ public partial class FlyoutWindow : Window
         _updating = true;
         try
         {
-            ModelText.Text = state.Connected ? state.Model : "未接続";
+            ModelText.Text = state.Connected ? state.Model : Strings.Flyout_NotConnected;
 
             VolumeRow.IsEnabled = state.Connected;
             VolumeSlider.Value = state.Volume;

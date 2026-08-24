@@ -119,17 +119,23 @@ public class SnapshotTextTests
 
     /// <summary>
     /// The tooltip is set on a NotifyIcon, which throws above 63 characters. The tray truncates,
-    /// but a model name plus two readings should not be reaching that in the first place.
+    /// but a model name plus two readings should not be reaching that in the first place. Checked
+    /// in all three languages, not just Japanese: the tray's own tooltip words come from resources
+    /// now, and "Volume"/"Battery" in English are longer than 音量/バッテリー, so English rather
+    /// than Japanese may be the worst case.
     /// </summary>
-    [Fact]
-    public void The_tooltip_fits_in_what_a_tray_icon_accepts()
+    [Theory]
+    [InlineData("en", "Volume", "Battery")]
+    [InlineData("ja", "音量", "バッテリー")]
+    [InlineData("zh-Hans", "音量", "电量")]
+    public void The_tooltip_fits_in_what_a_tray_icon_accepts(string culture, string volumeWord, string batteryWord)
     {
-        InCulture("ja", () =>
+        InCulture(culture, () =>
         {
-            string tooltip = $"{Live.Model}\n音量 {SnapshotText.VolumeWithMute(Live)}\n" +
-                             $"バッテリー {SnapshotText.Battery(Live)}";
+            string tooltip = $"{Live.Model}\n{volumeWord} {SnapshotText.VolumeWithMute(Live)}\n" +
+                             $"{batteryWord} {SnapshotText.Battery(Live)}";
 
-            Assert.True(tooltip.Length <= 63, $"{tooltip.Length} characters: {tooltip}");
+            Assert.True(tooltip.Length <= 63, $"{culture}: {tooltip.Length} characters: {tooltip}");
         });
     }
 
