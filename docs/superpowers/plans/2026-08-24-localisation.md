@@ -4,7 +4,7 @@
 
 **Goal:** Add English and Simplified Chinese to the tray application and its installer, picking the language once at install time and letting the user change it afterwards.
 
-**Architecture:** Two RESX resource sets — one in `OpenInzone.Control` for text the tests reach, one in `OpenInzone.Tray` for window text — compiled to satellite assemblies. A three-step resolver (`hotkeys.json` → installer marker file → English) decides the culture, and `App.OnStartup` applies it before any window exists. The installer localises separately through Inno Setup's own `[Languages]` mechanism.
+**Architecture:** Two RESX resource sets — one in `OpenInzone.Control` for text the tests reach, one in a small `OpenInzone.Resources` assembly for window text — compiled to satellite assemblies. A three-step resolver (`hotkeys.json` → installer marker file → English) decides the culture, and `App.OnStartup` applies it before the tray icon and flyout are constructed. The installer localises separately through Inno Setup's own `[Languages]` mechanism.
 
 **Tech Stack:** .NET 8, WPF, xUnit, RESX with SDK-generated sources, Inno Setup 6.
 
@@ -17,6 +17,10 @@
 - Every `x:Name` in `SettingsWindow.xaml` must keep its current value. `assets/make-settings-screenshot.ps1` and `tools/ShowSettings` locate elements by name.
 - `LanguageBox`'s `ComboBoxItem` `Tag` values stay `0`, `1`, `2` bound to English, Japanese, Chinese in that order. These are bytes the headset receives.
 - `tests/OpenInzone.Core.Tests` targets `net8.0` and must never reference `OpenInzone.Tray`. It has to keep running on WSL.
+- **XAML cannot reference a resx-generated class in its own assembly** on SDK 8.0.424 — the temporary-assembly compile WPF triggers for local types never runs `PrepareResources`, so `Strings.g.cs` does not exist for it and the build fails with CS0234. Window text therefore lives in `OpenInzone.Resources` and is referenced across the assembly boundary: `xmlns:res="clr-namespace:OpenInzone.Resources;assembly=OpenInzone.Resources"`. Verified in both directions.
+- Do **not** use `GenerateSource="true"` on an `EmbeddedResource`. That attribute does not exist in SDK 8.0.424 and generates nothing without complaining. The working form is the in-box `StronglyTypedClassName` / `StronglyTypedNamespace` / `StronglyTypedFileName` / `StronglyTypedLanguage` / `PublicClass` set — copy it from `src/OpenInzone.Control/OpenInzone.Control.csproj`.
+- `TheoryData<T>` cannot be built with a collection expression on xunit 2.5.3 (CS0029). Use `new TheoryData<T>()` and `.Add(...)`.
+- `grep` here is **ugrep**, not GNU grep: `-c` with `-o` counts matches, not lines. Searching for Japanese needs `\p{Han}` as well as the kana ranges — `未接続` and `音量` are kanji only.
 - Build with `export PATH="$HOME/.dotnet:$PATH"` — the SDK is not on the default path.
 - No test file may be deleted. Tests that pin Japanese get rewritten, not removed.
 - Commit messages: no `Co-Authored-By` line.
@@ -965,15 +969,182 @@ git commit -m "Give the tray, the flyout and the balloons their words in three l
 
 ---
 
-### Task 5: The settings window's markup
+### Task 5: Move the tray's resources into their own assembly
+
+**Files:**
+- Create: `src/OpenInzone.Resources/OpenInzone.Resources.csproj`
+- Move: `src/OpenInzone.Tray/Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx` → `src/OpenInzone.Resources/`
+- Modify: `src/OpenInzone.Tray/OpenInzone.Tray.csproj`, `App.xaml.cs`, `TrayIcon.cs`, `FlyoutWindow.xaml`, `FlyoutWindow.xaml.cs`, `OpenInzone.sln`
+- Modify: `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`
+
+**Interfaces:**
+- Consumes: the resource files and keys created in Task 4 — unchanged in content.
+- Produces: `OpenInzone.Resources.Strings`, the same public static class with the same 20 keys, in a new assembly. The namespace changes from `OpenInzone.Tray.Resources` to `OpenInzone.Resources`. Tasks 6, 7 and 8 reference it from XAML as `xmlns:res="clr-namespace:OpenInzone.Resources;assembly=OpenInzone.Resources"`.
+
+**Why this task exists.** Task 4 discovered that WPF cannot resolve a same-assembly resx-generated class from XAML on SDK 8.0.424. A `clr-namespace:` reference with no `assembly=` sets `_RequireMCPass2ForMainAssembly`, and the `_CompileTemporaryAssembly` target it triggers depends on `BuildOnlySettings;ResolveKeySource;ResolveProjectReferences;CoreCompile` — it never runs `PrepareResources`, so `Strings.g.cs` does not exist for that temporary compile and every file importing the resource namespace fails with CS0234. Task 4 worked around it by assigning five flyout values from code-behind.
+
+That workaround does not scale to the settings window, which has around forty labels in markup, and it would break `VoiceGuidanceLanguageTests`, which pins the voice-guidance labels to the bytes they select by reading those labels **out of the markup**. Both need `{x:Static}`.
+
+The controller verified the fix: the same `{x:Static}` against a resource class in a **different** assembly builds clean, 0 warnings. So the resources move to an assembly of their own.
+
+`OpenInzone.Control` keeps its own resources where they are. Nothing in XAML references them — hotkey names reach the window by data binding — so they have no reason to move.
+
+- [ ] **Step 1: Create the project**
+
+Create `src/OpenInzone.Resources/OpenInzone.Resources.csproj`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenInzone.Resources</RootNamespace>
+    <AssemblyName>OpenInzone.Resources</AssemblyName>
+    <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
+    <Product>OpenInzone</Product>
+    <!-- English is the neutral culture: a language with no satellite assembly gets English, which
+         is the whole point. Japanese here would make every unsupported language fall back to
+         Japanese instead. -->
+    <NeutralResourcesLanguage>en</NeutralResourcesLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same in-box MSBuild generator as OpenInzone.Control uses, for the same reason: it runs on
+         a plain `dotnet build`, so the WSL-published release gets the class too. -->
+    <EmbeddedResource Update="Strings.resx"
+                      StronglyTypedClassName="Strings"
+                      StronglyTypedNamespace="OpenInzone.Resources"
+                      StronglyTypedFileName="$(IntermediateOutputPath)Strings.g.cs"
+                      StronglyTypedLanguage="CSharp"
+                      PublicClass="true"
+                      Generator="" />
+  </ItemGroup>
+</Project>
+```
+
+**`net8.0`, not `net8.0-windows`.** This assembly holds strings and nothing else. Keeping it platform-neutral means the test project can reference it directly if a later test needs to, without dragging the suite onto Windows.
+
+- [ ] **Step 2: Move the three resx files**
+
+```bash
+git mv src/OpenInzone.Tray/Resources/Strings.resx src/OpenInzone.Resources/Strings.resx
+git mv src/OpenInzone.Tray/Resources/Strings.ja.resx src/OpenInzone.Resources/Strings.ja.resx
+git mv src/OpenInzone.Tray/Resources/Strings.zh-Hans.resx src/OpenInzone.Resources/Strings.zh-Hans.resx
+rmdir src/OpenInzone.Tray/Resources
+```
+
+**Their contents do not change.** Not one key, not one translated value. If a value differs after this task, that is a mistake. Remove the now-dead `<EmbeddedResource Update="Resources\Strings.resx" ...>` block and the `<NeutralResourcesLanguage>` line from `src/OpenInzone.Tray/OpenInzone.Tray.csproj`, and add:
+
+```xml
+    <ProjectReference Include="..\OpenInzone.Resources\OpenInzone.Resources.csproj" />
+```
+
+to the existing `ItemGroup` that already holds the `OpenInzone.Control` and `OpenInzone.Ipc` references.
+
+- [ ] **Step 3: Add the project to the solution**
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet sln OpenInzone.sln add src/OpenInzone.Resources/OpenInzone.Resources.csproj
+```
+
+- [ ] **Step 4: Point the three code files at the new namespace**
+
+In `src/OpenInzone.Tray/App.xaml.cs`, `TrayIcon.cs` and `FlyoutWindow.xaml.cs`, change
+
+```csharp
+using OpenInzone.Tray.Resources;
+```
+
+to
+
+```csharp
+using OpenInzone.Resources;
+```
+
+Nothing else in those files changes: the `Strings.Xxx` call sites keep the same key names.
+
+- [ ] **Step 5: Put the flyout's five values back in markup**
+
+This is the point of the task — undo Task 4's workaround now that markup can see the resources.
+
+In `src/OpenInzone.Tray/FlyoutWindow.xaml`, add to the root `<Window>` element:
+
+```xml
+        xmlns:res="clr-namespace:OpenInzone.Resources;assembly=OpenInzone.Resources"
+```
+
+and set the five values in markup again:
+
+```xml
+      <TextBlock x:Name="ModelText" Text="{x:Static res:Strings.Flyout_NotConnected}" FontSize="13" Margin="0,0,0,12" Opacity="0.7" />
+```
+
+```xml
+              Width="28" Height="28" Stretch="Uniform" ToolTip="{x:Static res:Strings.Flyout_Volume}" />
+```
+
+```xml
+        <Button x:Name="MicMuteButton" Style="{StaticResource IconButton}" ToolTip="{x:Static res:Strings.Flyout_MicMute}">
+```
+
+```xml
+              Width="28" Height="28" Stretch="Uniform" ToolTip="{x:Static res:Strings.Flyout_Game}" />
+```
+
+```xml
+              Width="28" Height="28" Stretch="Uniform" ToolTip="{x:Static res:Strings.Flyout_Chat}" />
+```
+
+Then remove the corresponding code-behind assignments Task 4 added to `FlyoutWindow.xaml.cs`, **including the `x:Name`s it added purely to reach those elements** (`VolumeIcon`, `GameIcon`, `ChatIcon`) if nothing else uses them. Leave `ModelText`'s runtime assignment alone — `ModelText.Text` is reassigned as the device connects and disconnects, so it needs both the markup default and the code-behind update.
+
+- [ ] **Step 6: Update the completeness test's directory list**
+
+In `tests/OpenInzone.Core.Tests/Control/ResourceCompletenessTests.cs`, the tray path is now wrong:
+
+```csharp
+        data.Add(Path.Combine("src", "OpenInzone.Control", "Resources"));
+        data.Add(Path.Combine("src", "OpenInzone.Resources"));
+```
+
+- [ ] **Step 7: Build and test**
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet build src/OpenInzone.Tray -c Release
+dotnet test
+```
+
+Expected: build succeeds with 0 warnings — **this is the load-bearing check for the whole task**, because it is the `{x:Static}` in Step 5 that Task 4 could not get to compile. All tests pass, same count as before this task; nothing here should change a test's outcome.
+
+- [ ] **Step 8: Confirm the satellites still ship**
+
+```bash
+dotnet publish src/OpenInzone.Tray -c Release -r win-x64 --self-contained true -o /tmp/openinzone-pub
+ls /tmp/openinzone-pub/ja /tmp/openinzone-pub/zh-Hans
+```
+
+Expected: each directory holds `OpenInzone.Control.resources.dll` **and** `OpenInzone.Resources.resources.dll`. The second one is new, and its absence would mean the tray ships with English only while looking correct in every other way.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src tests OpenInzone.sln
+git commit -m "Move the window's words where the markup compiler can see them"
+```
+
+---
+
+### Task 6: The settings window's markup
 
 **Files:**
 - Modify: `src/OpenInzone.Tray/SettingsWindow.xaml`
-- Modify: `src/OpenInzone.Tray/Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
+- Modify: `src/OpenInzone.Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
 - Test: `tests/OpenInzone.Core.Tests/Control/VoiceGuidanceLanguageTests.cs`
 
 **Interfaces:**
-- Consumes: `OpenInzone.Tray.Resources.Strings` (Task 4).
+- Consumes: `OpenInzone.Resources.Strings` (Task 4).
 - Produces: no new API. `LanguageBox`, `DevicePanel` and every other `x:Name` keep their current names.
 
 - [ ] **Step 1: Add the markup keys to all three resource files**
@@ -1023,7 +1194,7 @@ The voice-guidance label changes from the bare `言語` to `音声ガイダン�
 In `src/OpenInzone.Tray/SettingsWindow.xaml`, add to the root `<Window>` element:
 
 ```xml
-        xmlns:res="clr-namespace:OpenInzone.Tray.Resources"
+        xmlns:res="clr-namespace:OpenInzone.Resources;assembly=OpenInzone.Resources"
 ```
 
 Then replace each literal with the matching `{x:Static res:Strings.KEY}`. Line by line, using the current line numbers:
@@ -1133,7 +1304,7 @@ Add one more fact, because the keys are now the thing that can silently drift:
     [Fact]
     public void Every_key_the_window_names_actually_exists_in_the_resources()
     {
-        string resx = Path.Combine(Repository(), "src", "OpenInzone.Tray", "Resources", "Strings.resx");
+        string resx = Path.Combine(Repository(), "src", "OpenInzone.Resources", "Strings.resx");
         var defined = XDocument.Load(resx).Root!.Elements("data")
             .Select(d => (string)d.Attribute("name")!).ToHashSet();
 
@@ -1167,14 +1338,14 @@ git commit -m "Read the settings window's labels from resources"
 
 ---
 
-### Task 6: The settings window's code-behind
+### Task 7: The settings window's code-behind
 
 **Files:**
 - Modify: `src/OpenInzone.Tray/SettingsWindow.xaml.cs`
-- Modify: `src/OpenInzone.Tray/Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
+- Modify: `src/OpenInzone.Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
 
 **Interfaces:**
-- Consumes: `OpenInzone.Tray.Resources.Strings` (Task 4).
+- Consumes: `OpenInzone.Resources.Strings` (Task 4).
 - Produces: no new API.
 
 - [ ] **Step 1: Add the code-behind keys to all three resource files**
@@ -1214,7 +1385,7 @@ git commit -m "Read the settings window's labels from resources"
 
 - [ ] **Step 2: Replace the literals**
 
-Add `using OpenInzone.Tray.Resources;` and change each site:
+Add `using OpenInzone.Resources;` and change each site:
 
 ```csharp
     public string Display =>
@@ -1344,11 +1515,11 @@ git commit -m "Read the settings window's messages from resources"
 
 ---
 
-### Task 7: The language combo and the restart
+### Task 8: The language combo and the restart
 
 **Files:**
 - Modify: `src/OpenInzone.Tray/SettingsWindow.xaml`, `src/OpenInzone.Tray/SettingsWindow.xaml.cs`
-- Modify: `src/OpenInzone.Tray/Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
+- Modify: `src/OpenInzone.Resources/Strings.resx`, `Strings.ja.resx`, `Strings.zh-Hans.resx`
 
 **Interfaces:**
 - Consumes: `HotkeyConfig.Language` (Task 1), `UiLanguage.Supported` (Task 1).
@@ -1467,7 +1638,7 @@ git commit -m "Let someone change the display language, and offer the restart it
 
 ---
 
-### Task 8: The installer
+### Task 9: The installer
 
 **Files:**
 - Create: `installer/lang/ChineseSimplified.isl`
