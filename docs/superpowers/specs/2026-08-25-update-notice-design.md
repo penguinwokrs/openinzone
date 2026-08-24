@@ -27,18 +27,29 @@ Nothing here is a bug in the sense of something going wrong. It is a notice that
 ## How the click gets back
 
 `NotifyIcon` raises one `BalloonTipClicked` for the icon, and it does not say which balloon was
-clicked — there is only ever one at a time. So the balloon carries what clicking it means:
+clicked — there is only ever one at a time. So the balloon carries what clicking it means, kept in
+a private method both public callers funnel into:
 
 ```csharp
-ShowBalloon(string title, string text, ToolTipIcon icon, Action? onClick = null)
+void ShowBalloon(string title, string text)
+void ShowNotice(string title, string text, Action onClick)
+private void Show(string title, string text, ToolTipIcon icon, Action? onClick)
 ```
+
+`ShowBalloon` is the existing plain path, with no action. `ShowNotice` is the new one, for a
+balloon that has somewhere to go. `ToolTipIcon` — a `System.Windows.Forms` type this project does
+not let outside `TrayIcon` — stays confined to `Show`.
 
 The action is kept when the balloon is raised and replaced when the next one is raised. It is
 **not** cleared when the balloon closes: a notification sitting in the notification centre is still
-clickable an hour later, and that click should still work.
+clickable an hour later, and that click should still work — right up until some other balloon is
+raised.
 
-Every existing caller passes no action, so the balloons that report a failure carry on doing what
-they do now, which is nothing. Only the update notice has somewhere to go.
+That is a real limit, not something worth coding around: `NotifyIcon` has one balloon and one click
+event, so it cannot remember more than one pending action. Every existing caller goes through
+`ShowBalloon`, which passes none, so raising any balloon after the notice — a failed hotkey
+registration, say — replaces the stored action with null and silently disarms the notice, even
+while it is still sitting in the notification centre looking clickable.
 
 `ShowBalloon` also gains the disposed guard `Update` already has. A notice raised thirty seconds
 after startup can now arrive after the icon has been torn down.

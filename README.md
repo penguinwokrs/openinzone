@@ -222,7 +222,9 @@ change re-registers the hotkeys immediately — there is nothing to restart.
 
 **全般** has two checkboxes and, below them, a 表示言語 (display language) box. Windows の起動時に
 常駐する starts the tray with Windows. 起動時に更新を確認する asks GitHub once per login whether a
-newer release exists, and says nothing unless there is one; it is off until you tick it. 表示言語
+newer release exists, waiting about thirty seconds first so it is not competing with the login. It
+says nothing unless there is one, and the notification it raises can be clicked straight into the
+アップデート tab below with the button already saying install; it is off until you tick it. 表示言語
 switches the tray between English, 日本語 and 简体中文, each named in its own script; changing it
 offers to restart the tray immediately, or you can leave it for next launch.
 
