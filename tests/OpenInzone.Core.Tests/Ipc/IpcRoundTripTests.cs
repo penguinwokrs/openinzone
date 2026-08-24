@@ -175,9 +175,9 @@ public class IpcRoundTripTests
         client.Start();
         await Within(connected);
 
-        server.PublishError("ヘッドセットに接続されていません。");
+        server.PublishError("The headset is not connected.");
 
-        Assert.Equal("ヘッドセットに接続されていません。", await Within(complaint));
+        Assert.Equal("The headset is not connected.", await Within(complaint));
     }
 
     [Fact]

@@ -26,8 +26,14 @@ public class SnapshotTextTests
     [Fact]
     public void The_tooltip_calls_out_a_muted_headset()
     {
-        Assert.Equal("16/30", SnapshotText.VolumeWithMute(Live));
-        Assert.Equal("16/30（ミュート）", SnapshotText.VolumeWithMute(Live with { VolumeMuted = true }));
+        InCulture("ja", () =>
+        {
+            Assert.Equal("16/30", SnapshotText.VolumeWithMute(Live));
+            Assert.Equal("16/30（ミュート）", SnapshotText.VolumeWithMute(Live with { VolumeMuted = true }));
+        });
+
+        InCulture("en", () =>
+            Assert.Equal("16/30 (muted)", SnapshotText.VolumeWithMute(Live with { VolumeMuted = true })));
     }
 
     /// <summary>
@@ -38,29 +44,54 @@ public class SnapshotTextTests
     [Fact]
     public void The_balance_names_the_side_it_leans_to()
     {
-        Assert.Equal("ゲーム寄り 1.0", SnapshotText.Balance(Live));
-        Assert.Equal("中央", SnapshotText.Balance(Live with { Balance = 50 }));
-        Assert.Equal("チャット寄り 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
+        InCulture("ja", () =>
+        {
+            Assert.Equal("ゲーム寄り 1.0", SnapshotText.Balance(Live));
+            Assert.Equal("中央", SnapshotText.Balance(Live with { Balance = 50 }));
+            Assert.Equal("チャット寄り 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
+        });
+
+        InCulture("en", () =>
+        {
+            Assert.Equal("Game 1.0", SnapshotText.Balance(Live));
+            Assert.Equal("Centre", SnapshotText.Balance(Live with { Balance = 50 }));
+            Assert.Equal("Chat 2.0", SnapshotText.Balance(Live with { Balance = 70 }));
+        });
     }
 
     [Fact]
     public void A_model_with_no_microphone_level_says_so_rather_than_showing_nought()
     {
-        Assert.Equal("75%", SnapshotText.MicLevel(Live));
-        Assert.Equal("利用不可", SnapshotText.MicLevel(Live with { MicLevelAvailable = false }));
+        InCulture("ja", () =>
+        {
+            Assert.Equal("75%", SnapshotText.MicLevel(Live));
+            Assert.Equal("利用不可", SnapshotText.MicLevel(Live with { MicLevelAvailable = false }));
+        });
+
+        InCulture("en", () =>
+            Assert.Equal("Unavailable", SnapshotText.MicLevel(Live with { MicLevelAvailable = false })));
     }
 
     [Fact]
     public void Both_earbuds_and_the_case_are_shown_the_right_way_round()
     {
-        Assert.Equal("L 97%   R 94%   ケース 62%", SnapshotText.Battery(Live));
+        InCulture("ja", () =>
+            Assert.Equal("L 97%   R 94%   ケース 62%", SnapshotText.Battery(Live)));
+
+        InCulture("en", () =>
+            Assert.Equal("L 97%   R 94%   Case 62%", SnapshotText.Battery(Live)));
     }
 
     [Fact]
     public void An_earbud_in_the_case_reads_as_dashes_rather_than_as_flat()
     {
-        Assert.Equal("L 97%   R --   ケース 62%",
-            SnapshotText.Battery(Live with { Battery = new BatterySnapshot(97, null, 62, true) }));
+        InCulture("ja", () =>
+            Assert.Equal("L 97%   R --   ケース 62%",
+                SnapshotText.Battery(Live with { Battery = new BatterySnapshot(97, null, 62, true) })));
+
+        InCulture("en", () =>
+            Assert.Equal("L 97%   R --   Case 62%",
+                SnapshotText.Battery(Live with { Battery = new BatterySnapshot(97, null, 62, true) })));
     }
 
     [Fact]
@@ -93,9 +124,32 @@ public class SnapshotTextTests
     [Fact]
     public void The_tooltip_fits_in_what_a_tray_icon_accepts()
     {
-        string tooltip = $"{Live.Model}\n音量 {SnapshotText.VolumeWithMute(Live)}\n" +
-                         $"バッテリー {SnapshotText.Battery(Live)}";
+        InCulture("ja", () =>
+        {
+            string tooltip = $"{Live.Model}\n音量 {SnapshotText.VolumeWithMute(Live)}\n" +
+                             $"バッテリー {SnapshotText.Battery(Live)}";
 
-        Assert.True(tooltip.Length <= 63, $"{tooltip.Length} characters: {tooltip}");
+            Assert.True(tooltip.Length <= 63, $"{tooltip.Length} characters: {tooltip}");
+        });
+    }
+
+    /// <summary>
+    /// Runs a block with the UI culture pinned. The strings under test now come from resources, so
+    /// without this the assertions would depend on whatever culture the test host happened to be
+    /// in - which on a build agent is not Japanese.
+    /// </summary>
+    private static void InCulture(string tag, Action body)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentUICulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentUICulture =
+                System.Globalization.CultureInfo.GetCultureInfo(tag);
+            body();
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentUICulture = previous;
+        }
     }
 }
