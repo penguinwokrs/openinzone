@@ -1,7 +1,7 @@
 # Voice focus is only offered while ambient sound is on — design
 
 Date: 2026-08-25
-Status: awaiting review
+Status: approved
 
 ## Goal
 
