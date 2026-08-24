@@ -43,12 +43,27 @@ PrivilegesRequired=lowest
 SetupMutex=OpenInzone.Setup
 
 [Languages]
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+; English first on purpose: Inno falls back to the first entry when the operating system's
+; language matches none of them, and "anything we do not have becomes English" is the rule this
+; installer is meant to follow. With Japanese first, a French machine got a Japanese wizard.
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "chinesesimplified"; MessagesFile: "lang\ChineseSimplified.isl"
+
+[CustomMessages]
+english.AutostartTask=Run when Windows starts
+english.DesktopIconTask=Create a desktop shortcut
+english.AdditionalTasks=Additional tasks:
+japanese.AutostartTask=Windows の起動時に常駐する
+japanese.DesktopIconTask=デスクトップにショートカットを作成する
+japanese.AdditionalTasks=追加のタスク:
+chinesesimplified.AutostartTask=开机时随 Windows 启动
+chinesesimplified.DesktopIconTask=创建桌面快捷方式
+chinesesimplified.AdditionalTasks=附加任务：
 
 [Tasks]
-Name: "autostart"; Description: "Windows の起動時に常駐する"; GroupDescription: "追加のタスク:"
-Name: "desktopicon"; Description: "デスクトップにショートカットを作成する"; GroupDescription: "追加のタスク:"; Flags: unchecked
+Name: "autostart"; Description: "{cm:AutostartTask}"; GroupDescription: "{cm:AdditionalTasks}"
+Name: "desktopicon"; Description: "{cm:DesktopIconTask}"; GroupDescription: "{cm:AdditionalTasks}"; Flags: unchecked
 
 [Files]
 ; Published self-contained, so there is no runtime to install: everything it needs is here.
@@ -193,6 +208,19 @@ end;
   uninstaller for the install now in progress. This is safe only because the payload is
   self-contained: the app directory holds nothing but what we put there, so once it is recognisable
   as a previous OpenInzone install, we own everything in it. }
+{ What the wizard settled on, in the tags UiLanguage.Resolve understands. The application never
+  asks Windows what language it is in - it reads this - so an installation is the only thing that
+  ever decides, and the zip, which has no such file, stays English. }
+function LanguageTag(): String;
+begin
+  if CompareText(ActiveLanguage(), 'japanese') = 0 then
+    Result := 'ja'
+  else if CompareText(ActiveLanguage(), 'chinesesimplified') = 0 then
+    Result := 'zh-Hans'
+  else
+    Result := 'en';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   AppDir: String;
@@ -203,6 +231,8 @@ begin
     if DirExists(AppDir) and DirLooksLikePreviousInstall(AppDir) then
       ClearOldInstall(AppDir);
   end;
+  if CurStep = ssPostInstall then
+    SaveStringToFile(ExpandConstant('{app}\default-language'), LanguageTag(), False);
 end;
 
 { Uninstall is when the tray is most likely to be running: autostart is a checked task and setup
