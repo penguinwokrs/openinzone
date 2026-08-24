@@ -214,7 +214,14 @@ public partial class App : System.Windows.Application
             _ = Dispatcher.BeginInvoke(() => _tray?.ShowNotice(
                 Strings.App_UpdateAvailableTitle,
                 string.Format(Strings.App_UpdateAvailableBody, update.Version),
-                () => OpenSettings()?.ShowUpdate(update)));
+                // BalloonTipClicked already runs on this thread, so Dispatcher.Invoke is not here
+                // for marshalling - it is here because Invoke is what feeds an exception into
+                // DispatcherUnhandledException. Called directly, an exception building the settings
+                // window - which has crashed and reached a release before - would unwind through
+                // WinForms' own message loop instead, past that handler entirely, and end the
+                // process with no icon and no balloon. SettingsRequested below goes through the
+                // same Invoke for the same reason.
+                () => Dispatcher.Invoke(() => OpenSettings()?.ShowUpdate(update))));
         }
         catch (Exception)
         {
