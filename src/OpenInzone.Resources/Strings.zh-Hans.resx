@@ -103,6 +103,18 @@
   <data name="Settings_CheckUpdatesHint" xml:space="preserve">
     <value>查看 GitHub 上的发布。失败时不作任何提示。</value>
   </data>
+  <data name="Settings_UiLanguage" xml:space="preserve">
+    <value>显示语言</value>
+  </data>
+  <data name="Settings_UiLanguageHint" xml:space="preserve">
+    <value>重启托盘程序后生效。</value>
+  </data>
+  <data name="Settings_RestartTitle" xml:space="preserve">
+    <value>要重启 OpenInzone 吗？</value>
+  </data>
+  <data name="Settings_RestartPrompt" xml:space="preserve">
+    <value>显示语言将在托盘程序重启后更改。现在重启吗？</value>
+  </data>
   <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
     <value>更改即时生效，无需保存。</value>
   </data>

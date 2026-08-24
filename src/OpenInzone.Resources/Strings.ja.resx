@@ -103,6 +103,18 @@
   <data name="Settings_CheckUpdatesHint" xml:space="preserve">
     <value>GitHub のリリースを見に行きます。失敗しても何も表示しません。</value>
   </data>
+  <data name="Settings_UiLanguage" xml:space="preserve">
+    <value>表示言語</value>
+  </data>
+  <data name="Settings_UiLanguageHint" xml:space="preserve">
+    <value>トレイを再起動すると反映されます。</value>
+  </data>
+  <data name="Settings_RestartTitle" xml:space="preserve">
+    <value>OpenInzone を再起動しますか？</value>
+  </data>
+  <data name="Settings_RestartPrompt" xml:space="preserve">
+    <value>表示言語はトレイを再起動すると変わります。今すぐ再起動しますか？</value>
+  </data>
   <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
     <value>変更はその場で反映されます。保存する操作はありません。</value>
   </data>

@@ -149,6 +149,12 @@ public partial class SettingsWindow : Window
         CheckUpdatesBox.Checked += OnCheckUpdatesChanged;
         CheckUpdatesBox.Unchecked += OnCheckUpdatesChanged;
 
+        // The resolved language, not the configured one: with nothing configured the combo should
+        // show what the window is actually in, which is whatever the installer chose.
+        string current = UiLanguage.Resolve(_config.Language, AppContext.BaseDirectory);
+        UiLanguageBox.SelectedItem = UiLanguageBox.Items.OfType<System.Windows.Controls.ComboBoxItem>()
+            .FirstOrDefault(item => (string?)item.Tag == current);
+
         VersionText.Text = string.Format(Strings.Settings_CurrentVersion, UpdateChecker.CurrentVersion);
 
         _settingWrites.Tick += (_, _) => FlushSettingWrites();
@@ -208,6 +214,32 @@ public partial class SettingsWindow : Window
         _config.CheckForUpdatesAtStartup = CheckUpdatesBox.IsChecked == true;
         SaveConfig();
     }
+
+    /// <summary>
+    /// Saves the choice and offers a restart. The window's text comes from {x:Static}, which is
+    /// resolved once when the window is built, so nothing already on screen changes language - and
+    /// a window half in the old language is worse than one that plainly asks to restart.
+    /// </summary>
+    private void OnUiLanguageChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;  // Fires once while the window is being built; that is not a choice.
+        if (UiLanguageBox.SelectedItem is not System.Windows.Controls.ComboBoxItem item) return;
+
+        string chosen = (string)item.Tag;
+        if (chosen == UiLanguage.Resolve(_config.Language, AppContext.BaseDirectory)) return;
+
+        _config.Language = chosen;
+        SaveConfig();   // the window's existing save path; the same one CheckUpdatesBox uses
+
+        var answer = System.Windows.MessageBox.Show(this,
+            Strings.Settings_RestartPrompt, Strings.Settings_RestartTitle,
+            System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+
+        if (answer == System.Windows.MessageBoxResult.Yes) RestartRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Raised when the user accepts a restart. The application owns process lifetime.</summary>
+    public event EventHandler? RestartRequested;
 
     private void SaveConfig()
     {

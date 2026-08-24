@@ -84,6 +84,33 @@ public partial class App : System.Windows.Application
             // nothing to do when it closes, because everything it was asked to do is already done.
             _settings = new SettingsWindow(_config, _hotkeys, _headset);
             _settings.Rejected += (_, rejected) => SurfaceRejected(rejected);
+            _settings.RestartRequested += (_, _) =>
+            {
+                // Environment.ProcessPath is the executable as launched, which is what has to come
+                // back.
+                string? executable = Environment.ProcessPath;
+                if (executable is null) return;
+
+                // The single-instance mutex and the registered hotkeys are OS-level resources: the
+                // mutex's named kernel object survives until this process's handle to it is
+                // closed, and RegisterHotKey refuses a combination another window still holds,
+                // this process's own message-only window included. Process.Start only waits for
+                // the new process to exist, not for it to run any code, so starting it before
+                // releasing these would race the new instance's own startup check - and losing
+                // that race means the new copy sees itself as the second instance and exits
+                // immediately, leaving no tray at all. Releasing them here first makes that
+                // deterministic instead of a timing bet.
+                _hotkeys?.Dispose();
+                _hotkeys = null;
+                _instance?.Dispose();
+                _instance = null;
+
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(executable)
+                {
+                    UseShellExecute = true,
+                });
+                Shutdown();
+            };
             _settings.Show();
         });
     }

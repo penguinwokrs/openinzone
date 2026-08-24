@@ -103,6 +103,18 @@
   <data name="Settings_CheckUpdatesHint" xml:space="preserve">
     <value>Looks at the GitHub releases. Says nothing if it cannot.</value>
   </data>
+  <data name="Settings_UiLanguage" xml:space="preserve">
+    <value>Display language</value>
+  </data>
+  <data name="Settings_UiLanguageHint" xml:space="preserve">
+    <value>Applies when the tray restarts.</value>
+  </data>
+  <data name="Settings_RestartTitle" xml:space="preserve">
+    <value>Restart OpenInzone?</value>
+  </data>
+  <data name="Settings_RestartPrompt" xml:space="preserve">
+    <value>The display language changes when the tray restarts. Restart it now?</value>
+  </data>
   <data name="Settings_AppliedImmediatelyHint" xml:space="preserve">
     <value>Changes take effect as you make them. There is nothing to save.</value>
   </data>
