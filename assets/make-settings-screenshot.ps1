@@ -30,13 +30,24 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
 $repo = Split-Path -Parent $PSScriptRoot
 
-# Built rather than assumed present, so this does not silently pick up a stale copy from an
-# unrelated earlier build. `dotnet build` also lays the ja\ and zh-Hans\ satellite directories down
-# beside the dll, which is what makes the Japanese strings reachable at all.
+# This checks for the resource assembly rather than building it. Building it from here was tried
+# and does not work: the .NET SDK lives on the WSL side of this machine and not the Windows side,
+# so `dotnet build` fails - and it failed *silently*, leaving whatever dll happened to be lying
+# around to be loaded as though the build had succeeded, which is the opposite of what building it
+# here was meant to guarantee.
+#
+# Build it first, from wherever you build this project:
+#     dotnet build src/OpenInzone.Resources -c Release
+#
+# That also lays the ja\ and zh-Hans\ satellite directories down beside the dll, which is what
+# makes the Japanese strings reachable at all. The timestamp is printed because a stale dll is the
+# one failure this cannot detect for you.
 $resourcesProject = Join-Path $repo 'src\OpenInzone.Resources'
 $resourcesDll = Join-Path $resourcesProject 'bin\Release\net8.0\OpenInzone.Resources.dll'
-dotnet build $resourcesProject -c Release | Out-Null
-if (-not (Test-Path $resourcesDll)) { throw "build did not produce $resourcesDll" }
+if (-not (Test-Path $resourcesDll)) {
+  throw "$resourcesDll is missing. Build it first: dotnet build src/OpenInzone.Resources -c Release"
+}
+Write-Host "using $resourcesDll (built $((Get-Item $resourcesDll).LastWriteTime))"
 Add-Type -Path $resourcesDll
 
 # {x:Static} resolves at parse time, not render time, so this has to be set before Parse is called
@@ -94,6 +105,11 @@ $rows = @(
 # By tag rather than by position, as the window itself does: the list is in byte order, and
 # 0x01 is Japanese.
 (Find 'LanguageBox').SelectedItem = (Find 'LanguageBox').Items | Where-Object { $_.Tag -eq '1' }
+
+# The display language, which is a different thing from the voice guidance language above: this one
+# says what the window itself is in. The window's constructor is what normally selects it, and the
+# constructor never runs here, so without this the general tab is photographed with an empty combo.
+(Find 'UiLanguageBox').SelectedItem = (Find 'UiLanguageBox').Items | Where-Object { $_.Tag -eq 'ja' }
 
 # A Window has no visual tree until it is shown, so its content is taken out and rendered on a
 # surface of the window's own colour instead.
