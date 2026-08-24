@@ -213,7 +213,21 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         => Mutate(state => state.Apply(e.EventId, e.Param));
 
     /// <summary>Connects if needed and re-reads everything. Used on startup and when the flyout opens.</summary>
-    public void Refresh() => Post(_ => ReadEverything());
+    /// <remarks>
+    /// The reading is published even when it has not moved. Publishing only on a change is what
+    /// keeps the heartbeat from republishing the same state every few seconds and making every
+    /// client redraw for it - but this is not the heartbeat, which reads without coming through
+    /// here. This is a client that asked, and the answer to a question is owed whatever it says.
+    ///
+    /// Pressing a battery key on a deck was the case that showed it: the press asks for a re-read,
+    /// and a charge that had not moved since the last one produced no answer at all, so the key sat
+    /// there looking exactly as it does when nothing is working.
+    /// </remarks>
+    public void Refresh() => Post(_ =>
+    {
+        ReadEverything();
+        Announce(State);
+    });
 
     private void ReadEverything()
     {
