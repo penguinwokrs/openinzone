@@ -116,7 +116,7 @@ public class SettingsMarkupTests
     /// Clicking the notice that an update is available opens this window on the update tab, which
     /// the code does by name. Losing the name alone would not get past a build - <c>ShowUpdate</c>
     /// refers to <c>UpdateTab</c> directly, so the field the name generates has to still exist. What
-    /// this catches is someone removing the name and the line that uses it together: a build that
+    /// this catches is someone removing the name and every line that uses it together: a build that
     /// still succeeds, with the notice landing on whatever tab happens to be first instead.
     /// </summary>
     [Fact]
