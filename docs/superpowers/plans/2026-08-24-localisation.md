@@ -1743,7 +1743,7 @@ Expected: `dist/OpenInzone-<version>-setup.exe` is produced. If `ISCC.exe` repor
 ls dist/tray/ja dist/tray/zh-Hans
 ```
 
-Expected: each holds `OpenInzone.Control.resources.dll` and `inzonetray.resources.dll`. If these directories are missing, the resx culture suffixes are wrong and every install would silently run in English.
+Expected: each holds `OpenInzone.Control.resources.dll` and `OpenInzone.Resources.resources.dll`. There is deliberately no `inzonetray.resources.dll` — the tray assembly's own strings moved out in Task 5, which is what let the markup reference them. If a directory or either file is missing, the resx culture suffixes are wrong and every install would silently run in English.
 
 - [ ] **Step 8: Commit**
 
