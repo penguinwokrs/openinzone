@@ -178,4 +178,88 @@
   <data name="Settings_OpenReleasePage" xml:space="preserve">
     <value>Open the releases page</value>
   </data>
+  <data name="Settings_HotkeyCapturing" xml:space="preserve">
+    <value>Press a key combination</value>
+  </data>
+  <data name="Settings_HotkeyConflict" xml:space="preserve">
+    <value>{0} (in use by another application)</value>
+  </data>
+  <data name="Settings_HotkeyDuplicate" xml:space="preserve">
+    <value>{0} (duplicate)</value>
+  </data>
+  <data name="Settings_HotkeyUnassigned" xml:space="preserve">
+    <value>Unassigned</value>
+  </data>
+  <data name="Settings_CurrentVersion" xml:space="preserve">
+    <value>Current version: {0}</value>
+  </data>
+  <data name="Settings_SaveFailed" xml:space="preserve">
+    <value>The settings could not be saved: {0}</value>
+  </data>
+  <data name="Settings_PluginChecking" xml:space="preserve">
+    <value>Checking the release…</value>
+  </data>
+  <data name="Settings_PluginNotFound" xml:space="preserve">
+    <value>The latest release has no Stream Deck plugin in it. Open the releases page to check.</value>
+  </data>
+  <data name="Settings_PluginSaveTitle" xml:space="preserve">
+    <value>Where to save the Stream Deck plugin</value>
+  </data>
+  <data name="Settings_PluginFilter" xml:space="preserve">
+    <value>Stream Deck plugin (*{0})|*{0}</value>
+  </data>
+  <data name="Settings_PluginDownloading" xml:space="preserve">
+    <value>Downloading… {0}%</value>
+  </data>
+  <data name="Settings_PluginSaved" xml:space="preserve">
+    <value>Saved: {0}</value>
+  </data>
+  <data name="Settings_PluginDownloadFailed" xml:space="preserve">
+    <value>The download failed: {0}</value>
+  </data>
+  <data name="Settings_PluginOpenFailed" xml:space="preserve">
+    <value>It could not be opened: {0}</value>
+  </data>
+  <data name="Settings_UpdateChecking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="Settings_UpdateButtonInstall" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Settings_UpdateAvailable" xml:space="preserve">
+    <value>Version {0} is available.</value>
+  </data>
+  <data name="Settings_UpdateNoInstaller" xml:space="preserve">
+    <value>A newer version is published, but no installer can be found in it.</value>
+  </data>
+  <data name="Settings_UpdateUnreadable" xml:space="preserve">
+    <value>GitHub's answer could not be read.</value>
+  </data>
+  <data name="Settings_UpdateUpToDate" xml:space="preserve">
+    <value>This is the latest version.</value>
+  </data>
+  <data name="Settings_UpdateCheckFailed" xml:space="preserve">
+    <value>The check failed: {0}</value>
+  </data>
+  <data name="Settings_UpdateDownloading" xml:space="preserve">
+    <value>Downloading… {0}%</value>
+  </data>
+  <data name="Settings_UpdateVerifyFailed" xml:space="preserve">
+    <value>The downloaded file failed verification. It was not run.</value>
+  </data>
+  <data name="Settings_UpdateNoDigest" xml:space="preserve">
+    <value>The downloaded installer cannot be verified (no SHA-256 was published). Run it anyway?</value>
+  </data>
+  <data name="Settings_UpdateCancelled" xml:space="preserve">
+    <value>The update was cancelled.</value>
+  </data>
+  <data name="Settings_UpdateFailed" xml:space="preserve">
+    <value>The update failed: {0}</value>
+  </data>
+  <data name="Settings_DeviceApplied" xml:space="preserve">
+    <value>Changes take effect as you make them.</value>
+  </data>
+  <data name="Settings_DeviceUnresponsive" xml:space="preserve">
+    <value>The headset is not answering.</value>
+  </data>
 </root>

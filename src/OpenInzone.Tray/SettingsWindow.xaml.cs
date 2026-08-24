@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using OpenInzone.Control;
 using OpenInzone.Ipc;
+using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
 
@@ -61,10 +62,10 @@ public sealed class HotkeyRow(HotkeyCommand command, string combo) : INotifyProp
     }
 
     public string Display =>
-        Capturing ? "キーを押してください"
-        : Conflict ? $"{Combo}（他のアプリが使用中）"
-        : Duplicate ? $"{Combo}（重複）"
-        : Combo.Length == 0 ? "未割り当て"
+        Capturing ? Strings.Settings_HotkeyCapturing
+        : Conflict ? string.Format(Strings.Settings_HotkeyConflict, Combo)
+        : Duplicate ? string.Format(Strings.Settings_HotkeyDuplicate, Combo)
+        : Combo.Length == 0 ? Strings.Settings_HotkeyUnassigned
         : Combo;
 
     public System.Windows.Media.Brush Brush =>
@@ -103,7 +104,8 @@ public partial class SettingsWindow : Window
     private readonly Dictionary<string, Action> _pendingSettingWrites = [];
 
     // NoUpdate until an on-demand check finds one; that transition is what turns the button from
-    // "確認" into "更新" and tells a second click to install rather than check again.
+    // Settings_CheckNow into Settings_UpdateButtonInstall and tells a second click to install
+    // rather than check again.
     private UpdateInfo _pendingUpdate = UpdateInfo.NoUpdate;
     private bool _updateBusy;
 
@@ -147,7 +149,7 @@ public partial class SettingsWindow : Window
         CheckUpdatesBox.Checked += OnCheckUpdatesChanged;
         CheckUpdatesBox.Unchecked += OnCheckUpdatesChanged;
 
-        VersionText.Text = $"現在のバージョン: {UpdateChecker.CurrentVersion}";
+        VersionText.Text = string.Format(Strings.Settings_CurrentVersion, UpdateChecker.CurrentVersion);
 
         _settingWrites.Tick += (_, _) => FlushSettingWrites();
         _headset.SettingsReceived += OnSettingsReceived;
@@ -215,7 +217,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(this, $"設定を保存できませんでした: {ex.Message}",
+            System.Windows.MessageBox.Show(this, string.Format(Strings.Settings_SaveFailed, ex.Message),
                 "OpenInzone", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -356,7 +358,7 @@ public partial class SettingsWindow : Window
         PluginDownloadButton.IsEnabled = false;
         PluginOpenButton.Visibility = Visibility.Collapsed;
         _downloadedPlugin = null;
-        PluginStatusText.Text = "リリースを確認しています…";
+        PluginStatusText.Text = Strings.Settings_PluginChecking;
 
         try
         {
@@ -366,7 +368,7 @@ public partial class SettingsWindow : Window
                 // A release with no plugin attached is not an error to hide: the page is still
                 // worth offering, and it is the only place an answer could come from.
                 PluginStatusText.Text =
-                    "最新のリリースに Stream Deck プラグインが見つかりませんでした。リリースページを開いて確認してください。";
+                    Strings.Settings_PluginNotFound;
                 return;
             }
 
@@ -374,11 +376,11 @@ public partial class SettingsWindow : Window
             // the file that is about to arrive rather than a guess at it.
             var save = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Stream Deck プラグインの保存先",
+                Title = Strings.Settings_PluginSaveTitle,
                 FileName = suggestedName,
                 DefaultExt = PluginAsset.Extension,
                 AddExtension = true,
-                Filter = $"Stream Deck プラグイン (*{PluginAsset.Extension})|*{PluginAsset.Extension}",
+                Filter = string.Format(Strings.Settings_PluginFilter, PluginAsset.Extension),
                 InitialDirectory = PluginFolder,
                 OverwritePrompt = true,
             };
@@ -394,16 +396,17 @@ public partial class SettingsWindow : Window
             _config.PluginSaveFolder = Path.GetDirectoryName(save.FileName);
             SaveConfig();
 
-            var progress = new Progress<int>(percent => PluginStatusText.Text = $"ダウンロード中… {percent}%");
+            var progress = new Progress<int>(percent =>
+                PluginStatusText.Text = string.Format(Strings.Settings_PluginDownloading, percent));
             string path = await PluginDownloader.SaveAsync(asset, save.FileName, progress);
 
             _downloadedPlugin = path;
-            PluginStatusText.Text = $"保存しました: {path}";
+            PluginStatusText.Text = string.Format(Strings.Settings_PluginSaved, path);
             PluginOpenButton.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
-            PluginStatusText.Text = $"ダウンロードに失敗しました: {ex.Message}";
+            PluginStatusText.Text = string.Format(Strings.Settings_PluginDownloadFailed, ex.Message);
         }
         finally
         {
@@ -427,7 +430,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            PluginStatusText.Text = $"開けませんでした: {ex.Message}";
+            PluginStatusText.Text = string.Format(Strings.Settings_PluginOpenFailed, ex.Message);
         }
     }
 
@@ -435,10 +438,10 @@ public partial class SettingsWindow : Window
         ProjectLinks.Open(ProjectLinks.LatestRelease);
 
     /// <summary>
-    /// Doubles as "check now" and "install now": the button becomes 更新 the moment a check finds
-    /// something, and a second click on that button installs it rather than checking again. This is
-    /// how someone checks on demand when the startup setting is off, so it works whether or not
-    /// that checkbox above it is ticked.
+    /// Doubles as "check now" and "install now": the button becomes Settings_UpdateButtonInstall the
+    /// moment a check finds something, and a second click on that button installs it rather than
+    /// checking again. This is how someone checks on demand when the startup setting is off, so it
+    /// works whether or not that checkbox above it is ticked.
     /// </summary>
     private async void OnUpdateClick(object sender, RoutedEventArgs e)
     {
@@ -452,15 +455,15 @@ public partial class SettingsWindow : Window
     {
         _updateBusy = true;
         UpdateButton.IsEnabled = false;
-        UpdateStatusText.Text = "確認しています…";
+        UpdateStatusText.Text = Strings.Settings_UpdateChecking;
         try
         {
             var update = await UpdateChecker.CheckAsync();
             if (update.Available)
             {
                 _pendingUpdate = update;
-                UpdateButton.Content = "更新";
-                UpdateStatusText.Text = $"バージョン {update.Version} が利用可能です。";
+                UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
+                UpdateStatusText.Text = string.Format(Strings.Settings_UpdateAvailable, update.Version);
             }
             else
             {
@@ -470,17 +473,17 @@ public partial class SettingsWindow : Window
                 UpdateStatusText.Text = update.Reason switch
                 {
                     UpdateUnavailableReason.NoInstaller =>
-                        "新しいバージョンが公開されていますが、インストーラーが見つかりません。",
+                        Strings.Settings_UpdateNoInstaller,
                     UpdateUnavailableReason.Unreadable =>
-                        "GitHub の応答を読み取れませんでした。",
-                    _ => "最新バージョンです。",
+                        Strings.Settings_UpdateUnreadable,
+                    _ => Strings.Settings_UpdateUpToDate,
                 };
             }
         }
         catch (Exception ex)
         {
             // Unlike the silent startup check, someone who pressed this button is owed a reason.
-            UpdateStatusText.Text = $"確認に失敗しました: {ex.Message}";
+            UpdateStatusText.Text = string.Format(Strings.Settings_UpdateCheckFailed, ex.Message);
         }
         finally
         {
@@ -497,7 +500,8 @@ public partial class SettingsWindow : Window
 
         // Progress is created on the UI thread, so it captures the WPF dispatcher and the callback
         // below can touch UpdateButton directly without a manual Dispatcher.Invoke.
-        var progress = new Progress<int>(percent => UpdateButton.Content = $"ダウンロード中… {percent}%");
+        var progress = new Progress<int>(percent =>
+            UpdateButton.Content = string.Format(Strings.Settings_UpdateDownloading, percent));
 
         // Before the attempt, not from its return value: a download that throws halfway still
         // leaves a fragment, and this is the only thing that knows where it is.
@@ -520,7 +524,7 @@ public partial class SettingsWindow : Window
             {
                 // This downloads an executable and runs it - a digest that does not match is a
                 // reason to stop, not a reason to ask.
-                UpdateStatusText.Text = "ダウンロードしたファイルの検証に失敗しました。実行を中止しました。";
+                UpdateStatusText.Text = Strings.Settings_UpdateVerifyFailed;
                 Abandon(path, ref locked);
                 return;
             }
@@ -532,11 +536,11 @@ public partial class SettingsWindow : Window
                 // Mark-of-the-Web, so SmartScreen will not weigh in as a second opinion the way it
                 // would on a browser download. The digest and this prompt are the only two.
                 var choice = System.Windows.MessageBox.Show(this,
-                    "ダウンロードしたインストーラーの正当性を確認できません（SHA-256 が提供されていません）。実行しますか？",
+                    Strings.Settings_UpdateNoDigest,
                     "OpenInzone", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
                 if (choice != MessageBoxResult.Yes)
                 {
-                    UpdateStatusText.Text = "更新を中止しました。";
+                    UpdateStatusText.Text = Strings.Settings_UpdateCancelled;
                     Abandon(path, ref locked);
                     return;
                 }
@@ -553,7 +557,7 @@ public partial class SettingsWindow : Window
         {
             // Verification and Process.Start throw as readily as the download does, and a failure
             // that left the button disabled with no message was indistinguishable from a hang.
-            UpdateStatusText.Text = $"更新に失敗しました: {ex.Message}";
+            UpdateStatusText.Text = string.Format(Strings.Settings_UpdateFailed, ex.Message);
 
             // Only Shutdown can throw once launched is true - the handle is already closed and the
             // installer is already the one running that file, so there is nothing left to abandon.
@@ -575,7 +579,7 @@ public partial class SettingsWindow : Window
 
     private void FinishBusyWithUpdateStillAvailable()
     {
-        UpdateButton.Content = "更新";
+        UpdateButton.Content = Strings.Settings_UpdateButtonInstall;
         UpdateButton.IsEnabled = true;
         _updateBusy = false;
     }
@@ -612,8 +616,8 @@ public partial class SettingsWindow : Window
             bool anything = settings != DeviceSettings.None;
             DevicePanel.IsEnabled = anything;
             DeviceStatusText.Text = anything
-                ? "変更はその場で反映されます。"
-                : "ヘッドセットが応答していません。";
+                ? Strings.Settings_DeviceApplied
+                : Strings.Settings_DeviceUnresponsive;
 
             Show(AmbientGroup, settings.AmbientMode is not null);
             switch (settings.AmbientMode)

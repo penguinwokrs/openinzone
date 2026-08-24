@@ -178,4 +178,88 @@
   <data name="Settings_OpenReleasePage" xml:space="preserve">
     <value>リリースページを開く</value>
   </data>
+  <data name="Settings_HotkeyCapturing" xml:space="preserve">
+    <value>キーを押してください</value>
+  </data>
+  <data name="Settings_HotkeyConflict" xml:space="preserve">
+    <value>{0}（他のアプリが使用中）</value>
+  </data>
+  <data name="Settings_HotkeyDuplicate" xml:space="preserve">
+    <value>{0}（重複）</value>
+  </data>
+  <data name="Settings_HotkeyUnassigned" xml:space="preserve">
+    <value>未割り当て</value>
+  </data>
+  <data name="Settings_CurrentVersion" xml:space="preserve">
+    <value>現在のバージョン: {0}</value>
+  </data>
+  <data name="Settings_SaveFailed" xml:space="preserve">
+    <value>設定を保存できませんでした: {0}</value>
+  </data>
+  <data name="Settings_PluginChecking" xml:space="preserve">
+    <value>リリースを確認しています…</value>
+  </data>
+  <data name="Settings_PluginNotFound" xml:space="preserve">
+    <value>最新のリリースに Stream Deck プラグインが見つかりませんでした。リリースページを開いて確認してください。</value>
+  </data>
+  <data name="Settings_PluginSaveTitle" xml:space="preserve">
+    <value>Stream Deck プラグインの保存先</value>
+  </data>
+  <data name="Settings_PluginFilter" xml:space="preserve">
+    <value>Stream Deck プラグイン (*{0})|*{0}</value>
+  </data>
+  <data name="Settings_PluginDownloading" xml:space="preserve">
+    <value>ダウンロード中… {0}%</value>
+  </data>
+  <data name="Settings_PluginSaved" xml:space="preserve">
+    <value>保存しました: {0}</value>
+  </data>
+  <data name="Settings_PluginDownloadFailed" xml:space="preserve">
+    <value>ダウンロードに失敗しました: {0}</value>
+  </data>
+  <data name="Settings_PluginOpenFailed" xml:space="preserve">
+    <value>開けませんでした: {0}</value>
+  </data>
+  <data name="Settings_UpdateChecking" xml:space="preserve">
+    <value>確認しています…</value>
+  </data>
+  <data name="Settings_UpdateButtonInstall" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Settings_UpdateAvailable" xml:space="preserve">
+    <value>バージョン {0} が利用可能です。</value>
+  </data>
+  <data name="Settings_UpdateNoInstaller" xml:space="preserve">
+    <value>新しいバージョンが公開されていますが、インストーラーが見つかりません。</value>
+  </data>
+  <data name="Settings_UpdateUnreadable" xml:space="preserve">
+    <value>GitHub の応答を読み取れませんでした。</value>
+  </data>
+  <data name="Settings_UpdateUpToDate" xml:space="preserve">
+    <value>最新バージョンです。</value>
+  </data>
+  <data name="Settings_UpdateCheckFailed" xml:space="preserve">
+    <value>確認に失敗しました: {0}</value>
+  </data>
+  <data name="Settings_UpdateDownloading" xml:space="preserve">
+    <value>ダウンロード中… {0}%</value>
+  </data>
+  <data name="Settings_UpdateVerifyFailed" xml:space="preserve">
+    <value>ダウンロードしたファイルの検証に失敗しました。実行を中止しました。</value>
+  </data>
+  <data name="Settings_UpdateNoDigest" xml:space="preserve">
+    <value>ダウンロードしたインストーラーの正当性を確認できません（SHA-256 が提供されていません）。実行しますか？</value>
+  </data>
+  <data name="Settings_UpdateCancelled" xml:space="preserve">
+    <value>更新を中止しました。</value>
+  </data>
+  <data name="Settings_UpdateFailed" xml:space="preserve">
+    <value>更新に失敗しました: {0}</value>
+  </data>
+  <data name="Settings_DeviceApplied" xml:space="preserve">
+    <value>変更はその場で反映されます。</value>
+  </data>
+  <data name="Settings_DeviceUnresponsive" xml:space="preserve">
+    <value>ヘッドセットが応答していません。</value>
+  </data>
 </root>

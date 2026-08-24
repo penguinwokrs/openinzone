@@ -178,4 +178,88 @@
   <data name="Settings_OpenReleasePage" xml:space="preserve">
     <value>打开发布页面</value>
   </data>
+  <data name="Settings_HotkeyCapturing" xml:space="preserve">
+    <value>请按下组合键</value>
+  </data>
+  <data name="Settings_HotkeyConflict" xml:space="preserve">
+    <value>{0}（其他应用正在使用）</value>
+  </data>
+  <data name="Settings_HotkeyDuplicate" xml:space="preserve">
+    <value>{0}（重复）</value>
+  </data>
+  <data name="Settings_HotkeyUnassigned" xml:space="preserve">
+    <value>未分配</value>
+  </data>
+  <data name="Settings_CurrentVersion" xml:space="preserve">
+    <value>当前版本：{0}</value>
+  </data>
+  <data name="Settings_SaveFailed" xml:space="preserve">
+    <value>无法保存设置：{0}</value>
+  </data>
+  <data name="Settings_PluginChecking" xml:space="preserve">
+    <value>正在检查发布…</value>
+  </data>
+  <data name="Settings_PluginNotFound" xml:space="preserve">
+    <value>最新发布中未找到 Stream Deck 插件。请打开发布页面查看。</value>
+  </data>
+  <data name="Settings_PluginSaveTitle" xml:space="preserve">
+    <value>Stream Deck 插件的保存位置</value>
+  </data>
+  <data name="Settings_PluginFilter" xml:space="preserve">
+    <value>Stream Deck 插件 (*{0})|*{0}</value>
+  </data>
+  <data name="Settings_PluginDownloading" xml:space="preserve">
+    <value>正在下载… {0}%</value>
+  </data>
+  <data name="Settings_PluginSaved" xml:space="preserve">
+    <value>已保存：{0}</value>
+  </data>
+  <data name="Settings_PluginDownloadFailed" xml:space="preserve">
+    <value>下载失败：{0}</value>
+  </data>
+  <data name="Settings_PluginOpenFailed" xml:space="preserve">
+    <value>无法打开：{0}</value>
+  </data>
+  <data name="Settings_UpdateChecking" xml:space="preserve">
+    <value>正在检查…</value>
+  </data>
+  <data name="Settings_UpdateButtonInstall" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Settings_UpdateAvailable" xml:space="preserve">
+    <value>版本 {0} 可用。</value>
+  </data>
+  <data name="Settings_UpdateNoInstaller" xml:space="preserve">
+    <value>已发布新版本，但其中找不到安装程序。</value>
+  </data>
+  <data name="Settings_UpdateUnreadable" xml:space="preserve">
+    <value>无法读取 GitHub 的响应。</value>
+  </data>
+  <data name="Settings_UpdateUpToDate" xml:space="preserve">
+    <value>已是最新版本。</value>
+  </data>
+  <data name="Settings_UpdateCheckFailed" xml:space="preserve">
+    <value>检查失败：{0}</value>
+  </data>
+  <data name="Settings_UpdateDownloading" xml:space="preserve">
+    <value>正在下载… {0}%</value>
+  </data>
+  <data name="Settings_UpdateVerifyFailed" xml:space="preserve">
+    <value>下载的文件校验失败，已中止运行。</value>
+  </data>
+  <data name="Settings_UpdateNoDigest" xml:space="preserve">
+    <value>无法验证下载的安装程序（未提供 SHA-256）。仍要运行吗？</value>
+  </data>
+  <data name="Settings_UpdateCancelled" xml:space="preserve">
+    <value>已取消更新。</value>
+  </data>
+  <data name="Settings_UpdateFailed" xml:space="preserve">
+    <value>更新失败：{0}</value>
+  </data>
+  <data name="Settings_DeviceApplied" xml:space="preserve">
+    <value>更改即时生效。</value>
+  </data>
+  <data name="Settings_DeviceUnresponsive" xml:space="preserve">
+    <value>耳机没有响应。</value>
+  </data>
 </root>
