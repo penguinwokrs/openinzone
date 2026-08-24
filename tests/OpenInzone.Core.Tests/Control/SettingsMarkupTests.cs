@@ -93,4 +93,20 @@ public class SettingsMarkupTests
 
         Assert.All(SettingCatalogue.All, setting => Assert.Contains(setting.Id, named));
     }
+
+    /// <summary>
+    /// The ambient level and voice focus are only worth offering while ambient sound is the chosen
+    /// mode, and the window decides that by comparing the reported mode against
+    /// <see cref="SettingCatalogue.AmbientSoundMode"/>. The number it compares against has to be
+    /// the one this radio writes when someone picks it - the markup's Tag - or the window greys out
+    /// the wrong things while every test still passes.
+    /// </summary>
+    [Fact]
+    public void The_ambient_radio_writes_the_mode_the_catalogue_names()
+    {
+        var radio = DevicePanel().Descendants(Presentation + "RadioButton")
+            .Single(element => (string?)element.Attribute(Xaml + "Name") == "AmbientButton");
+
+        Assert.Equal(SettingCatalogue.AmbientSoundMode, int.Parse((string)radio.Attribute("Tag")!));
+    }
 }

@@ -22,6 +22,13 @@ public static class SettingCatalogue
     /// <summary>Auto power off answers 0x0F rather than 0x01, and is written back the same way.</summary>
     private const byte AutoPowerOffOn = 0x0F;
 
+    /// <summary>
+    /// The ambient mode that the level and voice focus belong to - off is 0, noise cancelling 1.
+    /// The headset keeps both of those settings in every mode but only acts on them here, so it is
+    /// also the only mode in which they are worth offering.
+    /// </summary>
+    public const int AmbientSoundMode = 2;
+
     public const string Sidetone = "sidetone";
     public const string AmbientMode = "ambient-mode";
     public const string AmbientLevel = "ambient-level";
