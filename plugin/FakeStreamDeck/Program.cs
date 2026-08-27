@@ -25,6 +25,8 @@ namespace OpenInzone.FakeStreamDeck;
 internal static class Program
 {
     private const string Volume = "com.penguinwokrs.openinzone.volume";
+    private const string VolumeUp = "com.penguinwokrs.openinzone.volumeup";
+    private const string VolumeDown = "com.penguinwokrs.openinzone.volumedown";
     private const string MicMute = "com.penguinwokrs.openinzone.micmute";
     private const string Battery = "com.penguinwokrs.openinzone.battery";
 
@@ -170,7 +172,57 @@ internal static class Program
         Check("a press on a key that never appeared is ignored",
             Find(ignored, "setImage", "key-never-appeared") is null);
 
+        await DirectedKeysAsync(deck, start).ConfigureAwait(false);
+
         return start;
+    }
+
+    /// <summary>
+    /// A directed key: a picture until it is pressed, the reading for a moment after, and the
+    /// picture again. The pair is exercised up then down, so the headset is left as it was found.
+    /// </summary>
+    private static async Task DirectedKeysAsync(FakeDeck deck, int start)
+    {
+        await deck.SendAsync(WillAppear(VolumeUp, "key-volumeup", encoder: false)).ConfigureAwait(false);
+        var appeared = await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        // A directed key wears the picture the manifest gives it, so appearing must leave it as
+        // that picture: a setImage carrying no image, or none at all.
+        var drawn = Find(appeared, "setImage", "key-volumeup");
+        Check("a directed key appears as its own picture",
+            drawn is null || !drawn.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        await deck.SendAsync(KeyDown(VolumeUp, "key-volumeup")).ConfigureAwait(false);
+        var pressed = await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        var reading = Find(pressed, "setImage", "key-volumeup");
+        Check("pressing a directed key shows a reading",
+            reading is not null && reading.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        // Three messages land on this context after a press: the reading drawn at once, the
+        // reading redrawn when the tray's snapshot arrives with what the headset settled on,
+        // and the clear that ends the moment 1.5 s later. Waiting the moment out and then
+        // settling collects all of them, and Find answers with the last - which is the clear.
+        await Task.Delay(TimeSpan.FromSeconds(2.5)).ConfigureAwait(false);
+        var settled = await deck.SettleAsync(Patience).ConfigureAwait(false);
+        var cleared = Find(settled, "setImage", "key-volumeup");
+        Check("the reading goes away and the picture comes back",
+            cleared is not null && !cleared.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        Check("a directed key moves the volume by one",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start + 1);
+
+        await deck.SendAsync(WillAppear(VolumeDown, "key-volumedown", encoder: false)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        await deck.SendAsync(KeyDown(VolumeDown, "key-volumedown")).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        Check("the other key of the pair puts it back",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start);
+
+        await deck.SendAsync(WillDisappear(VolumeUp, "key-volumeup")).ConfigureAwait(false);
+        await deck.SendAsync(WillDisappear(VolumeDown, "key-volumedown")).ConfigureAwait(false);
+        await deck.SettleAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
     }
 
     /// <summary>
