@@ -331,27 +331,28 @@ own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md)
 | Action | On a key | On a dial | Shows |
 |---|---|---|---|
 | Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
-| Volume up | Raises it by the step | Turn to adjust, press to raise | `16 / 30` while you press |
-| Volume down | Lowers it by the step | Turn to adjust, press to lower | `16 / 30` while you press |
+| Volume up | Raises it by the step | Turn to adjust, press to raise | `16 / 30` after a press |
+| Volume down | Lowers it by the step | Turn to adjust, press to lower | `16 / 30` after a press |
 | Game / chat balance | Steps | Turn to adjust, press to centre | `GAME 1.0`, `CENTRE`, `CHAT 2.0` |
-| More game | Moves it towards game | Turn to adjust, press to move | `GAME 1.0` while you press |
-| More chat | Moves it towards chat | Turn to adjust, press to move | `CHAT 2.0` while you press |
+| More game | Moves it towards game | Turn to adjust, press to move | `GAME 1.0` after a press |
+| More chat | Moves it towards chat | Turn to adjust, press to move | `CHAT 2.0` after a press |
 | Microphone mute | Toggles | Press to toggle | `MUTED` or `LIVE` |
 | Microphone level | Steps | Turn to adjust, press to mute | `75 %` |
-| Mic level up | Raises it by the step | Turn to adjust, press to raise | `75 %` while you press |
-| Mic level down | Lowers it by the step | Turn to adjust, press to lower | `75 %` while you press |
+| Mic level up | Raises it by the step | Turn to adjust, press to raise | `75 %` after a press |
+| Mic level down | Lowers it by the step | Turn to adjust, press to lower | `75 %` after a press |
 | Battery | Press to re-read | Press to re-read | `L 97` and `R 94` |
 
 Each stepping action has a **Step** setting. Left blank, volume moves by 1 of the headset's 30
 notches, the balance by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level
 by 5 %.
 
-The plain Volume, balance and microphone level keys take their direction from the sign of the
-step, so a negative step makes a key that turns the value down and a pair of them gives you up and
-down. The six directed actions settle that themselves: the arrow is on the key, the panel takes
-the absolute value of what you type and writes it back into the field, and a **Volume down** key
-cannot be configured into turning the volume up. They are pictures rather than readouts — pressing
-one shows the reading for a moment and then the key goes back to its picture.
+The plain Volume, balance and microphone level actions take their direction from the sign of the
+step **on a key**, so a negative step makes a key that turns the value down and a pair of them
+gives you up and down. On a dial, the sign is ignored and the direction comes from the way the
+dial is turned. The six directed actions settle that themselves: the arrow is on the key, the
+panel takes the absolute value of what you type and writes it back into the field, and a **Volume
+down** key cannot be configured into turning the volume up. They are pictures rather than readouts
+— pressing one shows the reading for a moment and then the key goes back to its picture.
 
 A key flashes a warning when the daemon cannot be reached, and every reading shows `--` rather
 than the last value it saw, so a stale number is never left sitting there looking current.
