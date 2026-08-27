@@ -131,6 +131,9 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     /// An input on a key for something the connected model does not have means nothing, exactly as
     /// a dial press that has no shortcut means nothing. Deciding it here rather than in the caller
     /// is what puts it where it can be checked without a deck and without that model.
+    ///
+    /// A directed action settles the direction itself, so only the size of the step is its user's:
+    /// a down key with a step of -3 still goes down, by three.
     /// </remarks>
     /// <param name="capabilities">
     /// What the model has, or null when nothing has said — which offers everything, as this plugin
@@ -142,17 +145,26 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     {
         if (!capabilities.Allows(ActionIds.Feature(actionId))) return null;
 
-        int delta = pressed ? (isEncoder ? 0 : step) : ticks * Math.Abs(step);
+        int direction = ActionIds.Direction(actionId);
+        int size = Math.Abs(step);
 
-        return actionId switch
+        // A directed action's press is its step, on a key and on a dial alike: the direction is the
+        // whole reason the action exists, so there is nothing else the press could mean. A turn
+        // still follows the way it was turned - a dial that only went one way would not be a dial.
+        int delta = direction != 0
+            ? (pressed ? direction * size : ticks * size)
+            : (pressed ? (isEncoder ? 0 : step) : ticks * size);
+
+        return ActionIds.Subject(actionId) switch
         {
             ActionIds.MicMute => pressed ? (IpcCommands.ToggleMicMute, 0) : null,
             ActionIds.Battery => pressed ? (IpcCommands.Refresh, 0) : null,
 
             // A dial press is the obvious shortcut for each: centre the balance, mute the
-            // microphone. Neither has a counterpart on a plain key, which steps instead.
-            ActionIds.Balance when pressed && isEncoder => (IpcCommands.SetBalance, MixCentre),
-            ActionIds.MicLevel when pressed && isEncoder => (IpcCommands.ToggleMicMute, 0),
+            // microphone. Neither has a counterpart on a plain key, which steps instead - and
+            // neither belongs to a directed dial, whose press is already spoken for.
+            ActionIds.Balance when direction == 0 && pressed && isEncoder => (IpcCommands.SetBalance, MixCentre),
+            ActionIds.MicLevel when direction == 0 && pressed && isEncoder => (IpcCommands.ToggleMicMute, 0),
 
             ActionIds.Volume when delta != 0 => (IpcCommands.AdjustVolume, delta),
             ActionIds.Balance when delta != 0 => (IpcCommands.AdjustBalance, delta),
