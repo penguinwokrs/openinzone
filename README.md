@@ -309,11 +309,13 @@ and ticking the checkbox again clears the flag along with writing the value.
 
 ## Stream Deck
 
-There is a plugin for Elgato Stream Deck. A key can do what a hotkey cannot: show the value it
-controls. Battery for each earbud, the balance as a number, whether the microphone is muted — all
-of it on the key, updated the moment anything changes, including when the change came from the
-tray's own panel or from the earbuds themselves. On a Stream Deck +, the same actions sit on the
-dials, which is the right control for a value that slides.
+There is a plugin for Elgato Stream Deck. Five of its eleven actions turn a key into a live
+readout: battery for each earbud, the balance as a number, whether the microphone is muted — all of
+it on the key, updated the moment anything changes, including when the change came from the tray's
+own panel or from the earbuds themselves. The other six are dedicated up/down keys — pictures
+rather than readouts, which answer a press with the reading for a moment and then go back to being
+pictures. On a Stream Deck +, every action sits on a dial too, which is the right control for a
+value that slides.
 
 ![Five OpenInzone keys on a Stream Deck: the microphone showing LIVE, the battery showing 88% and 87% for the two earbuds, the microphone level at 100%, the headphone volume at 18 of 30, and the game/chat balance centred](docs/images/streamdeck.png)
 
