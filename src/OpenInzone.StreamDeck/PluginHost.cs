@@ -33,7 +33,13 @@ internal sealed class PluginHost : IDisposable
     {
         _deck = deck;
         _tray = tray;
-        _flash = new KeyFlash(Moment, Redraw);
+
+        // The flash always asks for the picture to be settled, never merely repainted: when it
+        // calls back to say a press just started showing, the key is still showing (Picture
+        // answers with the stepped face regardless of the flag), and when it calls back to say the
+        // moment has ended, settling is the whole point of the call - it is the one place that
+        // actually needs the clear RedrawAll otherwise withholds.
+        _flash = new KeyFlash(Moment, context => Redraw(context, settleToPicture: true));
     }
 
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
@@ -84,7 +90,13 @@ internal sealed class PluginHost : IDisposable
                     inbound.Action ?? "",
                     inbound.Payload?.Settings ?? new ActionSettings(),
                     string.Equals(inbound.Payload?.Controller, "Encoder", StringComparison.Ordinal));
-                Redraw(context);
+
+                // A key that has just appeared may still be carrying a custom image from before
+                // this process last ran - the plugin's own memory of whether it was mid-flash does
+                // not survive a restart, but Stream Deck's copy of the key's image does. Settling it
+                // onto its picture here is what makes a fresh appearance trustworthy on its own,
+                // rather than merely probably matching what RedrawAll would eventually converge to.
+                Redraw(context, settleToPicture: true);
                 break;
 
             case "willDisappear":
@@ -207,7 +219,18 @@ internal sealed class PluginHost : IDisposable
         foreach (string context in _instances.Keys) Redraw(context);
     }
 
-    private void Redraw(string context)
+    /// <param name="settleToPicture">
+    /// Whether a directed key found at rest should be told to clear back to its picture. RedrawAll
+    /// runs on every tray snapshot, capability update and connection change, and a directed key at
+    /// rest resolves to the same "nothing to draw" answer on every one of them - so sending the
+    /// clear every time would be a wasted round trip, and worse than wasted: Elgato documents a
+    /// setImage with no image as resetting to the manifest's own image, which can discard an icon
+    /// the user chose for this key instance through Stream Deck's own UI. A directed key is
+    /// deliberately "just a picture", which is exactly the case where a user is most likely to want
+    /// their own. The clear is worth sending only on the two occasions that actually change
+    /// something: a key's first appearance, and the instant a flash ends.
+    /// </param>
+    private void Redraw(string context, bool settleToPicture = false)
     {
         if (!_instances.TryGetValue(context, out var instance)) return;
         var state = _state;
@@ -216,23 +239,27 @@ internal sealed class PluginHost : IDisposable
         if (instance.IsEncoder)
         {
             _ = _deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state, capabilities));
+            return;
         }
-        else if (ActionIds.Direction(instance.ActionId) == 0)
-        {
-            _ = _deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state, capabilities));
-        }
-        else if (_flash.IsShowing(context))
-        {
-            _ = _deck.SetImageAsync(context, KeyFace.Stepped(instance.ActionId, state, capabilities));
-        }
-        else
-        {
-            // A directed key is the picture the manifest gives it, and drawing over that is
-            // exactly what the user did not ask for. Clearing rather than never drawing is what
-            // gets it back after a press.
+
+        if (Picture(instance.ActionId, _flash.IsShowing(context), state, capabilities) is string face)
+            _ = _deck.SetImageAsync(context, face);
+        else if (settleToPicture)
             _ = _deck.ClearImageAsync(context);
-        }
     }
+
+    /// <summary>What a key should show, or null for the picture the manifest gives it.</summary>
+    /// <remarks>
+    /// This is the whole of the decision a key's face turns on, lifted out where it can be checked
+    /// without a deck: an undirected key always has something to draw; a directed key draws the
+    /// reading while a press is still being answered for, and otherwise draws nothing at all,
+    /// because it is a picture rather than a readout the rest of the time.
+    /// </remarks>
+    internal static string? Picture(
+        string actionId, bool showing, DeviceSnapshot state, DeviceCapabilities? capabilities) =>
+        ActionIds.Direction(actionId) == 0 ? KeyFace.For(actionId, state, capabilities)
+        : showing                          ? KeyFace.Stepped(actionId, state, capabilities)
+                                           : null;
 
     /// <summary>What a Stream Deck + dial shows: a name, a reading, and a bar for the travel.</summary>
     /// <remarks>

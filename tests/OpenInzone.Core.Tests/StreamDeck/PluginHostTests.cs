@@ -193,3 +193,66 @@ public class ActionIdTests
         Assert.Equal(ActionIds.DefaultStep(ActionIds.MicLevel), ActionIds.DefaultStep(ActionIds.MicLevelDown));
     }
 }
+
+/// <summary>
+/// <see cref="PluginHost.Picture"/> is the whole of what <c>Redraw</c> decides for a key: whether
+/// it has anything to draw at all, and if so, which of the two faces. Nothing else about
+/// <c>PluginHost</c> is reachable without a deck, but this is a pure function of its inputs and
+/// covers the decision that mattered enough to have already gone wrong once - a directed key
+/// falling through to a blank face instead of either its stepped reading or nothing at all.
+/// </summary>
+public class PictureTests
+{
+    private static readonly DeviceSnapshot Live = new(
+        true, "INZONE Buds", 15, 30, false, 40, false, 75, true,
+        new BatterySnapshot(97, 94, 62, true));
+
+    [Fact]
+    public void An_undirected_key_always_has_a_face_to_draw()
+    {
+        Assert.Equal(KeyFace.For(ActionIds.Volume, Live), PluginHost.Picture(ActionIds.Volume, false, Live, null));
+        Assert.Equal(KeyFace.For(ActionIds.Volume, Live), PluginHost.Picture(ActionIds.Volume, true, Live, null));
+    }
+
+    [Fact]
+    public void A_directed_key_at_rest_draws_nothing()
+    {
+        Assert.Null(PluginHost.Picture(ActionIds.VolumeUp, false, Live, null));
+        Assert.Null(PluginHost.Picture(ActionIds.BalanceGame, false, Live, null));
+    }
+
+    /// <summary>
+    /// A key that fell through to the plain face while it was meant to be showing the reading a
+    /// press just produced would look like nothing happened - this is what would have caught that.
+    /// </summary>
+    [Fact]
+    public void A_directed_key_while_showing_draws_the_stepped_face_and_not_the_plain_one()
+    {
+        string? face = PluginHost.Picture(ActionIds.VolumeUp, true, Live, null);
+
+        Assert.Equal(KeyFace.Stepped(ActionIds.VolumeUp, Live), face);
+        Assert.NotEqual(KeyFace.For(ActionIds.VolumeUp, Live), face);
+    }
+
+    [Fact]
+    public void A_directed_key_for_a_setting_the_model_does_not_have_shows_nothing_at_rest_and_a_dash_while_showing()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.MicMute]);
+
+        Assert.Null(PluginHost.Picture(ActionIds.VolumeUp, false, Live, capabilities));
+        Assert.Equal(KeyFace.Stepped(ActionIds.VolumeUp, Live, capabilities),
+            PluginHost.Picture(ActionIds.VolumeUp, true, Live, capabilities));
+    }
+
+    [Fact]
+    public void A_disconnected_headset_still_leaves_a_resting_directed_key_with_nothing_to_draw()
+    {
+        Assert.Equal(KeyFace.For(ActionIds.Volume, DeviceSnapshot.Disconnected),
+            PluginHost.Picture(ActionIds.Volume, false, DeviceSnapshot.Disconnected, null));
+
+        Assert.Null(PluginHost.Picture(ActionIds.VolumeUp, false, DeviceSnapshot.Disconnected, null));
+
+        Assert.Equal(KeyFace.Stepped(ActionIds.VolumeUp, DeviceSnapshot.Disconnected),
+            PluginHost.Picture(ActionIds.VolumeUp, true, DeviceSnapshot.Disconnected, null));
+    }
+}
