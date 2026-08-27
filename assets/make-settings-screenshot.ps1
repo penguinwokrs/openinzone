@@ -44,7 +44,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 # makes the Japanese strings reachable at all. The timestamp is printed because a stale dll is the
 # one failure this cannot detect for you.
 $resourcesProject = Join-Path $repo 'src\OpenInzone.Resources'
-$resourcesDll = Join-Path $resourcesProject 'bin\Release\net8.0\OpenInzone.Resources.dll'
+$resourcesDll = Join-Path $resourcesProject 'bin\Release\net10.0\OpenInzone.Resources.dll'
 if (-not (Test-Path $resourcesDll)) {
   throw "$resourcesDll is missing. Build it first: dotnet build src/OpenInzone.Resources -c Release"
 }
@@ -53,7 +53,7 @@ Add-Type -Path $resourcesDll
 
 # The hotkey names are OpenInzone.Control's, not the window's, and the table below reads them from
 # the catalogue rather than repeating them. Found rather than built, for the same reason.
-$controlDll = Join-Path $repo 'src\OpenInzone.Control\bin\Release\net8.0\OpenInzone.Control.dll'
+$controlDll = Join-Path $repo 'src\OpenInzone.Control\bin\Release\net10.0\OpenInzone.Control.dll'
 if (-not (Test-Path $controlDll)) {
   throw "$controlDll is missing. Build it first: dotnet build src/OpenInzone.Control -c Release"
 }

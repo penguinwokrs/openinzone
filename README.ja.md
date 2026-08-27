@@ -342,7 +342,7 @@ Stream Deck が取り込むかどうかを一度尋ね、**OpenInzone** の下�
 キーに、Stream Deck + ならダイヤルにドラッグしてください。
 
 「プラグインをインストールできませんでした」と出る場合は、ダウンロードが途中で切れています
-（約 6.6 MB）。手で展開せず、もう一度ダウンロードしてください。
+（約 6.9 MB）。手で展開せず、もう一度ダウンロードしてください。
 
 ビルド方法とデッキなしでの動作確認は[開発者向け](#stream-deck-プラグインをビルドする)にあります。
 
@@ -642,12 +642,12 @@ $ inzone battery --json          # 両耳ともケースに入っている場合
 
 ### 必要なもの
 
-- .NET 8 SDK
+- .NET 10 SDK
 - プロトコルのテスト以外を触るなら、ドングルとイヤホン本体
 - 実行には Windows。ビルド自体は Linux や WSL からもできます
 
-`OpenInzone.Core`・`OpenInzone.Control`・CLI のターゲットは `net8.0` で、Windows には P/Invoke と
-COM を通してしか触れません。トレイは `net8.0-windows` の WPF アプリケーションですが、
+`OpenInzone.Core`・`OpenInzone.Control`・CLI のターゲットは `net10.0` で、Windows には P/Invoke と
+COM を通してしか触れません。トレイは `net10.0-windows` の WPF アプリケーションですが、
 `EnableWindowsTargeting` を有効にしてあるので、これも Windows 以外からビルドできます。つまり
 ソリューション全体が SDK の動く環境でコンパイルでき、Windows 専用なのはできあがった `.exe` だけ
 です。
@@ -666,7 +666,7 @@ dotnet publish src\OpenInzone.Daemon -c Release -r win-x64 --self-contained true
 
 `publish\` に `inzone.exe`、`publish\tray\` に `inzonetray.exe` ができます。実行する PC には何も
 インストールしなくて構いません（リリースの配布物と同じものです）。トレイは単一ファイルではなく
-フォルダとして publish されますが、これはインストーラーと zip が配っている形と同じです。.NET 8
+フォルダとして publish されますが、これはインストーラーと zip が配っている形と同じです。.NET 10
 ランタイムが既に入っているなら `--self-contained true` を外すとバイナリはずっと小さくなります。
 
 ```console

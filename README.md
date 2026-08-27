@@ -358,7 +358,7 @@ Stream Deck asks once whether to install it, and the five actions appear under *
 Drag one onto a key, or onto a dial on a Stream Deck +.
 
 If Stream Deck says the plugin is invalid, the file did not download completely — it is around
-6.6 MB. Download it again rather than unpacking it by hand.
+6.9 MB. Download it again rather than unpacking it by hand.
 
 Building the plugin, and driving it without a deck, are in the
 [developer guide](#building-the-stream-deck-plugin).
@@ -660,12 +660,12 @@ to use the released build.
 
 ### What you need
 
-- .NET 8 SDK
+- .NET 10 SDK
 - The dongle and the earbuds, for anything beyond the protocol tests
 - Windows to run it; the build itself also works from Linux or WSL
 
-`OpenInzone.Core`, `OpenInzone.Control` and the CLI target `net8.0` and reach Windows only through
-P/Invoke and COM. The tray is a WPF application on `net8.0-windows`, and `EnableWindowsTargeting`
+`OpenInzone.Core`, `OpenInzone.Control` and the CLI target `net10.0` and reach Windows only through
+P/Invoke and COM. The tray is a WPF application on `net10.0-windows`, and `EnableWindowsTargeting`
 lets even that one build off Windows. So the whole solution compiles anywhere the SDK runs; only
 the resulting `.exe` is Windows-only.
 
@@ -686,7 +686,7 @@ runtime already published there is the one it needs. That leaves `inzone.exe` in
 `inzonetray.exe` beside `inzoned.exe` in `publish\tray\`, needing nothing installed on the
 machine that runs them — the same programs the release downloads contain. The
 tray publishes as a folder rather than a single file, which is the shape both the installer and
-the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 8 runtime is
+the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 10 runtime is
 already present.
 
 ```console
