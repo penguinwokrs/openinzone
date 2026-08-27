@@ -157,4 +157,30 @@ public class ActionFeatureTests
             KeyFace.For(ActionIds.Balance, DeviceSnapshot.Disconnected),
             KeyFace.For(ActionIds.Volume, Live, NoBalance));
     }
+
+    /// <summary>
+    /// A directed action is the same setting with the direction settled. Gating it on anything but
+    /// its subject's feature would give a model a key for a setting it does not have, or take away
+    /// a key for one it does.
+    /// </summary>
+    [Fact]
+    public void A_directed_action_is_gated_on_the_feature_of_the_setting_it_moves()
+    {
+        Assert.Equal(FeatureIds.Volume, ActionIds.Feature(ActionIds.VolumeUp));
+        Assert.Equal(FeatureIds.Volume, ActionIds.Feature(ActionIds.VolumeDown));
+        Assert.Equal(FeatureIds.MicLevel, ActionIds.Feature(ActionIds.MicLevelUp));
+        Assert.Equal(FeatureIds.MicLevel, ActionIds.Feature(ActionIds.MicLevelDown));
+        Assert.Equal(FeatureIds.Balance, ActionIds.Feature(ActionIds.BalanceGame));
+        Assert.Equal(FeatureIds.Balance, ActionIds.Feature(ActionIds.BalanceChat));
+    }
+
+    [Fact]
+    public void A_model_without_a_balance_takes_both_of_its_directed_keys_with_it()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.Volume, FeatureIds.MicMute]);
+
+        Assert.False(capabilities.Allows(ActionIds.Feature(ActionIds.BalanceGame)));
+        Assert.False(capabilities.Allows(ActionIds.Feature(ActionIds.BalanceChat)));
+        Assert.True(capabilities.Allows(ActionIds.Feature(ActionIds.VolumeUp)));
+    }
 }

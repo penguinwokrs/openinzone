@@ -134,6 +134,84 @@
           "TitleAlignment": "middle"
         }
       ]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.volumeup",
+      "Name": "Volume up",
+      "Icon": "images/actions/volumeup",
+      "Tooltip": "Turns the headset's own volume up by the step you set. A key that only goes up.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "Volume up", "Rotate": "Volume" }
+      },
+      "States": [{ "Image": "images/keys/volumeup", "TitleAlignment": "middle" }]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.volumedown",
+      "Name": "Volume down",
+      "Icon": "images/actions/volumedown",
+      "Tooltip": "Turns the headset's own volume down by the step you set. A key that only goes down.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "Volume down", "Rotate": "Volume" }
+      },
+      "States": [{ "Image": "images/keys/volumedown", "TitleAlignment": "middle" }]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.miclevelup",
+      "Name": "Mic level up",
+      "Icon": "images/actions/miclevelup",
+      "Tooltip": "Raises the microphone's recording level by the step you set.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "Level up", "Rotate": "Level" }
+      },
+      "States": [{ "Image": "images/keys/miclevelup", "TitleAlignment": "middle" }]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.micleveldown",
+      "Name": "Mic level down",
+      "Icon": "images/actions/micleveldown",
+      "Tooltip": "Lowers the microphone's recording level by the step you set.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "Level down", "Rotate": "Level" }
+      },
+      "States": [{ "Image": "images/keys/micleveldown", "TitleAlignment": "middle" }]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.balancegame",
+      "Name": "More game",
+      "Icon": "images/actions/balancegame",
+      "Tooltip": "Moves the game/chat balance towards game by the step you set.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "More game", "Rotate": "Balance" }
+      },
+      "States": [{ "Image": "images/keys/balancegame", "TitleAlignment": "middle" }]
+    },
+    {
+      "UUID": "com.penguinwokrs.openinzone.balancechat",
+      "Name": "More chat",
+      "Icon": "images/actions/balancechat",
+      "Tooltip": "Moves the game/chat balance towards chat by the step you set.",
+      "PropertyInspectorPath": "pi/step.html",
+      "Controllers": ["Keypad", "Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": { "Push": "More chat", "Rotate": "Balance" }
+      },
+      "States": [{ "Image": "images/keys/balancechat", "TitleAlignment": "middle" }]
     }
   ]
 }

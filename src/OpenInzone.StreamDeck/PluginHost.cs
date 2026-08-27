@@ -194,7 +194,7 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
         if (!state.Connected || !capabilities.Allows(ActionIds.Feature(actionId)))
             return new FeedbackPayload(Title(actionId), "--", new Indicator(0));
 
-        return actionId switch
+        return ActionIds.Subject(actionId) switch
         {
             ActionIds.Volume => new FeedbackPayload(Title(actionId), $"{state.Volume} / {state.VolumeMax}",
                 new Indicator(Percentage(state.Volume, state.VolumeMax))),
@@ -224,6 +224,11 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     private static int Percentage(int value, int max) =>
         max <= 0 ? 0 : Math.Clamp(value * 100 / max, 0, 100);
 
+    /// <remarks>
+    /// A directed dial is captioned by the action rather than by the setting: two dials for the
+    /// same setting sitting side by side, both saying "Volume", would be unreadable. The sign is
+    /// the shortest thing that separates them, and a dial's caption has room for little more.
+    /// </remarks>
     private static string Title(string actionId) => actionId switch
     {
         ActionIds.Volume => "Volume",
@@ -231,6 +236,12 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
         ActionIds.MicMute => "Microphone",
         ActionIds.MicLevel => "Mic level",
         ActionIds.Battery => "Battery",
+        ActionIds.VolumeUp => "Volume +",
+        ActionIds.VolumeDown => "Volume -",
+        ActionIds.MicLevelUp => "Mic level +",
+        ActionIds.MicLevelDown => "Mic level -",
+        ActionIds.BalanceGame => "More game",
+        ActionIds.BalanceChat => "More chat",
         _ => "OpenInzone",
     };
 
