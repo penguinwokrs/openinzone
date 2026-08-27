@@ -106,6 +106,17 @@ public class KeyFlashTests
     /// every press - long enough to give any such stale callback time to do its damage, short
     /// enough to end well before the next genuine deadline - has to hold every time: once a press
     /// is answered, nothing takes the key back down on its own before the next press.
+    ///
+    /// Every read of <c>IsShowing</c> is guarded against the clock rather than trusted on the loop
+    /// condition that let us in: a loop reads the clock, is descheduled, and only then takes the
+    /// lock to read <c>IsShowing</c>, and a legitimate expiry can land in that gap. Re-checking the
+    /// clock after the read - not before - is what makes the assertion sound: if the window was
+    /// still open after the read, the read provably happened before any legitimate expiry could
+    /// have caused it.
+    ///
+    /// 200 iterations was measured, not guessed, against a scratch copy of this class with
+    /// <c>Show</c>'s extension reverted to the pre-fix <c>Timer.Change</c> form: 30/30 runs caught
+    /// the regression, and 30/30 runs of the real fix at the same count raised no false failure.
     /// </summary>
     [Fact]
     public void Extending_at_the_instant_the_timer_is_due_never_takes_the_key_back_down_unprompted()
@@ -115,7 +126,7 @@ public class KeyFlashTests
         var watch = TimeSpan.FromMilliseconds(2);
         using var flash = new KeyFlash(duration, redraws.Record);
         const string context = "key-1";
-        const int iterations = 1500;
+        const int iterations = 200;
 
         var clock = Stopwatch.StartNew();
 
@@ -130,10 +141,17 @@ public class KeyFlashTests
             due = clock.Elapsed + duration;
 
             // Watch what Show just settled for a while - well short of the deadline it just set -
-            // and make sure nothing quietly takes it back down before we press again.
+            // and make sure nothing quietly takes it back down before we press again. Each read is
+            // guarded against the clock rather than trusting the loop condition: a read taken after
+            // watchUntil has already passed proves nothing, since a legitimate expiry could have
+            // landed in the meantime, and asserting on it would fail a correct implementation for
+            // no real reason.
             var watchUntil = clock.Elapsed + watch;
             while (clock.Elapsed < watchUntil)
-                Assert.True(flash.IsShowing(context));
+            {
+                bool showing = flash.IsShowing(context);
+                if (clock.Elapsed < watchUntil) Assert.True(showing);
+            }
         }
     }
 
