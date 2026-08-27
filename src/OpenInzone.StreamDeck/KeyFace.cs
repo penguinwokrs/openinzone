@@ -62,19 +62,19 @@ internal static class KeyFace
 
         return subject switch
         {
-            ActionIds.Volume => Reading(arrow, state.Connected ? $"{state.Volume}" : null,
-                state.Connected ? $"/ {state.VolumeMax}" : null, 102, 128),
+            ActionIds.Volume => Arrowed(arrow, state.Connected ? $"{state.Volume}" : null,
+                state.Connected ? $"/ {state.VolumeMax}" : null),
 
-            ActionIds.MicLevel => Reading(arrow, Level(state), state.MicLevelAvailable ? "%" : null, 102, 128),
+            ActionIds.MicLevel => Arrowed(arrow, Level(state), state.MicLevelAvailable ? "%" : null),
 
             ActionIds.Balance => state.Connected
                 ? Frame($"""
                     {arrow}
                     <text x="72" y="112" fill="{Foreground}" font-size="30" text-anchor="middle">{Escape(Lean(state.Balance))}</text>
                     """)
-                : Reading(arrow, null, null, 102, 128),
+                : Arrowed(arrow, null, null),
 
-            _ => Reading(arrow, null, null, 102, 128),
+            _ => Arrowed(arrow, null, null),
         };
     }
 
@@ -92,13 +92,13 @@ internal static class KeyFace
 
     private static string Face(string actionId, DeviceSnapshot state) => actionId switch
     {
-        ActionIds.Volume => Reading(Label("VOL"), state.Connected ? $"{state.Volume}" : null,
-            state.Connected ? $"/ {state.VolumeMax}" : null, 94, 118),
+        ActionIds.Volume => Labelled("VOL", state.Connected ? $"{state.Volume}" : null,
+            state.Connected ? $"/ {state.VolumeMax}" : null),
         ActionIds.Balance => Balance(state),
         ActionIds.MicMute => MicMute(state),
-        ActionIds.MicLevel => Reading(Label("MIC"), Level(state), state.MicLevelAvailable ? "%" : null, 94, 118),
+        ActionIds.MicLevel => Labelled("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
         ActionIds.Battery => Battery(state),
-        _ => Reading(Label(""), null, null, 94, 118),
+        _ => Labelled("", null, null),
     };
 
     private static string? Level(DeviceSnapshot state) =>
@@ -106,7 +106,7 @@ internal static class KeyFace
 
     private static string Balance(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading(Label("GAME / CHAT"), null, null, 94, 118);
+        if (!state.Connected) return Labelled("GAME / CHAT", null, null);
 
         // Game is the low end of the scale: raising the value makes chat louder. This read the
         // other way round, so a key that said GAME was making chat louder.
@@ -132,7 +132,7 @@ internal static class KeyFace
 
     private static string MicMute(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading(Label("MIC"), null, null, 94, 118);
+        if (!state.Connected) return Labelled("MIC", null, null);
 
         string colour = state.MicMuted ? Warning : Foreground;
         string slash = state.MicMuted
@@ -149,11 +149,10 @@ internal static class KeyFace
 
     private static string Battery(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading(Label("BATT"), null, null, 94, 118);
+        if (!state.Connected) return Labelled("BATT", null, null);
 
         if (!state.Battery.HasSeparateBuds)
-            return Reading(Label("BATT"), Percent(state.Battery.Left), state.Battery.Left is null ? null : "%",
-                94, 118);
+            return Labelled("BATT", Percent(state.Battery.Left), state.Battery.Left is null ? null : "%");
 
         return Frame($"""
             <text x="72" y="32" fill="{Dim}" font-size="16" text-anchor="middle">BATTERY</text>
@@ -199,6 +198,26 @@ internal static class KeyFace
     private static string Label(string text) =>
         $"""<text x="72" y="44" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(text)}</text>""";
 
+    /// <summary>A plain key's reading: a text label at rest, above the value and unit.</summary>
+    private static string Labelled(string text, string? value, string? unit) =>
+        Reading(Label(text), value, unit, PlainValueY, PlainUnitY);
+
+    /// <summary>
+    /// A directed key's reading, shown for a moment after it is pressed: the arrow it wears at
+    /// rest, above the value and unit.
+    /// </summary>
+    private static string Arrowed(string arrow, string? value, string? unit) =>
+        Reading(arrow, value, unit, ArrowValueY, ArrowUnitY);
+
+    // A label is one line of small text; an arrow is a filled triangle, taller than that line. The
+    // value under an arrow is pushed down eight pixels so it clears the shape rather than crowding
+    // it, and the unit follows it down by a further two so it keeps the same distance from the
+    // value it always has.
+    private const int PlainValueY = 94;
+    private const int PlainUnitY = 118;
+    private const int ArrowValueY = 102;
+    private const int ArrowUnitY = 128;
+
     /// <summary>
     /// Something drawn at the top - a label or an arrow - over a large reading and a quieter unit
     /// after it. A null reading draws "--", and the unit is left off altogether when there is no
@@ -206,10 +225,10 @@ internal static class KeyFace
     /// </summary>
     /// <remarks>
     /// The top element arrives as ready-made markup rather than this helper choosing between a
-    /// label and an arrow itself, which is what let the plain key and the "just pressed" key share
-    /// this logic despite drawing different things up there. The two keys also need their own
-    /// y-coordinates for the value and the unit, since an arrow sits taller than a label and pushes
-    /// the reading below it lower than a label does.
+    /// label and an arrow itself, which is what lets the plain key and the "just pressed" key
+    /// share this logic despite drawing different things up there. <see cref="Labelled"/> and
+    /// <see cref="Arrowed"/> are the two ways to reach it, each with the y-coordinates its own top
+    /// element needs.
     /// </remarks>
     private static string Reading(string top, string? value, string? unit, int valueY, int unitY)
     {
