@@ -36,6 +36,76 @@ internal static class KeyFace
         return Face(actionId, state);
     }
 
+    /// <summary>
+    /// The face a directed key wears for the moment after it is pressed: the arrow it carries at
+    /// rest, kept small and at the top, over the reading the press produced.
+    /// </summary>
+    /// <remarks>
+    /// A directed key is a picture rather than a readout, so this is a confirmation and not a
+    /// display - it says what the press did and then gets out of the way. The arrow stays because
+    /// it is the only thing telling a pair of these apart, and a key that dropped it while being
+    /// held down would leave you reading a number with no idea which way it was going.
+    ///
+    /// The reading itself is the one the plain key for the same setting shows, word for word.
+    /// </remarks>
+    public static string Stepped(
+        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
+    {
+        if (!capabilities.Allows(ActionIds.Feature(actionId))) state = DeviceSnapshot.Disconnected;
+
+        string subject = ActionIds.Subject(actionId);
+        int direction = ActionIds.Direction(actionId);
+
+        // The balance has no up: its key already draws GAME at the left and CHAT at the right, so
+        // the arrow points the way the marker is about to move.
+        string arrow = subject == ActionIds.Balance ? Sideways(direction) : Upright(direction);
+
+        return subject switch
+        {
+            ActionIds.Volume => Arrowed(arrow, state.Connected ? $"{state.Volume}" : null,
+                state.Connected ? $"/ {state.VolumeMax}" : null),
+
+            ActionIds.MicLevel => Arrowed(arrow, Level(state), state.MicLevelAvailable ? "%" : null),
+
+            ActionIds.Balance => state.Connected
+                ? Frame($"""
+                    {arrow}
+                    <text x="72" y="112" fill="{Foreground}" font-size="30" text-anchor="middle">{Escape(Lean(state.Balance))}</text>
+                    """)
+                : Arrowed(arrow, null, null),
+
+            _ => Arrowed(arrow, null, null),
+        };
+    }
+
+    /// <summary>
+    /// The class is on the arrow so a test can say which way it points without measuring a path.
+    /// Stream Deck neither styles nor cares about it.
+    /// </summary>
+    private static string Upright(int direction) => direction >= 0
+        ? $"""<path class="up" d="M72,22 L88,44 L56,44 Z" fill="{Accent}"/>"""
+        : $"""<path class="down" d="M72,44 L56,22 L88,22 Z" fill="{Accent}"/>""";
+
+    private static string Sideways(int direction) => direction >= 0
+        ? $"""<path class="right" d="M92,33 L74,21 L74,45 Z" fill="{Accent}"/>"""
+        : $"""<path class="left" d="M52,33 L70,21 L70,45 Z" fill="{Accent}"/>""";
+
+    /// <summary>An arrow, a large reading, and a quieter unit after it. A null reading draws "--".</summary>
+    private static string Arrowed(string arrow, string? value, string? unit)
+    {
+        string body = value ?? "--";
+        string colour = value is null ? Dim : Foreground;
+        string suffix = unit is null || value is null
+            ? ""
+            : $"""<text x="72" y="128" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
+
+        return Frame($"""
+            {arrow}
+            <text x="72" y="102" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
+            {suffix}
+            """);
+    }
+
     private static string Face(string actionId, DeviceSnapshot state) => actionId switch
     {
         ActionIds.Volume => Reading("VOL", state.Connected ? $"{state.Volume}" : null,
