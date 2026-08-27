@@ -44,7 +44,7 @@ is the action's.
 | Whether the flash is configurable | No | One number, chosen once. A setting for it would be a second thing to explain in the panel and a second thing to get wrong. |
 | Whether they go on dials | Yes | Every action in this plugin can be placed on either, and a `ManifestTests` case says so. A dial with a directed action turns as any other dial does; its press steps in the action's direction. |
 | What a dial press does | One step, in the action's direction | The plain Balance and Mic level dials use their press for a shortcut (centre, mute). A directed action's whole identity is its direction, so its press is the step. The shortcut stays available on the undirected action, which is where someone wanting it would look. |
-| What a dial shows | Exactly what the undirected action's dial shows | A `Volume up` dial and a `Volume` dial control the same number. Two readouts for one value would be two things to keep agreeing for no gain. |
+| What a dial shows | The subject's reading and bar, under the action's own caption | A `Volume up` dial and a `Volume` dial control the same number, so inventing a second readout for it would be two things to keep agreeing for no gain. The caption is the exception: `FeedbackTests.Every_action_has_a_name_of_its_own_on_a_dial` requires the names to be distinct, and it is right to — two dials captioned `Volume` sitting side by side would be unreadable. The captions are `Volume +`, `Volume -`, `Mic level +`, `Mic level -`, `More game`, `More chat`. |
 | Which settings panel | The existing `pi/step.html`, with wording that follows the action | The field is the same field. Only the sentence under it differs, and a second file would be the same file with one paragraph changed. |
 | A negative step on a directed key | Its size is used, its sign ignored | The action owns the direction. Honouring a sign there would restore the trap this removes. |
 
@@ -123,8 +123,10 @@ return ActionIds.Subject(actionId) switch
 };
 ```
 
-`Title` and `Feedback` switch on `Subject(actionId)` rather than on `actionId`, so a directed dial
-is captioned and read exactly as the dial for the setting it moves. Neither gains an arm.
+`Feedback` switches on `Subject(actionId)` rather than on `actionId`, so a directed dial reads
+exactly as the dial for the setting it moves and gains no arm. `Title` keeps switching on the
+action itself and gains six, which is the point: it is the one thing that tells two dials for the
+same setting apart.
 
 `Act` tells the flash when a key was pressed:
 
@@ -235,6 +237,10 @@ and redraws again when the moment passes; a second `Show` extends rather than do
 context neither shows nor redraws afterwards.
 
 **`KeyFaceTests`** — `Stepped` for each of the three subjects, and for a disconnected headset.
+
+**`FeedbackTests`** — a directed dial reads the same value and bar as the dial for its subject,
+and every dial still has a caption of its own. Both cases already exist and both cover the new
+actions the moment they join `ActionIds.All`; neither is edited.
 
 **`ManifestTests`** — unchanged. Every case it already makes is a case about the new actions too:
 the manifest declares exactly what `ActionIds.All` holds, every image resolves, a settings panel
