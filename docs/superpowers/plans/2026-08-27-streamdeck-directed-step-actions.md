@@ -1442,8 +1442,14 @@ Next to the existing `private const string Volume = "com.penguinwokrs.openinzone
 - [ ] **Step 3: Add the check**
 
 `SettleAsync(patience)` waits for the next message, then 400 ms more, then hands over everything
-that arrived. `Find` returns the *last* matching message, so a settle spanning the whole 1.5 s
-moment ends on the message that put the key back. Add this method to the class:
+that arrived, and `Find` returns the *last* matching message for a context.
+
+Three messages land on a directed key's context after a press, not one: the reading drawn at the
+instant of the press, from the state the plugin already had; the reading redrawn when the tray's
+snapshot arrives carrying what the headset actually settled on — around half a second later on
+real hardware; and the clear that ends the moment 1.5 s after the press. The check therefore waits
+the whole moment out before settling, rather than trying to catch the next message. Add this
+method to the class:
 
 ```csharp
     /// <summary>
@@ -1468,9 +1474,11 @@ moment ends on the message that put the key back. Add this method to the class:
         Check("pressing a directed key shows a reading",
             reading is not null && reading.Value.GetProperty("payload").TryGetProperty("image", out _));
 
-        // The moment is 1.5 s, and nothing else is sent in the meantime: the next message on this
-        // context is the one that puts the key back.
-        var settled = await deck.SettleAsync(TimeSpan.FromSeconds(4)).ConfigureAwait(false);
+        // Waiting the moment out and then settling collects all three messages at once, and Find
+        // answers with the last - the clear. Catching "the next message" instead would catch the
+        // snapshot's redraw, which still carries an image and would read as a failure.
+        await Task.Delay(TimeSpan.FromSeconds(2.5)).ConfigureAwait(false);
+        var settled = await deck.SettleAsync(Patience).ConfigureAwait(false);
         var cleared = Find(settled, "setImage", "key-volumeup");
         Check("the reading goes away and the picture comes back",
             cleared is not null && !cleared.Value.GetProperty("payload").TryGetProperty("image", out _));
