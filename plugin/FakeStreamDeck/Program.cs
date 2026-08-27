@@ -25,11 +25,23 @@ namespace OpenInzone.FakeStreamDeck;
 internal static class Program
 {
     private const string Volume = "com.penguinwokrs.openinzone.volume";
+    private const string VolumeUp = "com.penguinwokrs.openinzone.volumeup";
+    private const string VolumeDown = "com.penguinwokrs.openinzone.volumedown";
     private const string MicMute = "com.penguinwokrs.openinzone.micmute";
     private const string Battery = "com.penguinwokrs.openinzone.battery";
 
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
     private static int _failures;
+
+    /// <summary>
+    /// The volume as it was found, set the instant it is read rather than handed back from
+    /// <see cref="RunAsync"/>'s return value. The run steps the volume up and back down near its
+    /// end to exercise a directed key, so an exception anywhere between those two steps - a socket
+    /// failure, a timeout - must not be allowed to skip the restore along with everything else
+    /// RunAsync did not get to finish; a value that a caught return could carry is a value that a
+    /// thrown exception cannot.
+    /// </summary>
+    private static int? _originalVolume;
 
     private static async Task<int> Main(string[] args)
     {
@@ -52,14 +64,13 @@ internal static class Program
         await deck.StartAsync(plugin).ConfigureAwait(false);
         Console.WriteLine("registered");
 
-        int? original = null;
         try
         {
-            original = await RunAsync(deck).ConfigureAwait(false);
+            await RunAsync(deck).ConfigureAwait(false);
         }
         finally
         {
-            if (original is int wanted) await RestoreAsync(deck, wanted).ConfigureAwait(false);
+            if (_originalVolume is int wanted) await RestoreAsync(deck, wanted).ConfigureAwait(false);
         }
 
         Console.WriteLine();
@@ -67,8 +78,7 @@ internal static class Program
         return _failures == 0 ? 0 : 1;
     }
 
-    /// <summary>Returns the volume as it was found, so it can be put back whatever happens.</summary>
-    private static async Task<int?> RunAsync(FakeDeck deck)
+    private static async Task RunAsync(FakeDeck deck)
     {
         await deck.SendAsync(WillAppear(Volume, "key-volume", encoder: false)).ConfigureAwait(false);
         var drawn = await deck.SettleAsync(Patience).ConfigureAwait(false);
@@ -78,7 +88,7 @@ internal static class Program
         var feedback = await deck.SettleAsync(Patience).ConfigureAwait(false);
         var first = Find(feedback, "setFeedback", "dial-volume");
         Check("a dial is drawn as soon as it appears", first is not null);
-        if (first is null) return null;
+        if (first is null) return;
 
         var payload = first.Value.GetProperty("payload");
         Check("the dial shows a name", payload.TryGetProperty("title", out _));
@@ -89,10 +99,11 @@ internal static class Program
         if (reading is null)
         {
             Console.WriteLine("  the headset is not answering; the rest needs a live one");
-            return null;
+            return;
         }
 
         int start = reading.Value;
+        _originalVolume = start;
         Console.WriteLine($"  volume reads {start}");
 
         Check("turning the dial one tick moves it one step",
@@ -170,7 +181,55 @@ internal static class Program
         Check("a press on a key that never appeared is ignored",
             Find(ignored, "setImage", "key-never-appeared") is null);
 
-        return start;
+        await DirectedKeysAsync(deck, start).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A directed key: a picture until it is pressed, the reading for a moment after, and the
+    /// picture again. The pair is exercised up then down, so the headset is left as it was found.
+    /// </summary>
+    private static async Task DirectedKeysAsync(FakeDeck deck, int start)
+    {
+        await deck.SendAsync(WillAppear(VolumeUp, "key-volumeup", encoder: false)).ConfigureAwait(false);
+        var appeared = await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        // A directed key wears the picture the manifest gives it, so appearing must leave it as
+        // that picture: a setImage carrying no image, or none at all.
+        var drawn = Find(appeared, "setImage", "key-volumeup");
+        Check("a directed key appears as its own picture",
+            drawn is null || !drawn.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        await deck.SendAsync(KeyDown(VolumeUp, "key-volumeup")).ConfigureAwait(false);
+        var pressed = await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        var reading = Find(pressed, "setImage", "key-volumeup");
+        Check("pressing a directed key shows a reading",
+            reading is not null && reading.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        // Three messages land on this context after a press: the reading drawn at once, the
+        // reading redrawn when the tray's snapshot arrives with what the headset settled on,
+        // and the clear that ends the moment 1.5 s later. Waiting the moment out and then
+        // settling collects all of them, and Find answers with the last - which is the clear.
+        await Task.Delay(TimeSpan.FromSeconds(2.5)).ConfigureAwait(false);
+        var settled = await deck.SettleAsync(Patience).ConfigureAwait(false);
+        var cleared = Find(settled, "setImage", "key-volumeup");
+        Check("the reading goes away and the picture comes back",
+            cleared is not null && !cleared.Value.GetProperty("payload").TryGetProperty("image", out _));
+
+        Check("a directed key moves the volume by one",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start + 1);
+
+        await deck.SendAsync(WillAppear(VolumeDown, "key-volumedown", encoder: false)).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+        await deck.SendAsync(KeyDown(VolumeDown, "key-volumedown")).ConfigureAwait(false);
+        await deck.SettleAsync(Patience).ConfigureAwait(false);
+
+        Check("the other key of the pair puts it back",
+            await CurrentAsync(deck, "dial-volume").ConfigureAwait(false) == start);
+
+        await deck.SendAsync(WillDisappear(VolumeUp, "key-volumeup")).ConfigureAwait(false);
+        await deck.SendAsync(WillDisappear(VolumeDown, "key-volumedown")).ConfigureAwait(false);
+        await deck.SettleAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
     }
 
     /// <summary>

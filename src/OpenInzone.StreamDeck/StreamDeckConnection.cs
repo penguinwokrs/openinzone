@@ -77,6 +77,11 @@ internal sealed class StreamDeckConnection(int port, string pluginUuid, string r
         SendAsync(new ContextMessage<ImagePayload>("setImage", context, new ImagePayload(image)),
             StreamDeckJson.Default.ContextMessageImagePayload, CancellationToken.None);
 
+    /// <summary>Puts the key back to the picture the manifest gives it.</summary>
+    public Task ClearImageAsync(string context) =>
+        SendAsync(new ContextMessage<ImagePayload>("setImage", context, new ImagePayload(null)),
+            StreamDeckJson.Default.ContextMessageImagePayload, CancellationToken.None);
+
     public Task SetFeedbackAsync(string context, FeedbackPayload feedback) =>
         SendAsync(new ContextMessage<FeedbackPayload>("setFeedback", context, feedback),
             StreamDeckJson.Default.ContextMessageFeedbackPayload, CancellationToken.None);

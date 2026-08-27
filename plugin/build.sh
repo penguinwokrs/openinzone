@@ -41,7 +41,7 @@ grep -q "\"Version\": \"$MANIFEST_VERSION\"" "$STAGE/manifest.json" || {
   exit 1
 }
 
-# Trimmed because CodePath must be one file and 14 MB beats 64. The plugin opens no COM of its
+# Trimmed because CodePath must be one file and 15 MB beats 74. The plugin opens no COM of its
 # own - it asks the tray - so nothing here depends on built-in COM surviving the trimmer.
 dotnet publish "$ROOT/src/OpenInzone.StreamDeck" -c Release -r win-x64 \
   --self-contained true -p:PublishTrimmed=true -p:PublishSingleFile=true \

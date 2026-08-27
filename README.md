@@ -315,11 +315,13 @@ and ticking the checkbox again clears the flag along with writing the value.
 
 ## Stream Deck
 
-There is a plugin for Elgato Stream Deck. A key can do what a hotkey cannot: show the value it
-controls. Battery for each earbud, the balance as a number, whether the microphone is muted — all
-of it on the key, updated the moment anything changes, including when the change came from the
-tray's own panel or from the earbuds themselves. On a Stream Deck +, the same actions sit on the
-dials, which is the right control for a value that slides.
+There is a plugin for Elgato Stream Deck. Five of its eleven actions turn a key into a live
+readout: battery for each earbud, the balance as a number, whether the microphone is muted — all of
+it on the key, updated the moment anything changes, including when the change came from the tray's
+own panel or from the earbuds themselves. The other six are dedicated up/down keys — pictures
+rather than readouts, which answer a press with the reading for a moment and then go back to being
+pictures. On a Stream Deck +, every action sits on a dial too, which is the right control for a
+value that slides.
 
 ![Five OpenInzone keys on a Stream Deck: the microphone showing LIVE, the battery showing 88% and 87% for the two earbuds, the microphone level at 100%, the headphone volume at 18 of 30, and the game/chat balance centred](docs/images/streamdeck.png)
 
@@ -337,15 +339,28 @@ own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md)
 | Action | On a key | On a dial | Shows |
 |---|---|---|---|
 | Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
+| Volume up | Raises it by the step | Turn to adjust, press to raise | `16 / 30` after a press |
+| Volume down | Lowers it by the step | Turn to adjust, press to lower | `16 / 30` after a press |
 | Game / chat balance | Steps | Turn to adjust, press to centre | `GAME 1.0`, `CENTRE`, `CHAT 2.0` |
+| More game | Moves it towards game | Turn to adjust, press to move | `GAME 1.0` after a press |
+| More chat | Moves it towards chat | Turn to adjust, press to move | `CHAT 2.0` after a press |
 | Microphone mute | Toggles | Press to toggle | `MUTED` or `LIVE` |
 | Microphone level | Steps | Turn to adjust, press to mute | `75 %` |
+| Mic level up | Raises it by the step | Turn to adjust, press to raise | `75 %` after a press |
+| Mic level down | Lowers it by the step | Turn to adjust, press to lower | `75 %` after a press |
 | Battery | Press to re-read | Press to re-read | `L 97` and `R 94` |
 
-Each stepping action has a **Step** setting. A negative step makes a key that turns the value
-down, so a pair of keys gives you up and down. A dial ignores the sign and takes its direction
-from the way it is turned. Left blank, volume moves by 1 of the headset's 30 notches, the balance
-by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level by 5 %.
+Each stepping action has a **Step** setting. Left blank, volume moves by 1 of the headset's 30
+notches, the balance by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level
+by 5 %.
+
+The plain Volume, balance and microphone level actions take their direction from the sign of the
+step **on a key**, so a negative step makes a key that turns the value down and a pair of them
+gives you up and down. On a dial, the sign is ignored and the direction comes from the way the
+dial is turned. The six directed actions settle that themselves: the arrow is on the key, the
+panel takes the absolute value of what you type and writes it back into the field, and a **Volume
+down** key cannot be configured into turning the volume up. They are pictures rather than readouts
+— pressing one shows the reading for a moment and then the key goes back to its picture.
 
 A key flashes a warning when the daemon cannot be reached, and every reading shows `--` rather
 than the last value it saw, so a stale number is never left sitting there looking current.
@@ -360,11 +375,11 @@ Two ways, both of which end with Stream Deck showing the actions in its list:
   [`com.penguinwokrs.openinzone.streamDeckPlugin`](https://github.com/penguinwokrs/openinzone/releases/latest).
   Download it and double-click it.
 
-Stream Deck asks once whether to install it, and the five actions appear under **OpenInzone**.
+Stream Deck asks once whether to install it, and the eleven actions appear under **OpenInzone**.
 Drag one onto a key, or onto a dial on a Stream Deck +.
 
 If Stream Deck says the plugin is invalid, the file did not download completely — it is around
-6.6 MB. Download it again rather than unpacking it by hand.
+6.9 MB. Download it again rather than unpacking it by hand.
 
 Building the plugin, and driving it without a deck, are in the
 [developer guide](#building-the-stream-deck-plugin).
@@ -666,12 +681,12 @@ to use the released build.
 
 ### What you need
 
-- .NET 8 SDK
+- .NET 10 SDK
 - The dongle and the earbuds, for anything beyond the protocol tests
 - Windows to run it; the build itself also works from Linux or WSL
 
-`OpenInzone.Core`, `OpenInzone.Control` and the CLI target `net8.0` and reach Windows only through
-P/Invoke and COM. The tray is a WPF application on `net8.0-windows`, and `EnableWindowsTargeting`
+`OpenInzone.Core`, `OpenInzone.Control` and the CLI target `net10.0` and reach Windows only through
+P/Invoke and COM. The tray is a WPF application on `net10.0-windows`, and `EnableWindowsTargeting`
 lets even that one build off Windows. So the whole solution compiles anywhere the SDK runs; only
 the resulting `.exe` is Windows-only.
 
@@ -692,7 +707,7 @@ runtime already published there is the one it needs. That leaves `inzone.exe` in
 `inzonetray.exe` beside `inzoned.exe` in `publish\tray\`, needing nothing installed on the
 machine that runs them — the same programs the release downloads contain. The
 tray publishes as a folder rather than a single file, which is the shape both the installer and
-the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 8 runtime is
+the zip ship. Drop `--self-contained true` for much smaller binaries if the .NET 10 runtime is
 already present.
 
 ```console

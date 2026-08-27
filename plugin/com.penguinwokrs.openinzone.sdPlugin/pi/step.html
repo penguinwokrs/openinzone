@@ -41,7 +41,7 @@
       <label for="step">Step</label>
       <input id="step" type="number" step="1" />
     </div>
-    <p class="hint">
+    <p class="hint" id="hint">
       How far one press moves the value. A negative step makes a key that turns it down, so a
       pair of keys gives you up and down. A dial ignores the sign and takes its direction from
       the way it is turned.
@@ -50,11 +50,25 @@
     <script>
       let socket = null;
       let context = null;
+      let directed = false;
       const field = document.getElementById("step");
+      const hint = document.getElementById("hint");
+
+      // What each directed key does, in its own words. The sign is the action's, so the sentence
+      // about negative steps would be wrong here rather than merely unnecessary.
+      const DIRECTED = {
+        "com.penguinwokrs.openinzone.volumeup": "turns the volume up",
+        "com.penguinwokrs.openinzone.volumedown": "turns the volume down",
+        "com.penguinwokrs.openinzone.miclevelup": "raises the microphone level",
+        "com.penguinwokrs.openinzone.micleveldown": "lowers the microphone level",
+        "com.penguinwokrs.openinzone.balancegame": "moves the balance towards game",
+        "com.penguinwokrs.openinzone.balancechat": "moves the balance towards chat",
+      };
 
       // The entry point the Stream Deck application calls once this page is loaded.
       function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfo) {
         context = uuid;
+        describe(safeParse(actionInfo));
         socket = new WebSocket("ws://127.0.0.1:" + port);
 
         socket.onopen = () => {
@@ -76,18 +90,67 @@
         }
       }
 
+      // Directed actions take Math.Abs(step) on the plugin side, so a negative number is never
+      // what actually happens for one of them — only its magnitude is. apply() (a stored setting
+      // loading, whether at connect time or from a later "didReceiveSettings") and the "change"
+      // listener below (the user editing the field) both need to show that same truth, so the
+      // arithmetic lives here once instead of twice.
+      function magnitude(value) {
+        return directed ? Math.abs(value) : value;
+      }
+
       // An empty field means "whatever the plugin considers normal for this action", which is
-      // why it is left blank rather than pre-filled with a number the user did not choose.
+      // why it is left blank rather than pre-filled with a number the user did not choose. A
+      // directed action's stored step is shown as its magnitude for the same reason the "change"
+      // listener corrects one on edit: a profile saved before that correction existed, or hand-
+      // edited, or pushed here by something other than this panel, can still hold a negative
+      // number, and displaying it unchanged would be exactly the lie this file exists to stop.
+      // Nothing is written back to the plugin here, though — only the display is corrected. A
+      // "didReceiveSettings" can arrive from outside this panel's own edits, and silently
+      // rewriting a setting nobody touched this session is a worse surprise than a display that
+      // needs a moment's arithmetic to be trusted.
       function apply(event) {
         const step = event && event.payload && event.payload.settings
           ? event.payload.settings.step
           : undefined;
-        field.value = typeof step === "number" ? step : "";
+        field.value = typeof step === "number" ? magnitude(step) : "";
+      }
+
+      // A directed key settles its own direction, so the field is a size and nothing else. An
+      // input's "min" cannot be trusted to enforce that: a real browser lets "-1" sit in the
+      // field, fires "change" anyway, and only marks the value invalid internally — nothing on
+      // this page reads that flag, and there is no ":invalid" style to show it either. So the
+      // field is instead remembered here as directed, for apply() and the "change" listener
+      // below to both route through magnitude() and keep the display honest.
+      function describe(info) {
+        const what = info && DIRECTED[info.action];
+        directed = Boolean(what);
+        if (!what) return;
+
+        hint.textContent =
+          "How far one press moves the value. This key always " + what +
+          ", whatever you put here. A dial takes its direction from the way it is turned.";
       }
 
       field.addEventListener("change", () => {
+        // Only text parseInt can make sense of gets corrected; empty or non-numeric text is left
+        // exactly as typed and sent as "no step" below, not coerced into a number nobody entered.
+        // When parseInt does succeed, a directed field's display is rewritten through magnitude()
+        // — the same correction apply() makes on load — so it never shows a sign the plugin
+        // already ignores. That rewrite is also where a typed fraction like "3.7" quietly becomes
+        // "3": parseInt truncates it for every action, but only a directed field's display gets
+        // corrected to match; an undirected field keeps showing what was typed even though the
+        // same truncated integer is what actually gets sent. And because this runs on "change"
+        // rather than on every keystroke, a negative or fractional value can still sit visible
+        // while the field has focus or a spinner arrow is held — the guarantee is that it is
+        // corrected by the time it leaves the field, not that it is corrected continuously.
+        let parsed = parseInt(field.value, 10);
+        if (directed && !Number.isNaN(parsed)) {
+          parsed = magnitude(parsed);
+          field.value = String(parsed);
+        }
+
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        const parsed = parseInt(field.value, 10);
         socket.send(JSON.stringify({
           event: "setSettings",
           context: context,

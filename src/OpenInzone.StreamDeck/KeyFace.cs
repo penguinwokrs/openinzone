@@ -36,15 +36,79 @@ internal static class KeyFace
         return Face(actionId, state);
     }
 
-    private static string Face(string actionId, DeviceSnapshot state) => actionId switch
+    /// <summary>
+    /// The face a directed key wears for the moment after it is pressed: the arrow it carries at
+    /// rest, kept small and at the top, over the reading the press produced.
+    /// </summary>
+    /// <remarks>
+    /// A directed key is a picture rather than a readout, so this is a confirmation and not a
+    /// display - it says what the press did and then gets out of the way. The arrow stays because
+    /// it is the only thing telling a pair of these apart, and a key that dropped it while being
+    /// held down would leave you reading a number with no idea which way it was going.
+    ///
+    /// The reading itself is the one the plain key for the same setting shows, word for word.
+    /// </remarks>
+    public static string Stepped(
+        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
     {
-        ActionIds.Volume => Reading("VOL", state.Connected ? $"{state.Volume}" : null,
+        if (!capabilities.Allows(ActionIds.Feature(actionId))) state = DeviceSnapshot.Disconnected;
+
+        string subject = ActionIds.Subject(actionId);
+        int direction = ActionIds.Direction(actionId);
+
+        // The balance has no up: its key already draws GAME at the left and CHAT at the right, so
+        // the arrow points the way the marker is about to move.
+        string arrow = subject == ActionIds.Balance ? Sideways(direction) : Upright(direction);
+
+        return subject switch
+        {
+            ActionIds.Volume => Arrowed(arrow, state.Connected ? $"{state.Volume}" : null,
+                state.Connected ? $"/ {state.VolumeMax}" : null),
+
+            ActionIds.MicLevel => Arrowed(arrow, Level(state), state.MicLevelAvailable ? "%" : null),
+
+            ActionIds.Balance => state.Connected
+                ? Frame($"""
+                    {arrow}
+                    <text x="72" y="112" fill="{Foreground}" font-size="30" text-anchor="middle">{Escape(Lean(state.Balance))}</text>
+                    """)
+                : Arrowed(arrow, null, null),
+
+            _ => Arrowed(arrow, null, null),
+        };
+    }
+
+    /// <summary>
+    /// The class is on the arrow so a test can say which way it points without measuring a path.
+    /// Stream Deck neither styles nor cares about it.
+    /// </summary>
+    private static string Upright(int direction) => direction >= 0
+        ? $"""<path class="up" d="M72,22 L88,44 L56,44 Z" fill="{Accent}"/>"""
+        : $"""<path class="down" d="M72,44 L56,22 L88,22 Z" fill="{Accent}"/>""";
+
+    private static string Sideways(int direction) => direction >= 0
+        ? $"""<path class="right" d="M92,33 L74,21 L74,45 Z" fill="{Accent}"/>"""
+        : $"""<path class="left" d="M52,33 L70,21 L70,45 Z" fill="{Accent}"/>""";
+
+    /// <summary>
+    /// Switches on <see cref="ActionIds.Subject"/> rather than the raw id, as <c>Feature</c>,
+    /// <c>DefaultStep</c> and <c>Feedback</c> already do. <c>For</c> is only ever called for a
+    /// directed action by a caller that got its own guard wrong - both real call sites check
+    /// <c>Direction == 0</c> first - but a face this class can still be asked to draw belongs on
+    /// the list of things it must not answer with a blank key. Routing through the subject means a
+    /// directed id gets its subject's own reading, the same one a lookup by <c>Subject</c>
+    /// anywhere else in this file already produces, rather than falling through to the wildcard
+    /// arm that a mismatch used to reach.
+    /// </summary>
+    private static string Face(string actionId, DeviceSnapshot state) => ActionIds.Subject(actionId) switch
+    {
+        ActionIds.Volume => Labelled("VOL", state.Connected ? $"{state.Volume}" : null,
             state.Connected ? $"/ {state.VolumeMax}" : null),
         ActionIds.Balance => Balance(state),
         ActionIds.MicMute => MicMute(state),
-        ActionIds.MicLevel => Reading("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
+        ActionIds.MicLevel => Labelled("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
         ActionIds.Battery => Battery(state),
-        _ => Reading("", null, null),
+        _ => Labelled("", null, null),
     };
 
     private static string? Level(DeviceSnapshot state) =>
@@ -52,7 +116,7 @@ internal static class KeyFace
 
     private static string Balance(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("GAME / CHAT", null, null);
+        if (!state.Connected) return Labelled("GAME / CHAT", null, null);
 
         // Game is the low end of the scale: raising the value makes chat louder. This read the
         // other way round, so a key that said GAME was making chat louder.
@@ -78,7 +142,7 @@ internal static class KeyFace
 
     private static string MicMute(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("MIC", null, null);
+        if (!state.Connected) return Labelled("MIC", null, null);
 
         string colour = state.MicMuted ? Warning : Foreground;
         string slash = state.MicMuted
@@ -95,10 +159,10 @@ internal static class KeyFace
 
     private static string Battery(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("BATT", null, null);
+        if (!state.Connected) return Labelled("BATT", null, null);
 
         if (!state.Battery.HasSeparateBuds)
-            return Reading("BATT", Percent(state.Battery.Left), state.Battery.Left is null ? null : "%");
+            return Labelled("BATT", Percent(state.Battery.Left), state.Battery.Left is null ? null : "%");
 
         return Frame($"""
             <text x="72" y="32" fill="{Dim}" font-size="16" text-anchor="middle">BATTERY</text>
@@ -135,18 +199,58 @@ internal static class KeyFace
 
     private static string? Percent(int? value) => value?.ToString();
 
-    /// <summary>A label, a large reading, and a quieter unit after it. A null reading draws "--".</summary>
-    private static string Reading(string label, string? value, string? unit)
+    /// <summary>
+    /// Turns a plain-key label into the same ready-made markup an arrow arrives as, so
+    /// <see cref="Reading"/> can draw either at the top of the key without knowing which one it
+    /// has. The label keeps the plain key's own position and size - a directed key's arrow uses
+    /// neither, which is exactly why the two cannot share a y-coordinate.
+    /// </summary>
+    private static string Label(string text) =>
+        $"""<text x="72" y="44" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(text)}</text>""";
+
+    /// <summary>A plain key's reading: a text label at rest, above the value and unit.</summary>
+    private static string Labelled(string text, string? value, string? unit) =>
+        Reading(Label(text), value, unit, PlainValueY, PlainUnitY);
+
+    /// <summary>
+    /// A directed key's reading, shown for a moment after it is pressed: the arrow it wears at
+    /// rest, above the value and unit.
+    /// </summary>
+    private static string Arrowed(string arrow, string? value, string? unit) =>
+        Reading(arrow, value, unit, ArrowValueY, ArrowUnitY);
+
+    // A label is one line of small text; an arrow is a filled triangle, taller than that line. The
+    // value under an arrow is pushed down eight pixels so it clears the shape rather than crowding
+    // it, and the unit follows it down by a further two so it keeps the same distance from the
+    // value it always has.
+    private const int PlainValueY = 94;
+    private const int PlainUnitY = 118;
+    private const int ArrowValueY = 102;
+    private const int ArrowUnitY = 128;
+
+    /// <summary>
+    /// Something drawn at the top - a label or an arrow - over a large reading and a quieter unit
+    /// after it. A null reading draws "--", and the unit is left off altogether when there is no
+    /// reading to attach it to, or nothing to name.
+    /// </summary>
+    /// <remarks>
+    /// The top element arrives as ready-made markup rather than this helper choosing between a
+    /// label and an arrow itself, which is what lets the plain key and the "just pressed" key
+    /// share this logic despite drawing different things up there. <see cref="Labelled"/> and
+    /// <see cref="Arrowed"/> are the two ways to reach it, each with the y-coordinates its own top
+    /// element needs.
+    /// </remarks>
+    private static string Reading(string top, string? value, string? unit, int valueY, int unitY)
     {
         string body = value ?? "--";
         string colour = value is null ? Dim : Foreground;
         string suffix = unit is null || value is null
             ? ""
-            : $"""<text x="72" y="118" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
+            : $"""<text x="72" y="{unitY}" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
 
         return Frame($"""
-            <text x="72" y="44" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(label)}</text>
-            <text x="72" y="94" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
+            {top}
+            <text x="72" y="{valueY}" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
             {suffix}
             """);
     }

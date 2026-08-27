@@ -35,8 +35,12 @@ internal sealed record TitlePayload(
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("target")] int Target = 0);
 
+/// <summary>
+/// A null image is how Stream Deck is told to use the picture the manifest gives the state. The
+/// serializer drops a null field, and an absent image is the only way to undo a setImage.
+/// </summary>
 internal sealed record ImagePayload(
-    [property: JsonPropertyName("image")] string Image,
+    [property: JsonPropertyName("image")] string? Image,
     [property: JsonPropertyName("target")] int Target = 0);
 
 /// <summary>The bar under a dial's readout, as a percentage of its travel.</summary>
