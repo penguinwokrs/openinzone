@@ -62,19 +62,19 @@ internal static class KeyFace
 
         return subject switch
         {
-            ActionIds.Volume => Arrowed(arrow, state.Connected ? $"{state.Volume}" : null,
-                state.Connected ? $"/ {state.VolumeMax}" : null),
+            ActionIds.Volume => Reading(arrow, state.Connected ? $"{state.Volume}" : null,
+                state.Connected ? $"/ {state.VolumeMax}" : null, 102, 128),
 
-            ActionIds.MicLevel => Arrowed(arrow, Level(state), state.MicLevelAvailable ? "%" : null),
+            ActionIds.MicLevel => Reading(arrow, Level(state), state.MicLevelAvailable ? "%" : null, 102, 128),
 
             ActionIds.Balance => state.Connected
                 ? Frame($"""
                     {arrow}
                     <text x="72" y="112" fill="{Foreground}" font-size="30" text-anchor="middle">{Escape(Lean(state.Balance))}</text>
                     """)
-                : Arrowed(arrow, null, null),
+                : Reading(arrow, null, null, 102, 128),
 
-            _ => Arrowed(arrow, null, null),
+            _ => Reading(arrow, null, null, 102, 128),
         };
     }
 
@@ -90,31 +90,15 @@ internal static class KeyFace
         ? $"""<path class="right" d="M92,33 L74,21 L74,45 Z" fill="{Accent}"/>"""
         : $"""<path class="left" d="M52,33 L70,21 L70,45 Z" fill="{Accent}"/>""";
 
-    /// <summary>An arrow, a large reading, and a quieter unit after it. A null reading draws "--".</summary>
-    private static string Arrowed(string arrow, string? value, string? unit)
-    {
-        string body = value ?? "--";
-        string colour = value is null ? Dim : Foreground;
-        string suffix = unit is null || value is null
-            ? ""
-            : $"""<text x="72" y="128" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
-
-        return Frame($"""
-            {arrow}
-            <text x="72" y="102" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
-            {suffix}
-            """);
-    }
-
     private static string Face(string actionId, DeviceSnapshot state) => actionId switch
     {
-        ActionIds.Volume => Reading("VOL", state.Connected ? $"{state.Volume}" : null,
-            state.Connected ? $"/ {state.VolumeMax}" : null),
+        ActionIds.Volume => Reading(Label("VOL"), state.Connected ? $"{state.Volume}" : null,
+            state.Connected ? $"/ {state.VolumeMax}" : null, 94, 118),
         ActionIds.Balance => Balance(state),
         ActionIds.MicMute => MicMute(state),
-        ActionIds.MicLevel => Reading("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
+        ActionIds.MicLevel => Reading(Label("MIC"), Level(state), state.MicLevelAvailable ? "%" : null, 94, 118),
         ActionIds.Battery => Battery(state),
-        _ => Reading("", null, null),
+        _ => Reading(Label(""), null, null, 94, 118),
     };
 
     private static string? Level(DeviceSnapshot state) =>
@@ -122,7 +106,7 @@ internal static class KeyFace
 
     private static string Balance(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("GAME / CHAT", null, null);
+        if (!state.Connected) return Reading(Label("GAME / CHAT"), null, null, 94, 118);
 
         // Game is the low end of the scale: raising the value makes chat louder. This read the
         // other way round, so a key that said GAME was making chat louder.
@@ -148,7 +132,7 @@ internal static class KeyFace
 
     private static string MicMute(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("MIC", null, null);
+        if (!state.Connected) return Reading(Label("MIC"), null, null, 94, 118);
 
         string colour = state.MicMuted ? Warning : Foreground;
         string slash = state.MicMuted
@@ -165,10 +149,11 @@ internal static class KeyFace
 
     private static string Battery(DeviceSnapshot state)
     {
-        if (!state.Connected) return Reading("BATT", null, null);
+        if (!state.Connected) return Reading(Label("BATT"), null, null, 94, 118);
 
         if (!state.Battery.HasSeparateBuds)
-            return Reading("BATT", Percent(state.Battery.Left), state.Battery.Left is null ? null : "%");
+            return Reading(Label("BATT"), Percent(state.Battery.Left), state.Battery.Left is null ? null : "%",
+                94, 118);
 
         return Frame($"""
             <text x="72" y="32" fill="{Dim}" font-size="16" text-anchor="middle">BATTERY</text>
@@ -205,18 +190,38 @@ internal static class KeyFace
 
     private static string? Percent(int? value) => value?.ToString();
 
-    /// <summary>A label, a large reading, and a quieter unit after it. A null reading draws "--".</summary>
-    private static string Reading(string label, string? value, string? unit)
+    /// <summary>
+    /// Turns a plain-key label into the same ready-made markup an arrow arrives as, so
+    /// <see cref="Reading"/> can draw either at the top of the key without knowing which one it
+    /// has. The label keeps the plain key's own position and size - a directed key's arrow uses
+    /// neither, which is exactly why the two cannot share a y-coordinate.
+    /// </summary>
+    private static string Label(string text) =>
+        $"""<text x="72" y="44" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(text)}</text>""";
+
+    /// <summary>
+    /// Something drawn at the top - a label or an arrow - over a large reading and a quieter unit
+    /// after it. A null reading draws "--", and the unit is left off altogether when there is no
+    /// reading to attach it to, or nothing to name.
+    /// </summary>
+    /// <remarks>
+    /// The top element arrives as ready-made markup rather than this helper choosing between a
+    /// label and an arrow itself, which is what let the plain key and the "just pressed" key share
+    /// this logic despite drawing different things up there. The two keys also need their own
+    /// y-coordinates for the value and the unit, since an arrow sits taller than a label and pushes
+    /// the reading below it lower than a label does.
+    /// </remarks>
+    private static string Reading(string top, string? value, string? unit, int valueY, int unitY)
     {
         string body = value ?? "--";
         string colour = value is null ? Dim : Foreground;
         string suffix = unit is null || value is null
             ? ""
-            : $"""<text x="72" y="118" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
+            : $"""<text x="72" y="{unitY}" fill="{Dim}" font-size="18" text-anchor="middle">{Escape(unit)}</text>""";
 
         return Frame($"""
-            <text x="72" y="44" fill="{Dim}" font-size="17" text-anchor="middle">{Escape(label)}</text>
-            <text x="72" y="94" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
+            {top}
+            <text x="72" y="{valueY}" fill="{colour}" font-size="44" text-anchor="middle">{Escape(body)}</text>
             {suffix}
             """);
     }
