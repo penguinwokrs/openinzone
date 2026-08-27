@@ -90,7 +90,17 @@ internal static class KeyFace
         ? $"""<path class="right" d="M92,33 L74,21 L74,45 Z" fill="{Accent}"/>"""
         : $"""<path class="left" d="M52,33 L70,21 L70,45 Z" fill="{Accent}"/>""";
 
-    private static string Face(string actionId, DeviceSnapshot state) => actionId switch
+    /// <summary>
+    /// Switches on <see cref="ActionIds.Subject"/> rather than the raw id, as <c>Feature</c>,
+    /// <c>DefaultStep</c> and <c>Feedback</c> already do. <c>For</c> is only ever called for a
+    /// directed action by a caller that got its own guard wrong - both real call sites check
+    /// <c>Direction == 0</c> first - but a face this class can still be asked to draw belongs on
+    /// the list of things it must not answer with a blank key. Routing through the subject means a
+    /// directed id gets its subject's own reading, the same one a lookup by <c>Subject</c>
+    /// anywhere else in this file already produces, rather than falling through to the wildcard
+    /// arm that a mismatch used to reach.
+    /// </summary>
+    private static string Face(string actionId, DeviceSnapshot state) => ActionIds.Subject(actionId) switch
     {
         ActionIds.Volume => Labelled("VOL", state.Connected ? $"{state.Volume}" : null,
             state.Connected ? $"/ {state.VolumeMax}" : null),

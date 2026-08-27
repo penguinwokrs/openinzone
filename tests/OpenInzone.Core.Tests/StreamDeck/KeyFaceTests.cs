@@ -138,6 +138,21 @@ public class KeyFaceTests
         Assert.Contains(">--<", svg, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Both real callers guard <c>For</c> on <c>Direction == 0</c>, so this only defends against a
+    /// caller that gets that guard wrong - which is exactly what happened once already. Falling
+    /// through to a blank "--" key for an id it does not recognise would repeat that failure;
+    /// routing through the subject means a directed id draws the same reading the plain action for
+    /// its subject would.
+    /// </summary>
+    [Fact]
+    public void A_directed_action_asked_for_its_rest_face_draws_its_subjects_reading_rather_than_a_blank_one()
+    {
+        Assert.Equal(Svg(ActionIds.Volume, Live), Svg(ActionIds.VolumeUp, Live));
+        Assert.Equal(Svg(ActionIds.MicLevel, Live), Svg(ActionIds.MicLevelDown, Live));
+        Assert.Equal(Svg(ActionIds.Balance, Live), Svg(ActionIds.BalanceGame, Live));
+    }
+
     /// <summary>Undoes the data URI of the face a directed key wears while it is answering.</summary>
     private static string SteppedSvg(string actionId, DeviceSnapshot state)
     {
