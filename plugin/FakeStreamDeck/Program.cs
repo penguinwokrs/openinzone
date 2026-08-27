@@ -33,6 +33,16 @@ internal static class Program
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
     private static int _failures;
 
+    /// <summary>
+    /// The volume as it was found, set the instant it is read rather than handed back from
+    /// <see cref="RunAsync"/>'s return value. The run steps the volume up and back down near its
+    /// end to exercise a directed key, so an exception anywhere between those two steps - a socket
+    /// failure, a timeout - must not be allowed to skip the restore along with everything else
+    /// RunAsync did not get to finish; a value that a caught return could carry is a value that a
+    /// thrown exception cannot.
+    /// </summary>
+    private static int? _originalVolume;
+
     private static async Task<int> Main(string[] args)
     {
         if (args.FirstOrDefault() == "--faces")
@@ -54,14 +64,13 @@ internal static class Program
         await deck.StartAsync(plugin).ConfigureAwait(false);
         Console.WriteLine("registered");
 
-        int? original = null;
         try
         {
-            original = await RunAsync(deck).ConfigureAwait(false);
+            await RunAsync(deck).ConfigureAwait(false);
         }
         finally
         {
-            if (original is int wanted) await RestoreAsync(deck, wanted).ConfigureAwait(false);
+            if (_originalVolume is int wanted) await RestoreAsync(deck, wanted).ConfigureAwait(false);
         }
 
         Console.WriteLine();
@@ -69,8 +78,7 @@ internal static class Program
         return _failures == 0 ? 0 : 1;
     }
 
-    /// <summary>Returns the volume as it was found, so it can be put back whatever happens.</summary>
-    private static async Task<int?> RunAsync(FakeDeck deck)
+    private static async Task RunAsync(FakeDeck deck)
     {
         await deck.SendAsync(WillAppear(Volume, "key-volume", encoder: false)).ConfigureAwait(false);
         var drawn = await deck.SettleAsync(Patience).ConfigureAwait(false);
@@ -80,7 +88,7 @@ internal static class Program
         var feedback = await deck.SettleAsync(Patience).ConfigureAwait(false);
         var first = Find(feedback, "setFeedback", "dial-volume");
         Check("a dial is drawn as soon as it appears", first is not null);
-        if (first is null) return null;
+        if (first is null) return;
 
         var payload = first.Value.GetProperty("payload");
         Check("the dial shows a name", payload.TryGetProperty("title", out _));
@@ -91,10 +99,11 @@ internal static class Program
         if (reading is null)
         {
             Console.WriteLine("  the headset is not answering; the rest needs a live one");
-            return null;
+            return;
         }
 
         int start = reading.Value;
+        _originalVolume = start;
         Console.WriteLine($"  volume reads {start}");
 
         Check("turning the dial one tick moves it one step",
@@ -173,8 +182,6 @@ internal static class Program
             Find(ignored, "setImage", "key-never-appeared") is null);
 
         await DirectedKeysAsync(deck, start).ConfigureAwait(false);
-
-        return start;
     }
 
     /// <summary>
