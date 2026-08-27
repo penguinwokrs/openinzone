@@ -41,7 +41,7 @@
       <label for="step">Step</label>
       <input id="step" type="number" step="1" />
     </div>
-    <p class="hint">
+    <p class="hint" id="hint">
       How far one press moves the value. A negative step makes a key that turns it down, so a
       pair of keys gives you up and down. A dial ignores the sign and takes its direction from
       the way it is turned.
@@ -51,10 +51,23 @@
       let socket = null;
       let context = null;
       const field = document.getElementById("step");
+      const hint = document.getElementById("hint");
+
+      // What each directed key does, in its own words. The sign is the action's, so the sentence
+      // about negative steps would be wrong here rather than merely unnecessary.
+      const DIRECTED = {
+        "com.penguinwokrs.openinzone.volumeup": "turns the volume up",
+        "com.penguinwokrs.openinzone.volumedown": "turns the volume down",
+        "com.penguinwokrs.openinzone.miclevelup": "raises the microphone level",
+        "com.penguinwokrs.openinzone.micleveldown": "lowers the microphone level",
+        "com.penguinwokrs.openinzone.balancegame": "moves the balance towards game",
+        "com.penguinwokrs.openinzone.balancechat": "moves the balance towards chat",
+      };
 
       // The entry point the Stream Deck application calls once this page is loaded.
       function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfo) {
         context = uuid;
+        describe(safeParse(actionInfo));
         socket = new WebSocket("ws://127.0.0.1:" + port);
 
         socket.onopen = () => {
@@ -83,6 +96,18 @@
           ? event.payload.settings.step
           : undefined;
         field.value = typeof step === "number" ? step : "";
+      }
+
+      // A directed key settles its own direction, so the field is a size and nothing else: the
+      // minimum stops a sign being offered at all rather than accepted and then ignored.
+      function describe(info) {
+        const what = info && DIRECTED[info.action];
+        if (!what) return;
+
+        field.min = "1";
+        hint.textContent =
+          "How far one press moves the value. This key always " + what +
+          ", whatever you put here. A dial takes its direction from the way it is turned.";
       }
 
       field.addEventListener("change", () => {
