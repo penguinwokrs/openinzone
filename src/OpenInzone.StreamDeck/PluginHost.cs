@@ -29,6 +29,15 @@ internal sealed class PluginHost : IDisposable
     private readonly IpcClient _tray;
     private readonly KeyFlash _flash;
 
+    private readonly ConcurrentDictionary<string, Instance> _instances = new();
+    private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
+
+    /// <summary>
+    /// What the connected model has, or null while the tray has not said. Null offers everything,
+    /// which is how the plugin behaved before it was told anything at all.
+    /// </summary>
+    private volatile DeviceCapabilities? _capabilities;
+
     public PluginHost(StreamDeckConnection deck, IpcClient tray)
     {
         _deck = deck;
@@ -41,15 +50,6 @@ internal sealed class PluginHost : IDisposable
         // actually needs the clear RedrawAll otherwise withholds.
         _flash = new KeyFlash(Moment, context => Redraw(context, settleToPicture: true));
     }
-
-    private readonly ConcurrentDictionary<string, Instance> _instances = new();
-    private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
-
-    /// <summary>
-    /// What the connected model has, or null while the tray has not said. Null offers everything,
-    /// which is how the plugin behaved before it was told anything at all.
-    /// </summary>
-    private volatile DeviceCapabilities? _capabilities;
 
     public void Start()
     {
