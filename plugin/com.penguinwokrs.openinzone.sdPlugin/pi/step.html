@@ -50,6 +50,7 @@
     <script>
       let socket = null;
       let context = null;
+      let directed = false;
       const field = document.getElementById("step");
       const hint = document.getElementById("hint");
 
@@ -98,21 +99,33 @@
         field.value = typeof step === "number" ? step : "";
       }
 
-      // A directed key settles its own direction, so the field is a size and nothing else: the
-      // minimum stops a sign being offered at all rather than accepted and then ignored.
+      // A directed key settles its own direction, so the field is a size and nothing else. An
+      // input's "min" cannot be trusted to enforce that: a real browser lets "-1" sit in the
+      // field, fires "change" anyway, and only marks the value invalid internally — nothing on
+      // this page reads that flag, and there is no ":invalid" style to show it either. So the
+      // field is instead remembered here as directed for the "change" listener below, which
+      // clamps to the absolute value and writes the corrected number back on every edit.
       function describe(info) {
         const what = info && DIRECTED[info.action];
+        directed = Boolean(what);
         if (!what) return;
 
-        field.min = "1";
         hint.textContent =
           "How far one press moves the value. This key always " + what +
           ", whatever you put here. A dial takes its direction from the way it is turned.";
       }
 
       field.addEventListener("change", () => {
+        // Directed actions ignore the sign on the plugin side, but a field showing "-1" while
+        // sending the same key the "1" would have sent is the panel lying about itself. Fix
+        // what the user sees, not just what gets sent.
+        let parsed = parseInt(field.value, 10);
+        if (directed && !Number.isNaN(parsed)) {
+          parsed = Math.abs(parsed);
+          field.value = String(parsed);
+        }
+
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        const parsed = parseInt(field.value, 10);
         socket.send(JSON.stringify({
           event: "setSettings",
           context: context,
