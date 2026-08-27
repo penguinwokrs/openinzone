@@ -95,7 +95,15 @@ internal static class Program
                               "case, out of range, or off.");
 
         foreach (string actionId in ActionIds.All)
-            Console.WriteLine($"  {actionId,-42} {KeyFace.For(actionId, state).Length} chars of SVG");
+        {
+            // A directed key wears the manifest's picture at rest, so the face it has of its own
+            // is the reading it answers a press with.
+            string face = ActionIds.Direction(actionId) == 0
+                ? KeyFace.For(actionId, state)
+                : KeyFace.Stepped(actionId, state);
+
+            Console.WriteLine($"  {actionId,-42} {face.Length} chars of SVG");
+        }
 
         return 0;
     }

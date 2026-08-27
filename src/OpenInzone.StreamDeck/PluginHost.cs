@@ -14,10 +14,27 @@ namespace OpenInzone.StreamDeck;
 /// redrawn from the snapshots the tray pushes back - including snapshots caused by someone moving
 /// a slider in the tray's own panel, which is what keeps the two surfaces agreeing.
 /// </remarks>
-internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : IDisposable
+internal sealed class PluginHost : IDisposable
 {
     /// <summary>One key or dial the user has placed on a deck.</summary>
     private sealed record Instance(string ActionId, ActionSettings Settings, bool IsEncoder);
+
+    /// <summary>
+    /// How long a directed key shows what a press did. Long enough to read at a glance, short
+    /// enough that a key you have finished with is a picture again before you look back at it.
+    /// </summary>
+    private static readonly TimeSpan Moment = TimeSpan.FromSeconds(1.5);
+
+    private readonly StreamDeckConnection _deck;
+    private readonly IpcClient _tray;
+    private readonly KeyFlash _flash;
+
+    public PluginHost(StreamDeckConnection deck, IpcClient tray)
+    {
+        _deck = deck;
+        _tray = tray;
+        _flash = new KeyFlash(Moment, Redraw);
+    }
 
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
     private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
@@ -30,18 +47,18 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
 
     public void Start()
     {
-        deck.EventReceived += (_, inbound) => Handle(inbound);
-        tray.SnapshotReceived += (_, snapshot) =>
+        _deck.EventReceived += (_, inbound) => Handle(inbound);
+        _tray.SnapshotReceived += (_, snapshot) =>
         {
             _state = snapshot;
             RedrawAll();
         };
-        tray.CapabilitiesReceived += (_, capabilities) =>
+        _tray.CapabilitiesReceived += (_, capabilities) =>
         {
             _capabilities = capabilities;
             RedrawAll();
         };
-        tray.ConnectionChanged += (_, connected) =>
+        _tray.ConnectionChanged += (_, connected) =>
         {
             // A dropped link is drawn as no reading at all rather than as the last one, which
             // would otherwise sit there looking current.
@@ -50,7 +67,7 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
             // The tray's hello carries whatever it last knew, which may be from before the
             // earbuds were taken out of the case. Asking on arrival is what makes the deck
             // right immediately rather than at the next thing that happens to change.
-            else tray.Send(IpcCommands.Refresh);
+            else _tray.Send(IpcCommands.Refresh);
 
             RedrawAll();
         };
@@ -72,6 +89,7 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
 
             case "willDisappear":
                 _instances.TryRemove(context, out _);
+                _flash.Forget(context);
                 break;
 
             case "didReceiveSettings":
@@ -104,9 +122,9 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
     {
         if (!_instances.TryGetValue(context, out var instance)) return;
 
-        if (!tray.IsConnected)
+        if (!_tray.IsConnected)
         {
-            _ = deck.ShowAlertAsync(context);
+            _ = _deck.ShowAlertAsync(context);
             return;
         }
 
@@ -115,7 +133,14 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
             : ActionIds.DefaultStep(instance.ActionId);
 
         var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step, _capabilities);
-        if (decision is not null) tray.Send(decision.Value.Command, decision.Value.Value);
+        if (decision is null) return;
+
+        _tray.Send(decision.Value.Command, decision.Value.Value);
+
+        // The moment outlives the round trip to the tray, so the snapshot that comes back redraws
+        // the key with the value the headset actually settled on rather than the one this expected.
+        // A dial has its own readout and needs no such answer.
+        if (!instance.IsEncoder && ActionIds.Direction(instance.ActionId) != 0) _flash.Show(context);
     }
 
     /// <summary>
@@ -189,9 +214,24 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
         var capabilities = _capabilities;
 
         if (instance.IsEncoder)
-            _ = deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state, capabilities));
+        {
+            _ = _deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state, capabilities));
+        }
+        else if (ActionIds.Direction(instance.ActionId) == 0)
+        {
+            _ = _deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state, capabilities));
+        }
+        else if (_flash.IsShowing(context))
+        {
+            _ = _deck.SetImageAsync(context, KeyFace.Stepped(instance.ActionId, state, capabilities));
+        }
         else
-            _ = deck.SetImageAsync(context, KeyFace.For(instance.ActionId, state, capabilities));
+        {
+            // A directed key is the picture the manifest gives it, and drawing over that is
+            // exactly what the user did not ask for. Clearing rather than never drawing is what
+            // gets it back after a press.
+            _ = _deck.ClearImageAsync(context);
+        }
     }
 
     /// <summary>What a Stream Deck + dial shows: a name, a reading, and a bar for the travel.</summary>
@@ -257,5 +297,9 @@ internal sealed class PluginHost(StreamDeckConnection deck, IpcClient tray) : ID
         _ => "OpenInzone",
     };
 
-    public void Dispose() => _instances.Clear();
+    public void Dispose()
+    {
+        _flash.Dispose();
+        _instances.Clear();
+    }
 }
