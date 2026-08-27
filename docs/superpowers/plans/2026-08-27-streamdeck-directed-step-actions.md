@@ -11,7 +11,7 @@ is a fact about the setting keeps its existing switch and delegates through `Sub
 directed key shows the picture in the manifest and the plugin draws nothing; a press sends the
 step and shows the reading for 1.5 seconds, after which the key goes back to its picture.
 
-**Tech Stack:** C# / .NET 8 (`~/.dotnet/dotnet`), xUnit, hand-written SVG, a Stream Deck manifest
+**Tech Stack:** C# / .NET 10 (`~/.dotnet/dotnet`), xUnit, hand-written SVG, a Stream Deck manifest
 and a plain-HTML Property Inspector.
 
 **Spec:** `docs/superpowers/specs/2026-08-27-streamdeck-directed-step-actions-design.md`
@@ -1055,7 +1055,7 @@ namespace OpenInzone.StreamDeck;
 internal sealed class KeyFlash(TimeSpan duration, Action<string> redraw) : IDisposable
 {
     private readonly Dictionary<string, Timer> _showing = [];
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     public void Show(string context)
     {
