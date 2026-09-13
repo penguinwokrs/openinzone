@@ -163,7 +163,7 @@ internal sealed class PluginHost : IDisposable
             : ActionIds.DefaultStep(instance.ActionId);
 
         var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step,
-            _capabilities, _tray.DaemonCommands);
+            _capabilities, _tray.DaemonCommands, _state, instance.Settings.Level);
         if (decision is null) return;
 
         _tray.Send(
@@ -202,15 +202,26 @@ internal sealed class PluginHost : IDisposable
     /// The commands the daemon said it accepts, or null when it has not said. Unlike the
     /// capabilities, saying nothing withholds rather than offers: see <see cref="Available"/>.
     /// </param>
+    /// <param name="state">What the tray last said, which a mute by level toggles from.</param>
+    /// <param name="level">The level a mute by level goes back to, or null for full.</param>
     internal static (string Command, int Value)? Decide(
         string actionId, bool isEncoder, bool pressed, int ticks, int step,
-        DeviceCapabilities? capabilities = null, IReadOnlyList<string>? daemonCommands = null)
+        DeviceCapabilities? capabilities = null, IReadOnlyList<string>? daemonCommands = null,
+        DeviceSnapshot? state = null, int? level = null)
     {
         if (!capabilities.Allows(ActionIds.Feature(actionId))) return null;
         if (!Available(actionId, daemonCommands)) return null;
 
         int direction = ActionIds.Direction(actionId);
         int size = Math.Abs(step);
+
+        // A headset takes no mute from the computer (#19), so its mute moves the Windows level
+        // instead: to nothing, and back to the level the key was given. INZONE Buds keeps its own.
+        (string, int)? mute = !capabilities.MicMuteReadOnly()
+            ? (IpcCommands.ToggleMicMute, 0)
+            : capabilities.Allows(FeatureIds.MicLevel) && state is { Connected: true, MicLevelAvailable: true }
+                ? (IpcCommands.SetMicLevel, state.MicLevel > 0 ? 0 : Math.Clamp(level ?? FullLevel, 1, FullLevel))
+                : null;
 
         // A directed action's press is its step, on a key and on a dial alike: the direction is the
         // whole reason the action exists, so there is nothing else the press could mean. A turn
@@ -221,7 +232,7 @@ internal sealed class PluginHost : IDisposable
 
         return ActionIds.Subject(actionId) switch
         {
-            ActionIds.MicMute => pressed ? (IpcCommands.ToggleMicMute, 0) : null,
+            ActionIds.MicMute => pressed ? mute : null,
             ActionIds.Battery => pressed ? (IpcCommands.Refresh, 0) : null,
 
             // A press is the next mode, on a key and on a dial alike. A turn is as many modes as
@@ -234,7 +245,7 @@ internal sealed class PluginHost : IDisposable
             // microphone. Neither has a counterpart on a plain key, which steps instead - and
             // neither belongs to a directed dial, whose press is already spoken for.
             ActionIds.Balance when direction == 0 && pressed && isEncoder => (IpcCommands.SetBalance, MixCentre),
-            ActionIds.MicLevel when direction == 0 && pressed && isEncoder => (IpcCommands.ToggleMicMute, 0),
+            ActionIds.MicLevel when direction == 0 && pressed && isEncoder => mute,
 
             ActionIds.Volume when delta != 0 => (IpcCommands.AdjustVolume, delta),
             ActionIds.Balance when delta != 0 => (IpcCommands.AdjustBalance, delta),
@@ -253,6 +264,9 @@ internal sealed class PluginHost : IDisposable
     /// </remarks>
     internal static bool Available(string actionId, IReadOnlyList<string>? daemonCommands) =>
         ActionIds.RequiredCommand(actionId) is not { } command || IpcCommands.Offered(daemonCommands, command);
+
+    /// <summary>Where a mute by level goes back to when its key was given no level.</summary>
+    private const int FullLevel = 100;
 
     /// <summary>Centre of the game/chat scale, which runs 0 to 100.</summary>
     private const int MixCentre = 50;
@@ -349,8 +363,8 @@ internal sealed class PluginHost : IDisposable
             ActionIds.Balance => new FeedbackPayload(Title(actionId), KeyFace.Lean(state.Balance),
                 new Indicator(state.Balance)),
 
-            ActionIds.MicMute => new FeedbackPayload(Title(actionId), state.MicMuted ? "MUTED" : "LIVE",
-                new Indicator(state.MicMuted ? 0 : 100)),
+            ActionIds.MicMute => new FeedbackPayload(Title(actionId), KeyFace.Muted(state, capabilities) ? "MUTED" : "LIVE",
+                new Indicator(KeyFace.Muted(state, capabilities) ? 0 : 100)),
 
             ActionIds.MicLevel => state.MicLevelAvailable
                 ? new FeedbackPayload(Title(actionId), $"{state.MicLevel}%", new Indicator(state.MicLevel))

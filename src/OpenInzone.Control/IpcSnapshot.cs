@@ -117,7 +117,7 @@ public static class IpcSnapshot
 
         // The capture endpoint is not on the headset's wire at all, so whether there is one is a
         // question for Windows rather than for the map.
-        features.AddRange(Features(map, device.Microphone is not null));
+        features.AddRange(Features(map, device.Microphone is not null, device.Model.AcceptsMicMute));
 
         return new DeviceReading(settings, new DeviceCapabilities(features));
     }
@@ -130,12 +130,14 @@ public static class IpcSnapshot
     /// Taken apart from the reading so that it can be checked without a headset, which is the only
     /// way to see what a model this project does not own would be offered.
     /// </remarks>
-    public static IEnumerable<string> Features(CapabilityMap map, bool micLevelAvailable)
+    public static IEnumerable<string> Features(CapabilityMap map, bool micLevelAvailable, bool micMuteAccepted)
     {
         // Absent only when the headset said so. An id the map does not carry, or a map that could
         // not be read, leaves the control where it has always been: shown.
         foreach (var (feature, eventId) in PanelFeatures)
             if (map.Present(eventId) != false) yield return feature;
+
+        if (!micMuteAccepted && map.Present(EventId.MicVolume) != false) yield return FeatureIds.MicMuteReadOnly;
 
         yield return FeatureIds.Battery;
 

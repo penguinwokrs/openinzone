@@ -10,7 +10,9 @@ namespace OpenInzone.StreamDeck;
 
 /// <summary>Whatever a key or dial was configured with in its Property Inspector.</summary>
 internal sealed record ActionSettings(
-    [property: JsonPropertyName("step")] int? Step = null);
+    [property: JsonPropertyName("step")] int? Step = null,
+    // The microphone mute's level to go back to, on a headset that mutes by level.
+    [property: JsonPropertyName("level")] int? Level = null);
 
 internal sealed record InboundPayload(
     [property: JsonPropertyName("settings")] ActionSettings? Settings = null,

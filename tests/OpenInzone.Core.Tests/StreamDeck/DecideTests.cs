@@ -89,6 +89,52 @@ public class DecideTests
             PluginHost.Decide(ActionIds.MicMute, Key, Press, ticks: 0, step: 0));
     }
 
+    private static readonly DeviceCapabilities Headset =
+        new([FeatureIds.MicMute, FeatureIds.MicMuteReadOnly, FeatureIds.MicLevel]);
+
+    private static readonly DeviceSnapshot Speaking = new(
+        true, "INZONE H9 II", 16, 30, false, 50, false, 80, true, new BatterySnapshot(90, null, null, false));
+
+    /// <summary>
+    /// A headset takes no mute from the computer (#19), so its mute takes the Windows level to
+    /// nothing, and back to the level the key was given - full when it was given none.
+    /// </summary>
+    [Fact]
+    public void A_headset_mutes_by_taking_the_level_to_nothing_and_back()
+    {
+        Assert.Equal((IpcCommands.SetMicLevel, 0),
+            PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, Headset, state: Speaking, level: 60));
+
+        var silent = Speaking with { MicLevel = 0 };
+        Assert.Equal((IpcCommands.SetMicLevel, 60),
+            PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, Headset, state: silent, level: 60));
+        Assert.Equal((IpcCommands.SetMicLevel, 100),
+            PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, Headset, state: silent));
+
+        // The level dial's press is the same mute.
+        Assert.Equal((IpcCommands.SetMicLevel, 0),
+            PluginHost.Decide(ActionIds.MicLevel, Dial, Press, 0, 5, Headset, state: Speaking));
+    }
+
+    [Fact]
+    public void A_headset_with_no_level_to_move_is_not_muted_at_all()
+    {
+        Assert.Null(PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, Headset,
+            state: Speaking with { MicLevelAvailable = false }));
+        Assert.Null(PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, Headset,
+            state: DeviceSnapshot.Disconnected));
+    }
+
+    /// <summary>INZONE Buds uses its own mute, whatever level the key was given.</summary>
+    [Fact]
+    public void The_earbuds_keep_their_own_mute()
+    {
+        var buds = new DeviceCapabilities([FeatureIds.MicMute, FeatureIds.MicLevel]);
+
+        Assert.Equal((IpcCommands.ToggleMicMute, 0),
+            PluginHost.Decide(ActionIds.MicMute, Key, Press, 0, 0, buds, state: Speaking, level: 60));
+    }
+
     [Fact]
     public void The_battery_key_asks_the_tray_to_read_the_headset_again()
     {

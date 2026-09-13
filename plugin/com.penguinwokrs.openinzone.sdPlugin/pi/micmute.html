@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  SPDX-License-Identifier: GPL-3.0-only
+  Copyright (C) 2026 penguinwokrs
+
+  The settings panel for the microphone mute. Self-contained for the same reason step.html is.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>OpenInzone</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px 16px;
+        background: #2d2d2d;
+        color: #d8d8d8;
+        font: 9pt "Segoe UI", -apple-system, sans-serif;
+      }
+      .row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      label { flex: 0 0 92px; text-align: right; color: #969696; }
+      input {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 4px 6px;
+        border: 1px solid #3d3d3d;
+        border-radius: 3px;
+        background: #3d3d3d;
+        color: #d8d8d8;
+        font: inherit;
+      }
+      input:focus { outline: 1px solid #77f; }
+      p.hint { margin: 0 0 0 102px; color: #7a7a7a; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <label for="level">Unmute level</label>
+      <input id="level" type="number" min="1" max="100" step="1" placeholder="100" />
+    </div>
+    <p class="hint">
+      INZONE Buds uses its own mute. A headset mutes with its own button, so on one of those this
+      key sets the microphone level to 0, and back to this level on the next press. Blank is 100.
+    </p>
+
+    <script>
+      let socket = null;
+      let context = null;
+      const field = document.getElementById("level");
+
+      // The entry point the Stream Deck application calls once this page is loaded.
+      function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfo) {
+        context = uuid;
+        socket = new WebSocket("ws://127.0.0.1:" + port);
+
+        socket.onopen = () => {
+          socket.send(JSON.stringify({ event: registerEvent, uuid: uuid }));
+          apply(safeParse(actionInfo));
+        };
+
+        socket.onmessage = (message) => {
+          const event = safeParse(message.data);
+          if (event && event.event === "didReceiveSettings") apply(event);
+        };
+      }
+
+      function safeParse(text) {
+        try {
+          return typeof text === "string" ? JSON.parse(text) : text;
+        } catch {
+          return null;
+        }
+      }
+
+      function apply(event) {
+        const level = event && event.payload && event.payload.settings
+          ? event.payload.settings.level
+          : undefined;
+        field.value = typeof level === "number" ? level : "";
+      }
+
+      // The plugin keeps the level between 1 and 100 whatever arrives, so nothing is corrected here.
+      field.addEventListener("change", () => {
+        const parsed = parseInt(field.value, 10);
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        socket.send(JSON.stringify({
+          event: "setSettings",
+          context: context,
+          payload: Number.isNaN(parsed) ? {} : { level: parsed },
+        }));
+      });
+    </script>
+  </body>
+</html>

@@ -21,8 +21,8 @@ public class PanelFeatureTests
     private static readonly byte[] Part2 =
         [0x00, 0xFF, 0xFF, 0x02, 0x14, 0xFF, 0x00, 0x01, 0x01, 0x01];
 
-    private static List<string> Offered(CapabilityMap map, bool micLevel = true) =>
-        IpcSnapshot.Features(map, micLevel).ToList();
+    private static List<string> Offered(CapabilityMap map, bool micLevel = true, bool micMuteAccepted = true) =>
+        IpcSnapshot.Features(map, micLevel, micMuteAccepted).ToList();
 
     [Fact]
     public void A_model_that_answers_for_everything_is_offered_everything()
@@ -34,6 +34,22 @@ public class PanelFeatureTests
         Assert.Contains(FeatureIds.MicMute, offered);
         Assert.Contains(FeatureIds.Battery, offered);
         Assert.Contains(FeatureIds.MicLevel, offered);
+    }
+
+    /// <summary>
+    /// A headset shows its mute but takes no switch from the computer (#19). The mute is still
+    /// offered, so an older client keeps showing it, and read-only is said on top.
+    /// </summary>
+    [Fact]
+    public void A_model_that_takes_no_mute_from_the_computer_is_offered_it_to_show()
+    {
+        var map = CapabilityMap.Parse(Part1, Part2, null);
+
+        Assert.DoesNotContain(FeatureIds.MicMuteReadOnly, Offered(map));
+
+        var headset = Offered(map, micMuteAccepted: false);
+        Assert.Contains(FeatureIds.MicMute, headset);
+        Assert.Contains(FeatureIds.MicMuteReadOnly, headset);
     }
 
     /// <summary>

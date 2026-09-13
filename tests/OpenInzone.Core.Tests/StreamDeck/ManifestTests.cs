@@ -104,15 +104,16 @@ public class ManifestTests
         Assert.True(File.Exists(Path.Combine(PluginDirectory, reference + "@2x.png")));
     }
 
+    /// <summary>The microphone mute has one too, for the level a headset goes back to (#19).</summary>
     [Fact]
-    public void An_action_offers_a_settings_panel_exactly_when_it_has_a_step_to_configure()
+    public void An_action_offers_a_settings_panel_exactly_when_it_has_something_to_configure()
     {
         foreach (var action in Actions)
         {
             string id = Text(action, "UUID");
             bool hasPanel = action.TryGetProperty("PropertyInspectorPath", out _);
 
-            Assert.Equal(ActionIds.DefaultStep(id) != 0, hasPanel);
+            Assert.Equal(ActionIds.DefaultStep(id) != 0 || id == ActionIds.MicMute, hasPanel);
         }
     }
 

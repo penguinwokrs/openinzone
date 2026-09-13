@@ -139,9 +139,8 @@ public sealed class InzoneDevice : IDisposable
     public MicVolume SetMicMuted(bool muted)
     {
         // Refused before anything is written: a headset that does not answer the write would
-        // otherwise hold every caller for the whole retry, about eight seconds. The model is kept
-        // once read, because asking again costs a quarter of a second on every press.
-        var model = _model ??= GetModelInfo();
+        // otherwise hold every caller for the whole retry, about eight seconds.
+        var model = Model;
         if (!model.AcceptsMicMute)
             throw new NotSupportedException(
                 $"{model.Name} mutes its microphone with its own button; it cannot be switched from the computer.");
@@ -307,6 +306,12 @@ public sealed class InzoneDevice : IDisposable
     // ---- Status --------------------------------------------------------------
 
     public BatteryInfo GetBattery() => BatteryInfo.Parse(_session.Get(EventId.BatteryInfo));
+
+    /// <summary>
+    /// The model, read once for this connection: asking again costs about a quarter of a second,
+    /// and a press of the mute asks every time.
+    /// </summary>
+    public ModelInfo Model => _model ??= GetModelInfo();
 
     public ModelInfo GetModelInfo() => ModelInfo.Parse(_session.Get(EventId.ModelInfo));
 
