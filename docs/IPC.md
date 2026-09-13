@@ -240,6 +240,19 @@ reading rather than as a number.
 `IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
 It went to 2 when the settings became a list and the nine named setting commands became one.
 
+Adding to the channel is not that kind of change, and does not raise it. The two ends are updated
+apart — the app updates itself, while the Stream Deck plugin is installed by hand — so an older
+client meeting a newer daemon, and a newer client meeting an older one, are both ordinary. Raising
+the version for an addition turns one missing feature into a client that cannot connect at all.
+
+| Added | What the older side does | What the newer side has to do |
+|---|---|---|
+| A command | An older daemon answers it with an `error` naming it as unknown, and acts on nothing | Listen for that error, and say on the control that sent the command that the app needs updating |
+| A message type | An older client skips a type it does not know | Nothing |
+| A field in a message | An older reader skips a field it does not know | Nothing, as long as the message still means what it did without the field |
+
+What does raise it is changing what an existing command, message or field means, or removing one.
+
 The version is in two names, not one. The pipe carries it so that a client built against another
 version finds nothing to connect to rather than misreading the traffic. The daemon's single-instance
 lock carries it because without it a daemon of an older version held the lock against every newer
