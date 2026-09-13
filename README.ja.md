@@ -145,6 +145,18 @@ INZONE Hub も閉じる必要はありません。制御インターフェース
 削除するときは**設定 → アプリ → インストールされているアプリ → OpenInzone → アンインストール**
 です。`%APPDATA%\openinzone` はそのまま残すので、選んだキー割り当ては入れ直しても失われません。
 
+### Scoop でインストールする
+
+```powershell
+scoop bucket add penguinwokrs https://github.com/penguinwokrs/scoop-bucket
+scoop install penguinwokrs/openinzone
+```
+
+zip と同じプログラムが入り、スタートメニューの **Scoop Apps** に **OpenInzone** が追加され、
+`inzone` にも PATH が通ります。更新は**設定**の更新ボタンではなく `scoop update openinzone` で
+行ってください。更新ボタンは上記のインストーラーを実行するため、2 つ入った状態になります。
+Stream Deck プラグインは含まれません。[インストール](#インストール-1)を参照してください。
+
 ### winget でインストールする
 
 ```
@@ -422,6 +434,9 @@ Windows がそのヘッドセットのキャプチャ端点を公開していま
 
 インストーラーを使ったなら、トレイと同じ `%LOCALAPPDATA%\Programs\OpenInzone` に既に入っています。
 [PATH を通す](#path-を通す)へ進んでください。
+
+[Scoop でインストールした](#scoop-でインストールする)場合は、既に PATH が通っています。
+[ヘッドセットが見つかるか確認する](#ヘッドセットが見つかるか確認する)へ進んでください。
 
 インストーラーを使いたくない場合は、[最新リリース](https://github.com/penguinwokrs/openinzone/releases/latest)
 の `OpenInzone-<version>-win-x64.zip` に同じ 2 つのプログラム——`inzone.exe` と

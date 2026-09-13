@@ -150,6 +150,18 @@ in and the earbuds are out of the case, then see [Troubleshooting](#troubleshoot
 To remove it later: **Settings → Apps → Installed apps → OpenInzone → Uninstall**. That leaves
 `%APPDATA%\openinzone` alone, so the keys you chose survive a reinstall.
 
+### Installing with Scoop
+
+```powershell
+scoop bucket add penguinwokrs https://github.com/penguinwokrs/scoop-bucket
+scoop install penguinwokrs/openinzone
+```
+
+This installs the same programs as the zip, adds **OpenInzone** to the Start menu under
+**Scoop Apps**, and puts `inzone` on PATH. Update with `scoop update openinzone` rather than the
+update button in 設定: that button runs the installer above, which leaves you with two copies.
+The Stream Deck plugin is not included; see [Installing it](#installing-it).
+
 ### Installing with winget
 
 ```
@@ -442,6 +454,9 @@ right-click the Start button → **Terminal**.
 
 If you ran the installer, it is already there, in `%LOCALAPPDATA%\Programs\OpenInzone` beside the
 tray. Skip to [Put it on PATH](#put-it-on-path).
+
+If you installed it [with Scoop](#installing-with-scoop), it is already on PATH. Skip to
+[Check the headset is found](#check-the-headset-is-found).
 
 If you would rather not run an installer at all, `OpenInzone-<version>-win-x64.zip` on the
 [latest release](https://github.com/penguinwokrs/openinzone/releases/latest) carries the same
