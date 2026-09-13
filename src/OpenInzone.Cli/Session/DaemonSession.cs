@@ -33,17 +33,28 @@ internal sealed class DaemonSession : IHeadsetSession
     private DeviceSnapshot _state = DeviceSnapshot.Disconnected;
     private TaskCompletionSource<DeviceDetail>? _pending;
     private string? _lastError;
+    private int _errors;
+    private int _errorsBeforeGivingUp;
 
-    private DaemonSession(IpcClient client)
+    private DaemonSession(IpcClient client, DeviceSnapshot state)
     {
         _client = client;
+        _state = state;
         _client.SnapshotReceived += (_, snapshot) => _state = snapshot;
-        _client.DetailReceived += (_, detail) => Complete(pending => pending.TrySetResult(detail));
-        _client.ServerError += (_, message) =>
+        // A command that failed is still followed by the read asked for after it, and that answer is
+        // waited for before giving up. Leaving first left it to arrive at whichever invocation
+        // connected next, which then took it for its own and printed a refused command as done.
+        _client.DetailReceived += (_, detail) => Complete(pending =>
         {
-            _lastError = message;
-            Complete(pending => pending.TrySetCanceled());
-        };
+            if (_lastError is null) pending.TrySetResult(detail);
+            else pending.TrySetCanceled();
+        });
+        _client.ServerError += (_, message) => Complete(pending =>
+        {
+            _lastError ??= message;
+            // Both failing means no answer is coming: the command, then the read.
+            if (++_errors >= _errorsBeforeGivingUp) pending.TrySetCanceled();
+        });
     }
 
     /// <summary>
@@ -51,14 +62,17 @@ internal sealed class DaemonSession : IHeadsetSession
     /// device itself. Deliberately does not start one: a single command is not worth leaving a
     /// process behind on a machine where nothing else wanted it.
     /// </summary>
-    public static IHeadsetSession? TryConnect()
+    public static IHeadsetSession? TryConnect(string? pipeName = null)
     {
-        var client = new IpcClient();
-        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        var client = new IpcClient(pipeName);
+        // The hello's state is kept, not just waited for. Without it the session thought nothing was
+        // connected until a later change came, so a command the daemon refused - which changes
+        // nothing - was reported as earbuds that did not answer.
+        var connected = new TaskCompletionSource<DeviceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.SnapshotReceived += (_, snapshot) => connected.TrySetResult(snapshot);
         client.Start();
 
-        if (connected.Task.Wait(TimeSpan.FromSeconds(2))) return new DaemonSession(client);
+        if (connected.Task.Wait(TimeSpan.FromSeconds(2))) return new DaemonSession(client, connected.Task.Result);
 
         client.Dispose();
         return null;
@@ -66,22 +80,34 @@ internal sealed class DaemonSession : IHeadsetSession
 
     private void Complete(Action<TaskCompletionSource<DeviceDetail>> finish)
     {
-        TaskCompletionSource<DeviceDetail>? pending;
-        lock (_gate) pending = _pending;
-        if (pending is not null) finish(pending);
+        lock (_gate)
+        {
+            if (_pending is not null) finish(_pending);
+        }
     }
 
-    /// <summary>Asks the daemon to read the headset, and waits for the answers.</summary>
-    private DeviceDetail Read()
+    /// <summary>
+    /// Sends <paramref name="command"/>, if there is one, then asks the daemon to read the headset
+    /// and waits for the answers.
+    /// </summary>
+    /// <remarks>
+    /// The wait is set up before the command goes. A command the daemon refuses on the spot answers
+    /// with an error at once, and one that arrived before anything was waiting was lost, leaving the
+    /// read after it to report the refused command as done.
+    /// </remarks>
+    private DeviceDetail Read(string? command = null, int value = 0)
     {
         var pending = new TaskCompletionSource<DeviceDetail>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_gate)
         {
             _pending = pending;
             _lastError = null;
+            _errors = 0;
+            _errorsBeforeGivingUp = command is null ? 1 : 2;
         }
 
-        if (!_client.Send(IpcCommands.Describe)) throw Unreachable("the daemon is no longer connected");
+        if ((command is not null && !_client.Send(command, value)) || !_client.Send(IpcCommands.Describe))
+            throw Unreachable("the daemon is no longer connected");
 
         try
         {
@@ -111,11 +137,7 @@ internal sealed class DaemonSession : IHeadsetSession
 
     private static byte[] Bytes(string base64) => Convert.FromBase64String(base64);
 
-    private DeviceDetail Apply(string command, int value = 0)
-    {
-        if (!_client.Send(command, value)) throw Unreachable("the daemon is no longer connected");
-        return Read();
-    }
+    private DeviceDetail Apply(string command, int value = 0) => Read(command, value);
 
     public ModelInfo GetModelInfo() => ModelInfo.Parse(Bytes(Read().Model));
 
