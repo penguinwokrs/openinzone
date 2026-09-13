@@ -158,9 +158,10 @@ scoop install penguinwokrs/openinzone
 ```
 
 This installs the same programs as the zip, adds **OpenInzone** to the Start menu under
-**Scoop Apps**, and puts `inzone` on PATH. Update with `scoop update openinzone` rather than the
-update button in 設定: that button runs the installer above, which leaves you with two copies.
-The Stream Deck plugin is not included; see [Installing it](#installing-it).
+**Scoop Apps**, and puts `inzone` on PATH. The update button in 設定 updates it through Scoop, in a
+PowerShell window that closes by itself when it is done. Running `scoop update openinzone` yourself
+works too, but only with the tray closed: Scoop will not update an app while any of its programs
+is running. The Stream Deck plugin is not included; see [Installing it](#installing-it).
 
 ### Installing with winget
 
