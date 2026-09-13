@@ -28,7 +28,8 @@ internal sealed class IpcHost : IDisposable
         _controller = controller;
         _server = new IpcServer(
             () => IpcSnapshot.From(controller.State),
-            currentCapabilities: () => controller.Capabilities);
+            currentCapabilities: () => controller.Capabilities,
+            currentSettings: () => controller.Settings);
         _server.CommandReceived += (_, message) => Execute(message);
         _server.Failed += (_, message) => Failed?.Invoke(this, message);
 

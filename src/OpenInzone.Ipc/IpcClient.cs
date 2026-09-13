@@ -34,6 +34,7 @@ public sealed class IpcClient : IDisposable
     private LineChannel? _channel;
     private OutboundQueue? _outbound;
     private Task? _loop;
+    private volatile IReadOnlyList<string>? _daemonCommands;
 
     /// <summary>Raised for the hello snapshot and every push after it.</summary>
     public event EventHandler<DeviceSnapshot>? SnapshotReceived;
@@ -71,6 +72,17 @@ public sealed class IpcClient : IDisposable
     }
 
     public bool IsConnected => _channel is not null;
+
+    /// <summary>
+    /// The commands the daemon said it accepts, or null before its hello, after the link drops, and
+    /// when the daemon is too old to say.
+    /// </summary>
+    /// <remarks>
+    /// Set before anything else from the hello is raised, so a client drawing on the hello's
+    /// snapshot already knows which of its controls the daemon can carry out. See
+    /// <see cref="IpcCommands.Offered"/>.
+    /// </remarks>
+    public IReadOnlyList<string>? DaemonCommands => _daemonCommands;
 
     public void Start() => _loop ??= Task.Run(RunAsync);
 
@@ -186,6 +198,16 @@ public sealed class IpcClient : IDisposable
                     return;
 
                 case ServerMessage.Hello:
+                    _daemonCommands = message.Commands;
+                    if (message.Capabilities is not null)
+                        CapabilitiesReceived?.Invoke(this, message.Capabilities);
+                    if (message.State is not null) SnapshotReceived?.Invoke(this, message.State);
+
+                    // After the snapshot, so a client that keeps settings only while connected
+                    // knows by then that it is.
+                    if (message.Settings is not null) SettingsReceived?.Invoke(this, message.Settings);
+                    break;
+
                 case ServerMessage.StateUpdate:
                     if (message.Capabilities is not null)
                         CapabilitiesReceived?.Invoke(this, message.Capabilities);
@@ -213,6 +235,7 @@ public sealed class IpcClient : IDisposable
 
     private void Drop()
     {
+        _daemonCommands = null;
         _outbound?.Dispose();
         _outbound = null;
         _channel = null;

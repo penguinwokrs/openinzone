@@ -73,6 +73,12 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// <summary>What the connected model has, or null while nothing has said.</summary>
     public DeviceCapabilities? Capabilities { get; private set; }
 
+    /// <summary>
+    /// What the connected headset last said about its settings, or null while nothing is connected
+    /// or nothing has been read yet. The daemon sends it with every hello.
+    /// </summary>
+    public IReadOnlyList<SettingValue>? Settings => _settings.Current;
+
     public DeviceState State
     {
         get { lock (_stateLock) return _state; }

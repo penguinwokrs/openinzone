@@ -194,6 +194,79 @@ public class IpcRoundTripTests
     }
 
     /// <summary>
+    /// A client that connects is told the settings without asking. A request sent while the
+    /// channel was still coming up can be lost, and a client that waited for its answer would wait
+    /// until something happened to change.
+    /// </summary>
+    [Fact]
+    public async Task The_hello_brings_the_settings_without_asking()
+    {
+        string pipeName = UniquePipeName();
+        IReadOnlyList<SettingValue> settings =
+        [
+            new("sidetone", 3), new("ambient-mode", 2), new("ambient-level", 14),
+        ];
+
+        using var server = new IpcServer(() => Sample, pipeName, currentSettings: () => settings);
+        var asked = false;
+        server.CommandReceived += (_, _) => asked = true;
+        server.Start();
+
+        var arrived = new TaskCompletionSource<IReadOnlyList<SettingValue>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SettingsReceived += (_, s) => arrived.TrySetResult(s);
+        client.Start();
+
+        Assert.Equal(settings, await Within(arrived));
+        Assert.False(asked);
+    }
+
+    /// <summary>
+    /// No settings is what a daemon says while no headset is connected, and a client must not be
+    /// handed that as an empty list, which would read as a model with no settings at all.
+    /// </summary>
+    [Fact]
+    public async Task A_hello_with_no_settings_raises_no_settings()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => Sample, pipeName, currentSettings: () => null);
+        server.Start();
+
+        var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var settingsSeen = false;
+        using var client = new IpcClient(pipeName);
+        client.SettingsReceived += (_, _) => settingsSeen = true;
+        client.SnapshotReceived += (_, _) => connected.TrySetResult(true);
+        client.Start();
+        await Within(connected);
+
+        // The settings would have been raised straight after the snapshot, from the same line.
+        await Task.Delay(100);
+        Assert.False(settingsSeen);
+    }
+
+    /// <summary>
+    /// The list is known by the time the hello's snapshot is raised, so a client drawing on that
+    /// snapshot already knows which commands it may offer.
+    /// </summary>
+    [Fact]
+    public async Task The_hello_tells_the_client_which_commands_the_daemon_accepts()
+    {
+        string pipeName = UniquePipeName();
+        using var server = new IpcServer(() => Sample, pipeName);
+        server.Start();
+
+        var known = new TaskCompletionSource<IReadOnlyList<string>?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        Assert.Null(client.DaemonCommands);
+        client.SnapshotReceived += (sender, _) => known.TrySetResult(((IpcClient)sender!).DaemonCommands);
+        client.Start();
+
+        Assert.Contains(IpcCommands.CycleSetting, (await Within(known))!);
+    }
+
+    /// <summary>
     /// A request the daemon accepted but could not carry out - the headset went away mid-read -
     /// has to reach the caller, or a describe that failed looks like a channel gone quiet.
     /// </summary>
