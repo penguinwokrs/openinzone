@@ -4,6 +4,7 @@
 using System.IO;
 using System.Windows;
 using OpenInzone.Control;
+using OpenInzone.Ipc;
 using OpenInzone.Resources;
 
 namespace OpenInzone.Tray;
@@ -17,6 +18,7 @@ public partial class App : System.Windows.Application
     private HotkeyHost? _hotkeys;
     private HotkeyConfig _config = HotkeyConfig.Default();
     private SettingsWindow? _settings;
+    private System.Windows.Threading.DispatcherTimer? _scoopWatch;
 
     /// <summary>
     /// How long to leave the login alone before asking GitHub anything. This runs while Windows is
@@ -31,6 +33,15 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Scoop skips an update while anything runs from its app directory, so a Scoop tray moves
+        // itself out through a junction. Before the mutex, so the copy it starts never finds this
+        // one still holding it.
+        if (ScoopUpdater.TryRelaunchThroughJunction(e.Args))
+        {
+            Shutdown();
+            return;
+        }
 
         // One process owns the hotkeys; a second copy would silently lose every registration.
         _instance = new Mutex(initiallyOwned: true, "OpenInzone.Tray.SingleInstance", out bool first);
@@ -85,6 +96,39 @@ public partial class App : System.Windows.Application
         if (_config.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
 
         _tray.SettingsRequested += (_, _) => Dispatcher.Invoke(() => OpenSettings());
+
+        if (ScoopUpdater.Current is { } scoop) FollowScoopUpdates(scoop);
+    }
+
+    /// <summary>
+    /// A manual scoop update succeeds while this tray runs - it runs through a junction Scoop does
+    /// not look at - but leaves it and its daemon on the old version. So every 15 seconds this looks
+    /// at where Scoop's current points, and once that is another version with a tray in it, stops
+    /// this version's daemon and restarts from current.
+    /// </summary>
+    private void FollowScoopUpdates(ScoopInstall scoop)
+    {
+        string? running = ScoopRun.ResolveVersionDirectory(AppContext.BaseDirectory);
+        if (running is null) return;
+
+        _ = Task.Run(() => ScoopRun.PruneRunDirectories(scoop));
+
+        _scoopWatch = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _scoopWatch.Tick += (_, _) =>
+        {
+            if (!ScoopInstall.HasMovedOn(running, ScoopRun.ResolveVersionDirectory(scoop.CurrentDirectory), File.Exists))
+                return;
+
+            _scoopWatch.Stop();
+
+            // The channel first: left open, it would notice the daemon going and start this
+            // version's again before the restart below has happened.
+            _headset?.Dispose();
+            _headset = null;
+            ScoopUpdater.StopDaemonsIn(AppContext.BaseDirectory);
+            Restart($@"{scoop.CurrentDirectory}\inzonetray.exe");
+        };
+        _scoopWatch.Start();
     }
 
     /// <summary>
@@ -110,52 +154,58 @@ public partial class App : System.Windows.Application
         {
             // Environment.ProcessPath is the executable as launched, which is what has to come
             // back.
-            string? executable = Environment.ProcessPath;
-            if (executable is null) return;
-
-            // Closing the window is not just cleanup here - it has to happen before _hotkeys is
-            // touched below. SettingsWindow keeps its own reference to the same HotkeyHost, and
-            // Shutdown() further down closes any windows still open as part of tearing down; if
-            // a hotkey capture is still in progress on the Hotkeys tab, that close runs
-            // OnClosed -> EndCapture -> ApplyHotkeys, which reaches into _hotkeys. Doing it here
-            // instead means that call lands while the host is still alive and behaves normally,
-            // and it also means Shutdown() later has no open window left to close at all.
-            _settings?.Close();
-
-            // The single-instance mutex and the registered hotkeys are OS-level resources: the
-            // mutex's named kernel object survives until this process's handle to it is
-            // closed, and RegisterHotKey refuses a combination another window still holds,
-            // this process's own message-only window included. Process.Start only waits for
-            // the new process to exist, not for it to run any code, so starting it before
-            // releasing these would race the new instance's own startup check - and losing
-            // that race means the new copy sees itself as the second instance and exits
-            // immediately, leaving no tray at all. Releasing them here first makes that
-            // deterministic instead of a timing bet. This ordering constraint is layered on top
-            // of the one above: the window must close before either resource is released, and
-            // both must be released before the replacement process starts.
-            _hotkeys?.Dispose();
-            _hotkeys = null;
-            _instance?.Dispose();
-            _instance = null;
-
-            // By this point the mutex and the hotkeys are already released, so this process is
-            // no longer safely usable whether or not the launch succeeds: a caught failure
-            // still has to end in Shutdown(), not a tray left running with neither guard.
-            try
-            {
-                System.Diagnostics.Process.Start(
-                    new System.Diagnostics.ProcessStartInfo(executable) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                _tray?.ShowBalloon(Strings.App_ErrorTitle, ex.Message);
-            }
-            Shutdown();
+            if (Environment.ProcessPath is { } executable) Restart(executable);
         };
         _settings.Show();
         BringToFront(_settings);
 
         return _settings;
+    }
+
+    /// <summary>
+    /// Replaces this process with <paramref name="executable"/>: after a language change, the same
+    /// executable; after a Scoop update, the new version.
+    /// </summary>
+    private void Restart(string executable)
+    {
+        // Closing the window is not just cleanup here - it has to happen before _hotkeys is
+        // touched below. SettingsWindow keeps its own reference to the same HotkeyHost, and
+        // Shutdown() further down closes any windows still open as part of tearing down; if
+        // a hotkey capture is still in progress on the Hotkeys tab, that close runs
+        // OnClosed -> EndCapture -> ApplyHotkeys, which reaches into _hotkeys. Doing it here
+        // instead means that call lands while the host is still alive and behaves normally,
+        // and it also means Shutdown() later has no open window left to close at all.
+        _settings?.Close();
+
+        // The single-instance mutex and the registered hotkeys are OS-level resources: the
+        // mutex's named kernel object survives until this process's handle to it is
+        // closed, and RegisterHotKey refuses a combination another window still holds,
+        // this process's own message-only window included. Process.Start only waits for
+        // the new process to exist, not for it to run any code, so starting it before
+        // releasing these would race the new instance's own startup check - and losing
+        // that race means the new copy sees itself as the second instance and exits
+        // immediately, leaving no tray at all. Releasing them here first makes that
+        // deterministic instead of a timing bet. This ordering constraint is layered on top
+        // of the one above: the window must close before either resource is released, and
+        // both must be released before the replacement process starts.
+        _hotkeys?.Dispose();
+        _hotkeys = null;
+        _instance?.Dispose();
+        _instance = null;
+
+        // By this point the mutex and the hotkeys are already released, so this process is
+        // no longer safely usable whether or not the launch succeeds: a caught failure
+        // still has to end in Shutdown(), not a tray left running with neither guard.
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(executable) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _tray?.ShowBalloon(Strings.App_ErrorTitle, ex.Message);
+        }
+        Shutdown();
     }
 
     /// <summary>

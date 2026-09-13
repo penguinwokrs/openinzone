@@ -44,7 +44,7 @@ public static class Autostart
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
         if (enabled)
         {
-            key.SetValue(ValueName, $"\"{Environment.ProcessPath}\"");
+            key.SetValue(ValueName, $"\"{ScoopUpdater.AutostartCommand ?? Environment.ProcessPath}\"");
 
             // Deleting rather than writing an "enabled" record: an item with no record at all is
             // exactly what a freshly installed entry looks like, and that state is unambiguous in
