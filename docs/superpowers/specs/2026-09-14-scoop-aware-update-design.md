@@ -43,7 +43,7 @@ passed with `-EncodedCommand` so no quoting survives to the command line.
 4. `& '<root>\apps\scoop\current\bin\scoop.ps1' update`, then `... update <name>`.
 5. Release the mutex.
 6. Start `<root>\apps\<name>\current\inzonetray.exe`.
-7. If step 4 failed, leave the window open (`Read-Host`) so the error can be read; otherwise close.
+7. If the version in `current\manifest.json` did not change, leave the window open (`Read-Host`) so Scoop's output can be read; otherwise close. A version comparison rather than an exit code, because Scoop reports "running process detected" and "already latest" without failing.
 
 ## Units
 
