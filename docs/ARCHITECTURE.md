@@ -14,9 +14,10 @@ one.
 What follows from that is the rule most changes touch: **a client does not keep the headset's state
 of its own.** It draws what the daemon sends it, and it forwards what the user asked for.
 
-- **A client caches only what it was sent.** The plugin keeps the last snapshot and capabilities so
-  that it can draw a key, and replaces them wholesale when the next ones arrive. It
-  never edits them, and never works out a value from them.
+- **A client caches only what it was sent.** The plugin keeps the last snapshot, capabilities and
+  settings so that it can draw a key. It replaces them wholesale when the next ones arrive, and
+  drops them when the link goes, so a key never shows a reading from before. It never edits them,
+  and never works out a value from them.
 - **The daemon does the arithmetic.** A key that moves something sends how far — `adjust-volume`,
   `toggle-mic-mute` — rather than the value it expects to end up with. The daemon applies it to what
   the headset last said. Two presses in quick succession then both count, where a client that
@@ -43,14 +44,29 @@ There are two kinds of value, and both are meant to work that way:
 | Sent as | `state` | `settings` |
 | Written by | A command each (`adjust-volume`, `set-balance`) | `set-setting`, for every setting |
 
-The state already follows notifications. The settings are, for now, only read when a client asks,
-so a settings window that is open while the wearer changes the ambient mode on the headset keeps
-showing the old one until it is opened again. Closing that gap is in the spirit of this section,
-and should be done the same way the state does it.
+Both follow notifications. They differ in when they are read in full: the state is read when a
+headset connects and again every sixty seconds, while the settings are read when a headset
+connects, when a client asks, and after every write, but not on that timer. The daemon's hello
+carries both, so a client that has just connected does not have to ask.
 
 A notification can land while a full read is under way, and the read can then put an older value
-back. The state path accepts that rather than guarding against it: the next notification or the
-next read corrects it. The settings path should make the same trade rather than a stricter one.
+back. The state path accepts that rather than guarding against it: the next notification, or the
+next sixty-second read, corrects it. The settings have no such read to fall back on, and a wrong
+ambient mode would stay on a key until the mode changed again. So the settings path counts
+notifications (`SettingState`) and lets one that arrived during a read win over what the read
+found.
+
+## A failed command is not a lost link
+
+A command can fail on a link that is perfectly well: a model that does not answer a write it does
+not support, a capture endpoint Windows is not exposing. It can also fail because the headset has
+gone — docked earbuds leave the dongle plugged in and simply stop answering — and from the outside
+the two look the same.
+
+So the daemon does not decide from the failure alone. It reports the error, reads the headset
+again, and keeps the connection if the headset answers; the clients are then shown what the headset
+now says. Only when that reading fails too, or the transport itself fails, is the headset treated
+as gone. What an `error` means to a client is in [IPC.md](IPC.md#conversation).
 
 ## Nothing shaped like one feature
 
