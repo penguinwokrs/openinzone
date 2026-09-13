@@ -3,7 +3,7 @@
 
 using System.Diagnostics;
 using System.IO;
-using OpenInzone.Control;
+using OpenInzone.Ipc;
 
 namespace OpenInzone.Tray;
 

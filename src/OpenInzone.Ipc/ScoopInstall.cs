@@ -4,7 +4,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace OpenInzone.Control;
+namespace OpenInzone.Ipc;
 
 /// <summary>
 /// A copy of OpenInzone that Scoop installed, and the script that updates it through Scoop - setup
@@ -13,7 +13,35 @@ namespace OpenInzone.Control;
 /// </summary>
 public sealed record ScoopInstall(string Root, string AppName)
 {
+    /// <summary>Where the junctions live, under %LOCALAPPDATA%. See <see cref="RunDirectory"/>.</summary>
+    public const string RunRootName = "openinzone-scoop";
+
     public string AppDirectory => $@"{Root}\apps\{AppName}";
+
+    public string CurrentDirectory => $@"{AppDirectory}\current";
+
+    /// <summary>
+    /// The junction a version runs through. Scoop refuses to update while any process's path is
+    /// under <see cref="AppDirectory"/>, and a process started through a junction reports the
+    /// junction's path - so the tray and the daemon run from here instead. One per version, never
+    /// pointed at <c>current</c>: Scoop relinks that mid-update, under a tray still loading assemblies.
+    /// </summary>
+    public string RunDirectory(string localAppData, string version) =>
+        $@"{localAppData.TrimEnd('\\', '/')}\{RunRootName}\{AppName}\{version}";
+
+    /// <summary>
+    /// Whether a tray running <paramref name="ownVersionDirectory"/> should restart: Scoop's
+    /// <c>current</c> now points at another version, and that version's tray is already there.
+    /// A missing target is Scoop between unlinking and relinking, not a new version.
+    /// </summary>
+    public static bool HasMovedOn(string ownVersionDirectory, string? currentTarget, Func<string, bool> fileExists)
+    {
+        if (currentTarget is null) return false;
+
+        string target = currentTarget.TrimEnd('\\', '/');
+        return !target.Equals(ownVersionDirectory.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
+               && fileExists($@"{target}\inzonetray.exe");
+    }
 
     /// <summary>
     /// <paramref name="baseDirectory"/> is the tray's own directory, <c>root\apps\name\version</c>
@@ -48,10 +76,12 @@ public sealed record ScoopInstall(string Root, string AppName)
         return $$"""
             $mutex = New-Object System.Threading.Mutex($true, 'OpenInzone.Setup')
             $before = (Get-Content {{manifest}} -Raw | ConvertFrom-Json).version
+            $runs = Join-Path $env:LOCALAPPDATA {{Quote($@"{RunRootName}\{AppName}")}}
             try {
                 Wait-Process -Id {{trayProcessId}} -Timeout 30 -ErrorAction SilentlyContinue
                 Get-Process -Name inzonetray, inzoned, inzone -ErrorAction SilentlyContinue |
-                    Where-Object { $_.Path -and $_.Path.StartsWith({{app}} + '\', [StringComparison]::OrdinalIgnoreCase) } |
+                    Where-Object { $_.Path -and ($_.Path.StartsWith({{app}} + '\', [StringComparison]::OrdinalIgnoreCase) -or
+                                                 $_.Path.StartsWith($runs + '\', [StringComparison]::OrdinalIgnoreCase)) } |
                     Stop-Process -Force -ErrorAction SilentlyContinue
                 Start-Sleep -Milliseconds 700
                 & {{scoop}} update
