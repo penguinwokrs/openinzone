@@ -16,6 +16,7 @@ public class HotkeyCommandTests
         public void AdjustVolume(int delta) => Calls.Add($"volume {delta:+#;-#;0}");
         public void ToggleMicMute() => Calls.Add("mic mute");
         public void AdjustMicLevel(int delta) => Calls.Add($"mic level {delta:+#;-#;0}");
+        public void CycleSetting(string id, int steps) => Calls.Add($"cycle {id} {steps:+#;-#;0}");
     }
 
     [Fact]
@@ -61,6 +62,7 @@ public class HotkeyCommandTests
     [InlineData("mic-mute", "mic mute")]
     [InlineData("mic-up", "mic level +5")]
     [InlineData("mic-down", "mic level -5")]
+    [InlineData("ambient-next", "cycle ambient-mode +1")]
     public void Runs_what_its_name_says(string id, string expected)
     {
         var recorder = new Recorder();
@@ -73,6 +75,6 @@ public class HotkeyCommandTests
     [Fact]
     public void Covers_every_command_the_settings_window_lists()
     {
-        Assert.Equal(8, HotkeyCommand.All.Count);
+        Assert.Equal(9, HotkeyCommand.All.Count);
     }
 }

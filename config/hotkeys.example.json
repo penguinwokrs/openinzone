@@ -7,7 +7,8 @@
     "balance-centre": "Ctrl+Alt+Home",
     "mic-mute": "Ctrl+Alt+Shift+M",
     "mic-up": "Ctrl+Alt+PageUp",
-    "mic-down": "Ctrl+Alt+PageDown"
+    "mic-down": "Ctrl+Alt+PageDown",
+    "ambient-next": "Ctrl+Alt+Shift+A"
   },
   "autostart": false
 }

@@ -3,6 +3,7 @@
 
 using OpenInzone.Control.Resources;
 using OpenInzone.Model;
+using OpenInzone.Settings;
 
 namespace OpenInzone.Control;
 
@@ -17,6 +18,9 @@ public interface IDeviceActions
     void AdjustVolume(int delta);
     void ToggleMicMute();
     void AdjustMicLevel(int delta);
+
+    /// <summary>Moves a choice from the setting catalogue by that many steps, wrapping round.</summary>
+    void CycleSetting(string id, int steps);
 }
 
 /// <summary>
@@ -49,6 +53,8 @@ public sealed record HotkeyCommand(string Id, Func<string> Name, string DefaultC
         new("mic-mute",       () => Strings.Hotkey_MicMute,       "Ctrl+Alt+Shift+M",   d => d.ToggleMicMute()),
         new("mic-up",         () => Strings.Hotkey_MicUp,         "Ctrl+Alt+PageUp",    d => d.AdjustMicLevel(+5)),
         new("mic-down",       () => Strings.Hotkey_MicDown,       "Ctrl+Alt+PageDown",  d => d.AdjustMicLevel(-5)),
+        // One step on, as a press of the Stream Deck key does: off, noise cancelling, ambient sound.
+        new("ambient-next",   () => Strings.Hotkey_AmbientNext,   "Ctrl+Alt+Shift+A",   d => d.CycleSetting(SettingCatalogue.AmbientMode, 1)),
     ];
 
     public static HotkeyCommand? ById(string id) => All.FirstOrDefault(c => c.Id == id);

@@ -28,6 +28,9 @@
   <data name="Hotkey_BalanceCentre" xml:space="preserve">
     <value>バランスを中央に</value>
   </data>
+  <data name="Hotkey_AmbientNext" xml:space="preserve">
+    <value>外音コントロールを切り替え</value>
+  </data>
   <data name="Hotkey_MicMute" xml:space="preserve">
     <value>マイクミュート切り替え</value>
   </data>

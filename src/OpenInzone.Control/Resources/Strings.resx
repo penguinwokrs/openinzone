@@ -28,6 +28,9 @@
   <data name="Hotkey_BalanceCentre" xml:space="preserve">
     <value>Centre the balance</value>
   </data>
+  <data name="Hotkey_AmbientNext" xml:space="preserve">
+    <value>Switch ambient sound control</value>
+  </data>
   <data name="Hotkey_MicMute" xml:space="preserve">
     <value>Toggle microphone mute</value>
   </data>

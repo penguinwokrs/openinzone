@@ -91,6 +91,8 @@ public sealed class IpcDeviceSurface : IHeadset, IDisposable
 
     public void ToggleMicMute() => _client.Send(IpcCommands.ToggleMicMute);
 
+    public void CycleSetting(string id, int steps) => _client.Send(IpcCommands.CycleSetting, steps, id);
+
     public void AdjustMicLevel(int delta) => _client.Send(IpcCommands.AdjustMicLevel, delta);
 
     public void SetMicLevel(int value) => _client.Send(IpcCommands.SetMicLevel, value);
