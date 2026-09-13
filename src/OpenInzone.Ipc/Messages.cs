@@ -43,11 +43,34 @@ public static class IpcCommands
     /// <summary>Advances the choice named in <see cref="ClientMessage.Setting"/>.</summary>
     public const string CycleSetting = "cycle-setting";
 
-    public static bool IsKnown(string command) => command is
-        Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
-        or ToggleMicMute or AdjustMicLevel or SetMicLevel
-        or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe
-        or GetSettings or SetSetting or CycleSetting;
+    /// <summary>Every command this build accepts, as the hello tells each client.</summary>
+    /// <remarks>
+    /// Sent so that a client can tell whether a command newer than the channel's first release is
+    /// there to use, rather than sending it and matching the text of the error that comes back. That
+    /// is what lets a command be added without raising <see cref="IpcProtocol.Version"/>, which would
+    /// put every client of an older build on a pipe nobody serves.
+    /// </remarks>
+    public static IReadOnlyList<string> All { get; } =
+    [
+        Refresh, AdjustVolume, SetVolume, AdjustBalance, SetBalance,
+        ToggleMicMute, AdjustMicLevel, SetMicLevel,
+        SetMicMuted, SetVolumeMuted, ToggleVolumeMute, Describe,
+        GetSettings, SetSetting, CycleSetting,
+    ];
+
+    public static bool IsKnown(string command) => All.Contains(command);
+
+    /// <summary>
+    /// Whether a daemon that sent <paramref name="commands"/> with its hello accepts
+    /// <paramref name="command"/>.
+    /// </summary>
+    /// <remarks>
+    /// No list at all is a daemon from before the list existed. The list and
+    /// <see cref="CycleSetting"/> arrived together, so such a daemon has none of the commands a
+    /// client would think to ask about, and the answer is no.
+    /// </remarks>
+    public static bool Offered(IReadOnlyList<string>? commands, string command) =>
+        commands is not null && commands.Contains(command);
 }
 
 /// <summary>
@@ -204,7 +227,9 @@ public sealed record ServerMessage(
     [property: JsonPropertyName("message")] string? Message = null,
     [property: JsonPropertyName("detail")] DeviceDetail? Detail = null,
     [property: JsonPropertyName("settings")] IReadOnlyList<SettingValue>? Settings = null,
-    [property: JsonPropertyName("capabilities")] DeviceCapabilities? Capabilities = null)
+    [property: JsonPropertyName("capabilities")] DeviceCapabilities? Capabilities = null,
+    /// <summary>The commands the daemon accepts, sent with the hello. See <see cref="IpcCommands.Offered"/>.</summary>
+    [property: JsonPropertyName("commands")] IReadOnlyList<string>? Commands = null)
 {
     public const string Hello = "hello";
     public const string StateUpdate = "state";
