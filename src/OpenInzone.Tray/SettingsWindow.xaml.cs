@@ -596,6 +596,23 @@ public partial class SettingsWindow : Window
         UpdateButton.IsEnabled = false;
         UpdateStatusText.Text = "";
 
+        // Setup would install a second copy beside this one and take autostart with it; Scoop
+        // updates the copy that is actually running.
+        if (ScoopUpdater.Current is { } scoop)
+        {
+            try
+            {
+                ScoopUpdater.Run(scoop);
+                System.Windows.Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText.Text = string.Format(Strings.Settings_UpdateFailed, ex.Message);
+                FinishBusyWithUpdateStillAvailable();
+            }
+            return;
+        }
+
         // Progress is created on the UI thread, so it captures the WPF dispatcher and the callback
         // below can touch UpdateButton directly without a manual Dispatcher.Invoke.
         var progress = new Progress<int>(percent =>

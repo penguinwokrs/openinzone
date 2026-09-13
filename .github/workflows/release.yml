@@ -123,3 +123,18 @@ jobs:
             dist/OpenInzone-*-win-x64.zip \
             dist/*.streamDeckPlugin \
             dist/winget/*.yaml
+
+      # Excavator would otherwise pick the release up on its next scheduled run, up to four hours
+      # away, and until then the tray offers Scoop installs an update Scoop cannot see. The token is
+      # a fine-grained PAT for penguinwokrs/scoop-bucket with Actions: read and write. Without it
+      # the schedule still catches up, so its absence is not a reason to fail a release.
+      - name: Update the Scoop bucket
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "SCOOP_BUCKET_TOKEN is not set; Excavator's schedule will pick this release up."
+            exit 0
+          fi
+          gh workflow run excavator.yml -R penguinwokrs/scoop-bucket
