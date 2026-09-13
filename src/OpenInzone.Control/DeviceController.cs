@@ -16,6 +16,12 @@ internal enum FailureOutcome
 
     /// <summary>One command did not work. Worth checking the link before giving it up.</summary>
     CommandFailed,
+
+    /// <summary>
+    /// The model does not take this command, and it was refused before anything was sent. The
+    /// headset answered whatever was read first, so there is nothing to check.
+    /// </summary>
+    Refused,
 }
 
 /// <summary>
@@ -136,9 +142,12 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     internal static FailureOutcome Classify(Exception error, bool connected, bool fromCommand)
     {
         if (!connected || !fromCommand) return FailureOutcome.LinkLost;
-        return error is IOException or ObjectDisposedException
-            ? FailureOutcome.LinkLost
-            : FailureOutcome.CommandFailed;
+        return error switch
+        {
+            IOException or ObjectDisposedException => FailureOutcome.LinkLost,
+            NotSupportedException => FailureOutcome.Refused,
+            _ => FailureOutcome.CommandFailed,
+        };
     }
 
     private void WorkLoop()
@@ -157,8 +166,9 @@ public sealed class DeviceController : IDeviceActions, IDisposable
                     catch { /* a misbehaving subscriber must not kill the worker */ }
                 }
 
-                if (Classify(ex, connected: _device is not null, fromCommand: announce) == FailureOutcome.CommandFailed
-                    && ConfirmLink())
+                var outcome = Classify(ex, connected: _device is not null, fromCommand: announce);
+                if (outcome == FailureOutcome.Refused
+                    || (outcome == FailureOutcome.CommandFailed && ConfirmLink()))
                 {
                     continue;
                 }
