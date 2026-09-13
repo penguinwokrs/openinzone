@@ -73,3 +73,26 @@ public class WatchPayloadTests
         Assert.Null(Program.Payload(EventId.SidetoneVolume, [30]));
     }
 }
+
+/// <summary>
+/// Scoop refuses to update while any program runs from its app directory, and a watch left open in
+/// a terminal is the one that nothing else can move out of the way. Scoop's own message only names
+/// the process, so the watch says up front what it is holding up and what to do.
+/// </summary>
+public class WatchBannerTests
+{
+    [Fact]
+    public void Says_only_how_to_stop_outside_scoop()
+    {
+        Assert.Equal("Watching INZONE Buds. Press Ctrl+C to stop.", Program.WatchBanner("INZONE Buds", null));
+    }
+
+    [Fact]
+    public void Says_what_it_holds_up_on_a_scoop_install()
+    {
+        string banner = Program.WatchBanner("INZONE Buds", new OpenInzone.Ipc.ScoopInstall(@"C:\scoop", "openinzone"));
+
+        Assert.StartsWith("Watching INZONE Buds. Press Ctrl+C to stop.", banner);
+        Assert.Contains("'scoop update openinzone'", banner);
+    }
+}
