@@ -74,17 +74,20 @@ internal sealed class PluginHost : IDisposable
         _tray.ConnectionChanged += (_, connected) =>
         {
             // A dropped link is drawn as no reading at all rather than as the last one, which
-            // would otherwise sit there looking current.
+            // would otherwise sit there looking current. The capabilities go too: the daemon on
+            // the other side of the next hello may have no headset, or a different model, and a
+            // hello with no headset carries no capabilities to replace the old ones with.
             if (!connected)
             {
                 _state = DeviceSnapshot.Disconnected;
                 _settings = null;
+                _capabilities = null;
             }
             else
             {
-                // The tray's hello carries whatever it last knew, which may be from before the
-                // earbuds were taken out of the case. Asking on arrival is what makes the deck
-                // right immediately rather than at the next thing that happens to change. The
+                // The tray's hello carries whatever it last knew, and the state in it can be as
+                // old as the daemon's last sixty-second read. Asking on arrival is what makes the
+                // deck right immediately rather than at the next thing that happens to change. The
                 // settings need no such request: the hello carries them, and a headset connecting
                 // pushes them.
                 _tray.Send(IpcCommands.Refresh);

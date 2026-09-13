@@ -15,8 +15,9 @@ What follows from that is the rule most changes touch: **a client does not keep 
 of its own.** It draws what the daemon sends it, and it forwards what the user asked for.
 
 - **A client caches only what it was sent.** The plugin keeps the last snapshot, capabilities and
-  settings so that it can draw a key. It replaces them wholesale when the next ones arrive, and
-  drops them when the link goes, so a key never shows a reading from before. It never edits them,
+  settings so that it can draw a key, and the tray keeps the capabilities for a window opened later.
+  They are replaced wholesale when the next ones arrive, and dropped when the link goes, so nothing
+  is drawn from before. It never edits them,
   and never works out a value from them.
 - **The daemon does the arithmetic.** A key that moves something sends how far — `adjust-volume`,
   `toggle-mic-mute` — rather than the value it expects to end up with. The daemon applies it to what
@@ -47,7 +48,9 @@ There are two kinds of value, and both are meant to work that way:
 Both follow notifications. They differ in when they are read in full: the state is read when a
 headset connects and again every sixty seconds, while the settings are read when a headset
 connects, when a client asks, and after every write, but not on that timer. The daemon's hello
-carries both, so a client that has just connected does not have to ask.
+carries both, but only the settings in it are as fresh as a client needs: the state can be as old
+as the last sixty-second read, so a client that has just connected asks for a `refresh`, and needs
+no request for the settings.
 
 A notification can land while a full read is under way, and the read can then put an older value
 back. The state path accepts that rather than guarding against it: the next notification, or the
