@@ -145,15 +145,43 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             }
             catch (Exception ex)
             {
-                Drop();
                 if (announce)
                 {
                     try { Failed?.Invoke(this, ex.Message); }
                     catch { /* a misbehaving subscriber must not kill the worker */ }
                 }
 
+                if (Classify(ex, connected: _device is not null, fromCommand: announce) == FailureOutcome.CommandFailed
+                    && ConfirmLink())
+                {
+                    continue;
+                }
+
+                Drop();
                 Publish(DeviceState.Disconnected);
             }
+        }
+    }
+
+    /// <summary>
+    /// Reads everything again after a command failed, and says whether the headset answered.
+    /// </summary>
+    /// <remarks>
+    /// The same reading the heartbeat takes, settings included, so the clients are put back in front
+    /// of what the headset now says rather than what the failed command asked for. A headset that has
+    /// really gone fails this too, and is then dropped exactly as it was before this existed.
+    /// </remarks>
+    private bool ConfirmLink()
+    {
+        try
+        {
+            ReadEverything();
+            if (_device is { } device) ReadAndAnnounceSettings(device);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

@@ -85,6 +85,11 @@ When a command cannot be understood:
 {"type":"error","version":3,"message":"unknown command 'format-c'"}
 ```
 
+An `error` is about one command, not about the link. When the headset does not answer or refuses a
+command, the daemon reports it, reads the headset again and pushes what it now says; the clients
+stay connected. Only when that reading fails too is the headset treated as gone, and a `state` with
+`connected: false` follows.
+
 From the client:
 
 ```json
