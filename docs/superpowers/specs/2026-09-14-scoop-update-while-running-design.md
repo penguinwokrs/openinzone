@@ -34,7 +34,8 @@ not always enough either.
 | Old junctions | Deleted at tray startup once their target is gone | `scoop cleanup` removes version directories and leaves the junctions dangling |
 | Update button script | Also stops processes under the junction directory | Otherwise the old daemon survives the button's update |
 | `scoop uninstall` | The bucket manifest's `pre_uninstall` stops processes under the junction directory and `apps`, deletes the junctions, and removes the Run value when it points into `apps\<name>` — only when called from `scoop-uninstall.ps1` | The check no longer protects an uninstall, and `pre_uninstall` also runs during an update, where stopping the tray would leave nobody to restart it |
-| `inzone watch` left running | Still blocks a manual update | The CLI runs through Scoop's shim from `apps`. Documented |
+| `inzone watch` left running | Still blocks a manual update, and says so in its start-up banner on a Scoop install; README troubleshooting maps Scoop's "still running" message to stopping it | The CLI runs through Scoop's shim from `apps`, and its parent has to stay to own the console. Scoop's own message names only the process, and no hook runs before it, so the watch is the one place that can say what to do |
+| `%LOCALAPPDATA%\openinzone-scoop` itself | Removed by `pre_uninstall` when empty | Left behind after the last Scoop app using it goes |
 
 ## Units
 
