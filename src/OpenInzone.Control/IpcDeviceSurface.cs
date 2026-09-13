@@ -56,6 +56,10 @@ public sealed class IpcDeviceSurface : IHeadset, IDisposable
         {
             if (connected) return;
             _state = DeviceSnapshot.Disconnected;
+
+            // Whatever answers next may have no headset or another model, and a hello with no
+            // headset brings no capabilities to replace these with.
+            Capabilities = null;
             StateChanged?.Invoke(this, _state);
         };
 
