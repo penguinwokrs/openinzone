@@ -365,6 +365,10 @@ INZONE Hub re-sends a mute change up to four times, waiting two seconds for each
 and rolls the value back in its UI if none arrives. Mute crosses the wireless link, where a single
 write is not always enough.
 
+INZONE Hub writes the mute on INZONE Buds (model id 4) only. The headsets have a mute button of
+their own and only report it here; an INZONE H9 II did not answer a mute written to it
+([#19](https://github.com/penguinwokrs/openinzone/issues/19)).
+
 ### Battery, `0x04`
 
 Earbud models report six bytes:

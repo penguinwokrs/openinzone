@@ -89,6 +89,13 @@ public static class FeatureIds
     public const string Volume = "volume";
     public const string MicMute = "mic-mute";
 
+    /// <summary>
+    /// The mute is shown but cannot be switched from the computer: the headsets mute with a button
+    /// of their own (#19). Said rather than left out of <see cref="MicMute"/>, so that a client
+    /// told by an older daemon, which never says it, keeps the mute switchable.
+    /// </summary>
+    public const string MicMuteReadOnly = "mic-mute-read-only";
+
     /// <summary>The Windows capture endpoint, which is not on the headset's wire at all.</summary>
     public const string MicLevel = "mic-level";
 
@@ -106,7 +113,7 @@ public static class FeatureIds
 
     public static IReadOnlyList<string> All { get; } =
     [
-        Balance, Volume, MicMute, MicLevel, Battery,
+        Balance, Volume, MicMute, MicMuteReadOnly, MicLevel, Battery,
         Sidetone, AmbientMode, AmbientLevel, VoiceFocus,
         AutoPowerOff, VoiceGuidance, VoiceGuidanceLanguage, BluetoothAutoSwitch,
     ];
@@ -151,6 +158,13 @@ public static class DeviceCapabilityExtensions
     /// </summary>
     public static bool Allows(this DeviceCapabilities? capabilities, string? feature) =>
         capabilities is null || feature is null || capabilities.Has(feature);
+
+    /// <summary>
+    /// Whether the mute is only to be shown. Unlike <see cref="Allows"/>, being told nothing says
+    /// no: the mute stays switchable, as it was before any model said otherwise.
+    /// </summary>
+    public static bool MicMuteReadOnly(this DeviceCapabilities? capabilities) =>
+        capabilities?.Has(FeatureIds.MicMuteReadOnly) == true;
 
     /// <summary>The value of one setting, or null when the model did not answer for it.</summary>
     public static int? Value(this IReadOnlyList<SettingValue>? settings, string id) =>

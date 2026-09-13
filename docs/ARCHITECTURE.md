@@ -114,7 +114,9 @@ Where the map is not enough — the headset carries a setting but does not accep
 computer — INZONE Hub is the reference for what to offer, because it is what Sony built against
 each model. It offers a microphone mute button on INZONE Buds only. On the headsets it only shows
 the mute state the headset reports, and an H9 II left a mute written from the computer unanswered
-([#19](https://github.com/penguinwokrs/openinzone/issues/19)). When INZONE Hub's source is read for
+([#19](https://github.com/penguinwokrs/openinzone/issues/19)). OpenInzone follows it: the state is
+shown for every model, and a mute switch on anything but INZONE Buds is refused before it is
+written. When INZONE Hub's source is read for
 this, what was found goes into PROTOCOL.md with where it came from.
 
 A model the maintainer does not own cannot be debugged here. Work that needs one is labelled

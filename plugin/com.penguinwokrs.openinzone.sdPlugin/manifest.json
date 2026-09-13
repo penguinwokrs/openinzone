@@ -71,7 +71,8 @@
       "UUID": "com.penguinwokrs.openinzone.micmute",
       "Name": "Microphone mute",
       "Icon": "images/actions/micmute",
-      "Tooltip": "Mutes and unmutes the headset's microphone.",
+      "Tooltip": "Mutes and unmutes the headset's microphone. On a headset that mutes with its own button, it sets the microphone level to 0 and back instead.",
+      "PropertyInspectorPath": "pi/micmute.html",
       "Controllers": [
         "Keypad",
         "Encoder"

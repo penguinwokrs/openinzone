@@ -242,6 +242,11 @@ how every client behaved before it could ask.
 `mic-level` is the Windows capture endpoint rather than anything on the headset's wire, and is
 present when Windows exposes one.
 
+`mic-mute-read-only` comes with `mic-mute` on a model whose mute is shown but cannot be switched
+from the computer — every model but INZONE Buds ([#19](https://github.com/penguinwokrs/openinzone/issues/19)).
+It is said rather than `mic-mute` being left out, so a client of an older daemon, which never says
+it, keeps the mute as it was. The Stream Deck plugin mutes such a model with `set-mic-level`.
+
 ## The snapshot
 
 ```json

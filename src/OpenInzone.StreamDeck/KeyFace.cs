@@ -40,7 +40,7 @@ internal static class KeyFace
             settings = null;
         }
 
-        return Face(actionId, state, settings);
+        return Face(actionId, state, settings, capabilities);
     }
 
     /// <summary>
@@ -110,12 +110,13 @@ internal static class KeyFace
     private static string Face(
         string actionId,
         DeviceSnapshot state,
-        IReadOnlyList<SettingValue>? settings) => ActionIds.Subject(actionId) switch
+        IReadOnlyList<SettingValue>? settings,
+        DeviceCapabilities? capabilities) => ActionIds.Subject(actionId) switch
     {
         ActionIds.Volume => Labelled("VOL", state.Connected ? $"{state.Volume}" : null,
             state.Connected ? $"/ {state.VolumeMax}" : null),
         ActionIds.Balance => Balance(state),
-        ActionIds.MicMute => MicMute(state),
+        ActionIds.MicMute => MicMute(state, capabilities),
         ActionIds.MicLevel => Labelled("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
         ActionIds.Battery => Battery(state),
         ActionIds.Anc => Labelled("AMBIENT", AmbientMode(state, settings), null),
@@ -171,12 +172,22 @@ internal static class KeyFace
         return balance == 50 ? "CENTRE" : $"{(balance < 50 ? "GAME" : "CHAT")} {notches:0.0}";
     }
 
-    private static string MicMute(DeviceSnapshot state)
+    /// <summary>
+    /// Whether the microphone is muted. A headset that mutes by level (#19) is muted by its own
+    /// button or by a level of nothing, whichever did it.
+    /// </summary>
+    internal static bool Muted(DeviceSnapshot state, DeviceCapabilities? capabilities) =>
+        state.MicMuted
+        || (capabilities.MicMuteReadOnly() && state is { MicLevelAvailable: true, MicLevel: 0 });
+
+    private static string MicMute(DeviceSnapshot state, DeviceCapabilities? capabilities)
     {
         if (!state.Connected) return Labelled("MIC", null, null);
 
-        string colour = state.MicMuted ? Warning : Foreground;
-        string slash = state.MicMuted
+        bool isMuted = Muted(state, capabilities);
+
+        string colour = isMuted ? Warning : Foreground;
+        string slash = isMuted
             ? $"""<line x1="46" y1="42" x2="98" y2="98" stroke="{Warning}" stroke-width="8" stroke-linecap="round"/>"""
             : "";
         return Frame($"""
@@ -184,7 +195,7 @@ internal static class KeyFace
             <path d="M54,68 a18,18 0 0 0 36,0" fill="none" stroke="{colour}" stroke-width="7" stroke-linecap="round"/>
             <line x1="72" y1="86" x2="72" y2="98" stroke="{colour}" stroke-width="7" stroke-linecap="round"/>
             {slash}
-            <text x="72" y="126" fill="{Dim}" font-size="16" text-anchor="middle">{(state.MicMuted ? "MUTED" : "LIVE")}</text>
+            <text x="72" y="126" fill="{Dim}" font-size="16" text-anchor="middle">{(isMuted ? "MUTED" : "LIVE")}</text>
             """);
     }
 

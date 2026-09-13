@@ -255,7 +255,7 @@ public class SettingIdTests
     {
         string[] panel =
         [
-            FeatureIds.Balance, FeatureIds.Volume, FeatureIds.MicMute,
+            FeatureIds.Balance, FeatureIds.Volume, FeatureIds.MicMute, FeatureIds.MicMuteReadOnly,
             FeatureIds.MicLevel, FeatureIds.Battery,
         ];
 

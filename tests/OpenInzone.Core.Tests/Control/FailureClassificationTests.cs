@@ -21,6 +21,14 @@ public class FailureClassificationTests
             DeviceController.Classify(new InvalidOperationException(), connected: true, fromCommand: true));
     }
 
+    /// <summary>A microphone mute on a headset (#19): nothing was sent, so the link is not re-read.</summary>
+    [Fact]
+    public void A_command_the_model_does_not_take_is_refused()
+    {
+        Assert.Equal(FailureOutcome.Refused,
+            DeviceController.Classify(new NotSupportedException(), connected: true, fromCommand: true));
+    }
+
     [Fact]
     public void Transport_io_failing_is_a_lost_link()
     {

@@ -90,6 +90,20 @@ public class KeyFaceTests
         Assert.Contains("LIVE", Svg(ActionIds.MicMute, Live with { MicMuted = false }), StringComparison.Ordinal);
     }
 
+    /// <summary>A headset is muted by its own button or by a level of nothing, whichever did it (#19).</summary>
+    [Fact]
+    public void A_headset_at_a_level_of_nothing_reads_as_muted()
+    {
+        var headset = new DeviceCapabilities([FeatureIds.MicMute, FeatureIds.MicMuteReadOnly, FeatureIds.MicLevel]);
+
+        Assert.Contains("MUTED", Svg(ActionIds.MicMute, Live with { MicLevel = 0 }, headset), StringComparison.Ordinal);
+        Assert.Contains("MUTED", Svg(ActionIds.MicMute, Live with { MicMuted = true }, headset), StringComparison.Ordinal);
+        Assert.Contains("LIVE", Svg(ActionIds.MicMute, Live, headset), StringComparison.Ordinal);
+
+        // The earbuds' own mute is the only one that counts for them.
+        Assert.Contains("LIVE", Svg(ActionIds.MicMute, Live with { MicLevel = 0 }), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void The_battery_key_shows_both_earbuds_the_right_way_round()
     {
