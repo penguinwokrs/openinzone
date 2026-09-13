@@ -62,19 +62,27 @@ public sealed record SettingDescriptor(
     /// <summary>The parameter to send, built from what the headset last reported.</summary>
     public byte[] Write(byte[] param, int value) => WriteValue(param, Clamp(value));
 
-    /// <summary>Advances a choice once, wrapping to its first value.</summary>
+    /// <summary>Moves a choice by <paramref name="steps"/>, wrapping round either end.</summary>
+    /// <param name="steps">
+    /// Negative goes back. Zero is a press with nothing to say how far, which moves one step
+    /// forward, so a client that sends no value gets what a key would do.
+    /// </param>
     /// <remarks>
-    /// An unknown byte also returns to the first known value. That is safer than inventing an order
-    /// beyond the range the headset described, and the next settings readback remains authoritative.
+    /// An unknown byte returns to the first known value whichever way it was asked to go. That is
+    /// safer than inventing an order beyond the range the headset described, and the next settings
+    /// readback remains authoritative.
     /// </remarks>
-    public byte[] Cycle(byte[] param)
+    public byte[] Cycle(byte[] param, int steps)
     {
         if (Kind is not SettingKind.Choice)
             throw new InvalidOperationException($"Setting '{Id}' is not a choice.");
 
         int current = Read(param);
-        int next = current >= Minimum && current < Maximum ? current + 1 : Minimum;
-        return Write(param, next);
+        if (current < Minimum || current > Maximum) return Write(param, Minimum);
+
+        int count = Maximum - Minimum + 1;
+        int offset = ((current - Minimum + (steps == 0 ? 1 : steps)) % count + count) % count;
+        return Write(param, Minimum + offset);
     }
 
     /// <summary>Reads a byte the reply may be too short to carry.</summary>

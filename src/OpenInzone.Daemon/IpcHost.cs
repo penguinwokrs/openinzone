@@ -90,7 +90,7 @@ internal sealed class IpcHost : IDisposable
                 if (message.Setting is { } cycleId
                     && SettingCatalogue.ById(cycleId) is { Kind: SettingKind.Choice })
                 {
-                    _controller.CycleSetting(cycleId);
+                    _controller.CycleSetting(cycleId, message.Value);
                 }
                 else
                 {

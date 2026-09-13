@@ -161,14 +161,14 @@ public static class IpcSnapshot
         device.Session.Set(setting.EventId, setting.Write(current, value));
     }
 
-    /// <summary>Reads and advances one choice while preserving the rest of its packet.</summary>
-    public static void Cycle(InzoneDevice device, string id)
+    /// <summary>Reads and moves one choice by <paramref name="steps"/> while preserving the rest of its packet.</summary>
+    public static void Cycle(InzoneDevice device, string id, int steps)
     {
         var setting = SettingCatalogue.ById(id)
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
         byte[] current = device.Session.Get(setting.EventId);
-        device.Session.Set(setting.EventId, setting.Cycle(current));
+        device.Session.Set(setting.EventId, setting.Cycle(current, steps));
     }
 
     /// <summary>

@@ -367,11 +367,14 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         ReadAndAnnounceSettings(device);
     });
 
-    /// <summary>Advances one choice and reads all settings back from the headset.</summary>
-    public void CycleSetting(string id) => Post(_ =>
+    /// <summary>
+    /// Moves one choice by <paramref name="steps"/>, zero meaning one step forward, and reads all
+    /// settings back from the headset.
+    /// </summary>
+    public void CycleSetting(string id, int steps) => Post(_ =>
     {
         var device = Device();
-        IpcSnapshot.Cycle(device, id);
+        IpcSnapshot.Cycle(device, id, steps);
         ReadAndAnnounceSettings(device);
     });
 
