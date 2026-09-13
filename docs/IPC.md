@@ -44,7 +44,7 @@ which lives inside Stream Deck's plugins folder, find it at all.
 
 | | |
 |---|---|
-| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v3` |
+| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v2` |
 | Framing | one JSON object per line, `\n`, UTF-8 |
 | Access | `PipeOptions.CurrentUserOnly` — the same user, on the same machine |
 | Line limit | 64 KiB; a longer line drops the connection |
@@ -63,26 +63,36 @@ request, and one that misses a push converges on the next.
 On connect:
 
 ```json
-{"type":"hello","version":3,"state":{ ... },"capabilities":{"features":[ ... ]}}
+{"type":"hello","version":2,"state":{ ... },"capabilities":{"features":[ ... ]},
+ "settings":[ ... ],"commands":["refresh", ... ]}
 ```
+
+`settings` is the list a [`settings`](#settings) message carries, as the daemon last heard it, so a
+client knows it without asking. It is absent while no headset is connected, and that is not the same
+as an empty list.
+
+`commands` lists every command this daemon accepts. A client checks it before sending a command
+newer than version 2's first release — `cycle-setting` is the first — and draws the control that
+would send it as unavailable when it is not there. A hello without `commands` is from a daemon
+older than the list, and so older than every command a client would look for in it.
 
 The capabilities say what the connected model has, and are sent again whenever a device connects,
 because the answer belongs to the headset that is plugged in rather than to the daemon:
 
 ```json
-{"type":"capabilities","version":3,"capabilities":{"features":["balance","volume","sidetone"]}}
+{"type":"capabilities","version":2,"capabilities":{"features":["balance","volume","sidetone"]}}
 ```
 
 After every change, from any source — a deck key, the tray's panel, the earbuds themselves:
 
 ```json
-{"type":"state","version":3,"state":{ ... }}
+{"type":"state","version":2,"state":{ ... }}
 ```
 
 When a command cannot be understood:
 
 ```json
-{"type":"error","version":3,"message":"unknown command 'format-c'"}
+{"type":"error","version":2,"message":"unknown command 'format-c'"}
 ```
 
 An `error` is about one command, not about the link. When the headset does not answer or refuses a
@@ -117,7 +127,7 @@ other way round.
 | `describe` | — | Read the device again and answer with a `detail` |
 | `get-settings` | — | Read the settings below and answer with a `settings` |
 | `set-setting` | the setting's own value | Write the setting named in `setting` |
-| `cycle-setting` | — | Advance the choice named in `setting`, wrapping at its end |
+| `cycle-setting` | steps (0 = 1) | Move the choice named in `setting` by that many steps, wrapping round either end |
 
 Anything else is answered with an `error` and not acted on.
 
@@ -127,14 +137,20 @@ Anything else is answered with an `error` and not acted on.
 {"command":"set-setting","setting":"ambient-level","value":14}
 ```
 
-`cycle-setting` carries the choice to advance in the same field:
+`cycle-setting` carries the choice to move in the same field, and how far in `value`:
 
 ```json
-{"command":"cycle-setting","setting":"ambient-mode"}
+{"command":"cycle-setting","setting":"ambient-mode","value":-2}
 ```
 
-The daemon reads the current packet before advancing it, so queued presses are applied in order
-and bytes belonging to related settings are preserved. Unknown settings and settings that are not
+The steps are signed: a positive number moves forward through the choice's values, a negative one
+back, and either wraps round the end it passes — two steps back from the first of three values is
+the second. Zero, or no `value` at all, is one step forward, which is what a key press sends; a dial
+sends the notches it was turned. A value the headset reports outside the choice's range goes to the
+first value whichever way it was asked to move.
+
+The daemon reads the current packet before moving it, so queued presses are applied in order and
+bytes belonging to related settings are preserved. Unknown settings and settings that are not
 choices are answered with an error.
 
 One command for every setting, where there used to be one command each. What a setting is — which
@@ -150,7 +166,7 @@ from the headset, so a client shows what the headset now says rather than what i
 `describe` is answered with the device's own replies, unparsed:
 
 ```json
-{"type":"detail","version":3,"detail":{
+{"type":"detail","version":2,"detail":{
   "model":"BAAiEQAA","battery":"AGEAXgA+","balance":"KA==",
   "volume":"ABA1","mic":"Af//","sidetone":"Ax4=",
   "micLevel":75}}
@@ -174,7 +190,7 @@ the one that asked. A client with a `describe` outstanding takes the next one th
 `get-settings`, and every write, is answered with the whole set:
 
 ```json
-{"type":"settings","version":3,"settings":[
+{"type":"settings","version":2,"settings":[
   {"id":"ambient-mode","value":2},{"id":"ambient-level","value":14},{"id":"voice-focus","value":1},
   {"id":"sidetone","value":3},{"id":"auto-power-off","value":1},
   {"id":"bluetooth-auto-switch","value":1},{"id":"voice-guidance","value":0},
@@ -208,7 +224,7 @@ been a bad moment on the wireless link.
 ## Capabilities
 
 ```json
-{"type":"capabilities","version":3,"capabilities":{"features":[
+{"type":"capabilities","version":2,"capabilities":{"features":[
   "ambient-mode","ambient-level","voice-focus","sidetone","auto-power-off",
   "bluetooth-auto-switch","voice-guidance","voice-guidance-language",
   "balance","volume","mic-mute","battery","mic-level"]}}
@@ -259,8 +275,6 @@ reading rather than as a number.
 
 `IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
 It went to 2 when the settings became a list and the nine named setting commands became one.
-It went to 3 when daemon-side `cycle-setting` was added: an older daemon would otherwise accept a
-new plugin connection but silently ignore every ANC press.
 
 Adding to the channel is not that kind of change, and does not raise it. The two ends are updated
 apart — the app updates itself, while the Stream Deck plugin is installed by hand — so an older
@@ -269,7 +283,7 @@ the version for an addition turns one missing feature into a client that cannot 
 
 | Added | What the older side does | What the newer side has to do |
 |---|---|---|
-| A command | An older daemon answers it with an `error` naming it as unknown, and acts on nothing | Listen for that error, and say on the control that sent the command that the app needs updating |
+| A command | An older daemon leaves it out of the hello's `commands`, and answers it with an `error` naming it as unknown | Check `commands` before sending it, and draw the control that would send it as unavailable when it is not there |
 | A message type | An older client skips a type it does not know | Nothing |
 | A field in a message | An older reader skips a field it does not know | Nothing, as long as the message still means what it did without the field |
 
