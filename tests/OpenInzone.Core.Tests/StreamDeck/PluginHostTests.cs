@@ -110,7 +110,7 @@ public class FeedbackTests
     [Fact]
     public void A_disconnected_headset_shows_nothing_on_every_dial()
     {
-        foreach (string actionId in ActionIds.All.Where(ActionIds.SupportsEncoder))
+        foreach (string actionId in ActionIds.All)
         {
             var feedback = PluginHost.Feedback(actionId, DeviceSnapshot.Disconnected);
             Assert.Equal("--", feedback.Value);
@@ -134,11 +134,43 @@ public class FeedbackTests
     [Fact]
     public void Every_action_has_a_name_of_its_own_on_a_dial()
     {
-        var titles = ActionIds.All.Where(ActionIds.SupportsEncoder)
-            .Select(id => PluginHost.Feedback(id, Live).Title).ToList();
+        var titles = ActionIds.All.Select(id => PluginHost.Feedback(id, Live).Title).ToList();
 
         Assert.Equal(titles.Count, titles.Distinct().Count());
         Assert.All(titles, title => Assert.False(string.IsNullOrWhiteSpace(title)));
+    }
+
+    [Theory]
+    [InlineData(0, "OFF", 0)]
+    [InlineData(1, "NC", 50)]
+    [InlineData(2, "AMB", 100)]
+    public void The_ambient_sound_dial_shows_the_mode_the_headset_reports(int mode, string value, int indicator)
+    {
+        var feedback = PluginHost.Feedback(ActionIds.Anc, Live, settings: [new(FeatureIds.AmbientMode, mode)],
+            daemonCommands: [IpcCommands.CycleSetting]);
+
+        Assert.Equal("Ambient", feedback.Title);
+        Assert.Equal(value, feedback.Value);
+        Assert.Equal(indicator, feedback.Indicator!.Value);
+    }
+
+    [Fact]
+    public void The_ambient_sound_dial_shows_nothing_until_the_mode_is_known()
+    {
+        var feedback = PluginHost.Feedback(ActionIds.Anc, Live, daemonCommands: [IpcCommands.CycleSetting]);
+
+        Assert.Equal("--", feedback.Value);
+        Assert.Equal(0, feedback.Indicator!.Value);
+    }
+
+    /// <summary>A daemon older than <c>cycle-setting</c> cannot turn it, so the dial reads as nothing at all.</summary>
+    [Fact]
+    public void The_ambient_sound_dial_shows_nothing_on_a_daemon_older_than_cycling()
+    {
+        var feedback = PluginHost.Feedback(ActionIds.Anc, Live, settings: [new(FeatureIds.AmbientMode, 1)]);
+
+        Assert.Equal("--", feedback.Value);
+        Assert.Equal("Ambient", feedback.Title);
     }
 
     /// <summary>
@@ -238,15 +270,29 @@ public class ActionIdTests
     }
 
     [Fact]
-    public void Anc_is_a_keypad_only_setting_cycle()
+    public void The_ambient_sound_action_cycles_the_ambient_mode_setting()
     {
         Assert.Equal(FeatureIds.AmbientMode, ActionIds.Feature(ActionIds.Anc));
         Assert.Equal(FeatureIds.AmbientMode, ActionIds.SettingId(ActionIds.Anc));
         Assert.Equal(0, ActionIds.DefaultStep(ActionIds.Anc));
-        Assert.False(ActionIds.SupportsEncoder(ActionIds.Anc));
 
         Assert.Null(ActionIds.SettingId(ActionIds.Volume));
-        Assert.True(ActionIds.SupportsEncoder(ActionIds.Volume));
+    }
+
+    /// <summary>
+    /// Only an action built on a command newer than the channel's first release needs to ask the
+    /// daemon for it. Everything else works with any daemon that speaks the version.
+    /// </summary>
+    [Fact]
+    public void Only_the_ambient_sound_action_needs_a_command_an_older_daemon_lacks()
+    {
+        Assert.Equal(IpcCommands.CycleSetting, ActionIds.RequiredCommand(ActionIds.Anc));
+        Assert.All(ActionIds.All.Where(id => id != ActionIds.Anc),
+            id => Assert.Null(ActionIds.RequiredCommand(id)));
+
+        Assert.True(PluginHost.Available(ActionIds.Volume, null));
+        Assert.False(PluginHost.Available(ActionIds.Anc, null));
+        Assert.True(PluginHost.Available(ActionIds.Anc, [IpcCommands.CycleSetting]));
     }
 }
 
@@ -319,6 +365,20 @@ public class PictureTests
 
         Assert.Equal(
             KeyFace.For(ActionIds.Anc, Live, settings: settings),
+            PluginHost.Picture(ActionIds.Anc, false, Live, null, settings, [IpcCommands.CycleSetting]));
+    }
+
+    /// <summary>
+    /// A key a daemon cannot carry out is drawn the way a key with no headset behind it is, rather
+    /// than showing a mode it would then refuse to change.
+    /// </summary>
+    [Fact]
+    public void An_ambient_sound_key_on_a_daemon_older_than_cycling_is_drawn_as_unavailable()
+    {
+        IReadOnlyList<SettingValue> settings = [new(FeatureIds.AmbientMode, 1)];
+
+        Assert.Equal(
+            KeyFace.For(ActionIds.Anc, DeviceSnapshot.Disconnected),
             PluginHost.Picture(ActionIds.Anc, false, Live, null, settings));
     }
 }

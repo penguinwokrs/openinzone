@@ -32,7 +32,6 @@ internal sealed class PluginHost : IDisposable
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
     private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
     private volatile IReadOnlyList<SettingValue>? _settings;
-    private bool _awaitingHello;
 
     /// <summary>
     /// What the connected model has, or null while the tray has not said. Null offers everything,
@@ -60,11 +59,6 @@ internal sealed class PluginHost : IDisposable
         {
             _state = snapshot;
             if (!snapshot.Connected) _settings = null;
-            if (_awaitingHello)
-            {
-                _awaitingHello = false;
-                if (snapshot.Connected) _tray.Send(IpcCommands.GetSettings);
-            }
             RedrawAll();
         };
         _tray.SettingsReceived += (_, settings) =>
@@ -83,7 +77,6 @@ internal sealed class PluginHost : IDisposable
             // would otherwise sit there looking current.
             if (!connected)
             {
-                _awaitingHello = false;
                 _state = DeviceSnapshot.Disconnected;
                 _settings = null;
             }
@@ -91,8 +84,8 @@ internal sealed class PluginHost : IDisposable
             {
                 // The tray's hello carries whatever it last knew, which may be from before the
                 // earbuds were taken out of the case. Asking on arrival is what makes the deck
-                // right immediately rather than at the next thing that happens to change.
-                _awaitingHello = true;
+                // right immediately rather than at the next thing that happens to change. The
+                // hello brings the settings too, and the refresh reads them again with the rest.
                 _tray.Send(IpcCommands.Refresh);
             }
 
@@ -165,7 +158,8 @@ internal sealed class PluginHost : IDisposable
             ? configured
             : ActionIds.DefaultStep(instance.ActionId);
 
-        var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step, _capabilities);
+        var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step,
+            _capabilities, _tray.DaemonCommands);
         if (decision is null) return;
 
         _tray.Send(
@@ -200,11 +194,16 @@ internal sealed class PluginHost : IDisposable
     /// What the model has, or null when nothing has said — which offers everything, as this plugin
     /// behaved before it could ask.
     /// </param>
+    /// <param name="daemonCommands">
+    /// The commands the daemon said it accepts, or null when it has not said. Unlike the
+    /// capabilities, saying nothing withholds rather than offers: see <see cref="Available"/>.
+    /// </param>
     internal static (string Command, int Value)? Decide(
         string actionId, bool isEncoder, bool pressed, int ticks, int step,
-        DeviceCapabilities? capabilities = null)
+        DeviceCapabilities? capabilities = null, IReadOnlyList<string>? daemonCommands = null)
     {
         if (!capabilities.Allows(ActionIds.Feature(actionId))) return null;
+        if (!Available(actionId, daemonCommands)) return null;
 
         int direction = ActionIds.Direction(actionId);
         int size = Math.Abs(step);
@@ -220,7 +219,12 @@ internal sealed class PluginHost : IDisposable
         {
             ActionIds.MicMute => pressed ? (IpcCommands.ToggleMicMute, 0) : null,
             ActionIds.Battery => pressed ? (IpcCommands.Refresh, 0) : null,
-            ActionIds.Anc => pressed && !isEncoder ? (IpcCommands.CycleSetting, 0) : null,
+
+            // A press is the next mode, on a key and on a dial alike. A turn is as many modes as
+            // it has notches, either way; the daemon wraps them round, so the deck never needs to
+            // know how many modes there are.
+            ActionIds.Anc when pressed => (IpcCommands.CycleSetting, 1),
+            ActionIds.Anc when isEncoder && ticks != 0 => (IpcCommands.CycleSetting, ticks),
 
             // A dial press is the obvious shortcut for each: centre the balance, mute the
             // microphone. Neither has a counterpart on a plain key, which steps instead - and
@@ -235,6 +239,16 @@ internal sealed class PluginHost : IDisposable
             _ => null,
         };
     }
+
+    /// <summary>Whether the daemon can carry out an action at all.</summary>
+    /// <remarks>
+    /// A daemon whose hello named no commands predates the list, and the list arrived together with
+    /// the only command an action needs to ask about, so no list means no. That is the opposite of
+    /// the capabilities, where saying nothing offers everything — there, the worst case is a control
+    /// the model turns out not to have; here, it is a key that is refused on every press.
+    /// </remarks>
+    internal static bool Available(string actionId, IReadOnlyList<string>? daemonCommands) =>
+        ActionIds.RequiredCommand(actionId) is not { } command || IpcCommands.Offered(daemonCommands, command);
 
     /// <summary>Centre of the game/chat scale, which runs 0 to 100.</summary>
     private const int MixCentre = 50;
@@ -261,14 +275,17 @@ internal sealed class PluginHost : IDisposable
         var state = _state;
         var capabilities = _capabilities;
         var settings = _settings;
+        var daemonCommands = _tray.DaemonCommands;
 
         if (instance.IsEncoder)
         {
-            _ = _deck.SetFeedbackAsync(context, Feedback(instance.ActionId, state, capabilities));
+            _ = _deck.SetFeedbackAsync(context,
+                Feedback(instance.ActionId, state, capabilities, settings, daemonCommands));
             return;
         }
 
-        if (Picture(instance.ActionId, _flash.IsShowing(context), state, capabilities, settings) is string face)
+        if (Picture(instance.ActionId, _flash.IsShowing(context), state, capabilities, settings, daemonCommands)
+            is string face)
             _ = _deck.SetImageAsync(context, face);
         else if (settleToPicture)
             _ = _deck.ClearImageAsync(context);
@@ -280,27 +297,44 @@ internal sealed class PluginHost : IDisposable
     /// without a deck: an undirected key always has something to draw; a directed key draws the
     /// reading while a press is still being answered for, and otherwise draws nothing at all,
     /// because it is a picture rather than a readout the rest of the time.
+    ///
+    /// A key the daemon cannot carry out is drawn as if nothing were connected, which is the truth
+    /// from the key's point of view: pressing it will reach nothing that can act on it.
     /// </remarks>
     internal static string? Picture(
         string actionId,
         bool showing,
         DeviceSnapshot state,
         DeviceCapabilities? capabilities,
-        IReadOnlyList<SettingValue>? settings = null) =>
-        ActionIds.Direction(actionId) == 0 ? KeyFace.For(actionId, state, capabilities, settings)
-        : showing                          ? KeyFace.Stepped(actionId, state, capabilities)
-                                           : null;
+        IReadOnlyList<SettingValue>? settings = null,
+        IReadOnlyList<string>? daemonCommands = null)
+    {
+        if (!Available(actionId, daemonCommands))
+        {
+            state = DeviceSnapshot.Disconnected;
+            settings = null;
+        }
+
+        return ActionIds.Direction(actionId) == 0 ? KeyFace.For(actionId, state, capabilities, settings)
+            : showing                             ? KeyFace.Stepped(actionId, state, capabilities)
+                                                  : null;
+    }
 
     /// <summary>What a Stream Deck + dial shows: a name, a reading, and a bar for the travel.</summary>
     /// <remarks>
     /// A dial for something this model does not have reads as nothing, which is the same as a
     /// headset that is not answering — from the dial's point of view there is nothing to show
-    /// either way.
+    /// either way. So does a dial the daemon cannot carry out.
     /// </remarks>
     internal static FeedbackPayload Feedback(
-        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
+        string actionId,
+        DeviceSnapshot state,
+        DeviceCapabilities? capabilities = null,
+        IReadOnlyList<SettingValue>? settings = null,
+        IReadOnlyList<string>? daemonCommands = null)
     {
-        if (!state.Connected || !capabilities.Allows(ActionIds.Feature(actionId)))
+        if (!state.Connected || !capabilities.Allows(ActionIds.Feature(actionId))
+            || !Available(actionId, daemonCommands))
             return new FeedbackPayload(Title(actionId), "--", new Indicator(0));
 
         return ActionIds.Subject(actionId) switch
@@ -319,6 +353,10 @@ internal sealed class PluginHost : IDisposable
                 : new FeedbackPayload(Title(actionId), "--", new Indicator(0)),
 
             ActionIds.Battery => new FeedbackPayload(Title(actionId), BatteryLine(state), null),
+
+            // The bar is where the mode sits among the three, the same order a turn steps through.
+            ActionIds.Anc => new FeedbackPayload(Title(actionId), KeyFace.AmbientMode(state, settings) ?? "--",
+                new Indicator(settings.Value(FeatureIds.AmbientMode) switch { 1 => 50, 2 => 100, _ => 0 })),
 
             _ => new FeedbackPayload(Title(actionId), "--", null),
         };
@@ -345,7 +383,7 @@ internal sealed class PluginHost : IDisposable
         ActionIds.MicMute => "Microphone",
         ActionIds.MicLevel => "Mic level",
         ActionIds.Battery => "Battery",
-        ActionIds.Anc => "ANC",
+        ActionIds.Anc => "Ambient",
         ActionIds.VolumeUp => "Volume +",
         ActionIds.VolumeDown => "Volume -",
         ActionIds.MicLevelUp => "Mic level +",

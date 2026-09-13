@@ -234,28 +234,55 @@ public class DecideTests
             PluginHost.Decide(ActionIds.VolumeUp, Key, Press, ticks: 0, step: 1, capabilities));
     }
 
-    [Fact]
-    public void An_anc_key_press_requests_one_daemon_side_cycle()
-    {
-        Assert.Equal((IpcCommands.CycleSetting, 0),
-            PluginHost.Decide(ActionIds.Anc, Key, Press, ticks: 0, step: 0));
+    /// <summary>What a daemon that has <c>cycle-setting</c> says in its hello.</summary>
+    private static readonly IReadOnlyList<string> CanCycle = [IpcCommands.CycleSetting];
 
-        Assert.Null(PluginHost.Decide(ActionIds.Anc, Key, Turn, ticks: 1, step: 0));
+    [Fact]
+    public void An_ambient_sound_key_press_moves_one_mode_forward()
+    {
+        Assert.Equal((IpcCommands.CycleSetting, 1),
+            PluginHost.Decide(ActionIds.Anc, Key, Press, ticks: 0, step: 0, daemonCommands: CanCycle));
     }
 
     [Fact]
-    public void Anc_dial_input_is_ignored_defensively()
+    public void An_ambient_sound_dial_press_moves_one_mode_forward()
     {
-        Assert.Null(PluginHost.Decide(ActionIds.Anc, Dial, Press, ticks: 0, step: 0));
+        Assert.Equal((IpcCommands.CycleSetting, 1),
+            PluginHost.Decide(ActionIds.Anc, Dial, Press, ticks: 0, step: 0, daemonCommands: CanCycle));
+    }
+
+    /// <summary>The turn is the steps, sign and all: the daemon wraps them round the modes.</summary>
+    [Fact]
+    public void An_ambient_sound_dial_turn_moves_as_far_and_as_the_way_it_was_turned()
+    {
+        Assert.Equal((IpcCommands.CycleSetting, -2),
+            PluginHost.Decide(ActionIds.Anc, Dial, Turn, ticks: -2, step: 0, daemonCommands: CanCycle));
+    }
+
+    [Fact]
+    public void An_ambient_sound_key_that_is_not_pressed_does_nothing()
+    {
+        Assert.Null(PluginHost.Decide(ActionIds.Anc, Key, Turn, ticks: 1, step: 0, daemonCommands: CanCycle));
+    }
+
+    /// <summary>
+    /// A daemon that did not list its commands is older than <c>cycle-setting</c>, and would answer
+    /// every press with an error. Sending nothing is what lets the key be drawn as unavailable
+    /// instead of looking as if it works.
+    /// </summary>
+    [Fact]
+    public void An_ambient_sound_control_does_nothing_on_a_daemon_older_than_cycling()
+    {
+        Assert.Null(PluginHost.Decide(ActionIds.Anc, Key, Press, ticks: 0, step: 0));
         Assert.Null(PluginHost.Decide(ActionIds.Anc, Dial, Turn, ticks: 1, step: 0));
     }
 
     [Fact]
-    public void An_anc_key_for_a_model_without_ambient_control_does_nothing()
+    public void An_ambient_sound_control_for_a_model_without_it_does_nothing()
     {
         var capabilities = new DeviceCapabilities([FeatureIds.Volume]);
 
         Assert.Null(PluginHost.Decide(
-            ActionIds.Anc, Key, Press, ticks: 0, step: 0, capabilities));
+            ActionIds.Anc, Key, Press, ticks: 0, step: 0, capabilities, CanCycle));
     }
 }

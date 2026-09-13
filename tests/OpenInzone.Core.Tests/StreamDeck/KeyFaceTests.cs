@@ -145,15 +145,15 @@ public class KeyFaceTests
 
     [Theory]
     [InlineData(0, "OFF")]
-    [InlineData(1, "ANC")]
-    [InlineData(2, "PASS")]
-    public void The_anc_key_shows_the_reported_mode(int mode, string label)
+    [InlineData(1, "NC")]
+    [InlineData(2, "AMB")]
+    public void The_ambient_sound_key_shows_the_reported_mode(int mode, string label)
     {
         IReadOnlyList<SettingValue> settings = [new(FeatureIds.AmbientMode, mode)];
 
         string svg = Svg(ActionIds.Anc, Live, settings: settings);
 
-        Assert.Contains(">NOISE<", svg, StringComparison.Ordinal);
+        Assert.Contains(">AMBIENT<", svg, StringComparison.Ordinal);
         Assert.Contains($">{label}<", svg, StringComparison.Ordinal);
     }
 
@@ -176,7 +176,7 @@ public class KeyFaceTests
             [new(FeatureIds.AmbientMode, 1)]);
 
         Assert.Contains(">--<", svg, StringComparison.Ordinal);
-        Assert.DoesNotContain(">ANC<", svg, StringComparison.Ordinal);
+        Assert.DoesNotContain(">NC<", svg, StringComparison.Ordinal);
     }
 
     /// <summary>
