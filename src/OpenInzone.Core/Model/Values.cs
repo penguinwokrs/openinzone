@@ -274,6 +274,13 @@ public readonly record struct ModelInfo(
     /// <summary>True for the true-wireless models that report per-bud battery levels.</summary>
     public bool IsEarbuds => ModelId is 4;
 
+    /// <summary>
+    /// Whether the microphone mute can be switched from the computer. INZONE Hub offers the button on
+    /// INZONE Buds only; the headsets mute with a button of their own and only report it, and an
+    /// H9 II leaves a mute written to it unanswered (#19).
+    /// </summary>
+    public bool AcceptsMicMute => ModelId is 4;
+
     public static ModelInfo Parse(byte[] p)
     {
         string ReadSerial(int offset) => offset + 8 <= p.Length

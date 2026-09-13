@@ -132,11 +132,20 @@ public sealed class InzoneDevice : IDisposable
     private const int MicMuteTimeoutMs = 2000;
 
     private MicEndpoint? _micEndpoint;
+    private ModelInfo? _model;
 
     public MicVolume GetMicVolume() => MicVolume.Parse(_session.Get(EventId.MicVolume));
 
     public MicVolume SetMicMuted(bool muted)
     {
+        // Refused before anything is written: a headset that does not answer the write would
+        // otherwise hold every caller for the whole retry, about eight seconds. The model is kept
+        // once read, because asking again costs a quarter of a second on every press.
+        var model = _model ??= GetModelInfo();
+        if (!model.AcceptsMicMute)
+            throw new NotSupportedException(
+                $"{model.Name} mutes its microphone with its own button; it cannot be switched from the computer.");
+
         var next = GetMicVolume() with { Muted = muted };
         SetMicVolumeWithRetry(next);
         return next;

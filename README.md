@@ -189,6 +189,10 @@ Clicking the microphone icon toggles the headset's microphone mute, and the icon
 while it is muted. The speaker and the game/chat icons are labels rather than buttons; the
 headphone mute is on the command line, as `inzone volume mute`.
 
+Only INZONE Buds takes a microphone mute from the computer, as in INZONE Hub. The headsets mute with
+their own button: the icon, the Stream Deck key and `inzone mic` still show what the headset
+reports, but switching it from here is refused without anything being sent.
+
 The microphone is split on purpose: the slider is the Windows endpoint, the mute is the headset's
 own flag. That is what INZONE Hub does, because only the mute is on the wire — `docs/PROTOCOL.md`
 records why. See [Which volume is which](#which-volume-is-which).
