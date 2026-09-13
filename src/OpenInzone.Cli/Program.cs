@@ -5,6 +5,7 @@ using System.Globalization;
 using OpenInzone;
 using OpenInzone.Cli.Output;
 using OpenInzone.Cli.Session;
+using OpenInzone.Ipc;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
 
@@ -223,7 +224,7 @@ internal static class Program
         }
 
         // Not a report: under --json every line on stdout has to be one object, and a banner is not.
-        Console.Error.WriteLine($"Watching {device.GetModelInfo().Name}. Press Ctrl+C to stop.");
+        Console.Error.WriteLine(WatchBanner(device.GetModelInfo().Name, ScoopRun.Locate(AppContext.BaseDirectory)));
 
         using var stop = new ManualResetEventSlim(false);
 
@@ -237,6 +238,19 @@ internal static class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
         stop.Wait();
         return 0;
+    }
+
+    /// <summary>
+    /// A watch runs from Scoop's app directory through its shim, and Scoop skips an update while
+    /// anything does - naming only the process, not what to do about it. The tray and the daemon
+    /// step out of its way; a terminal someone is reading cannot, so it says so instead.
+    /// </summary>
+    internal static string WatchBanner(string modelName, ScoopInstall? scoop)
+    {
+        string banner = $"Watching {modelName}. Press Ctrl+C to stop.";
+        return scoop is null
+            ? banner
+            : $"{banner}{Environment.NewLine}While this runs, 'scoop update {scoop.AppName}' cannot update OpenInzone. Stop this first.";
     }
 
     /// <summary>

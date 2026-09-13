@@ -113,6 +113,10 @@ public static class DaemonLauncher
         string? executable = Find();
         if (executable is null) return false;
 
+        // A daemon under a Scoop app directory would make a manual scoop update refuse to run for
+        // as long as it lives, and a Stream Deck plugin keeps it living.
+        executable = ScoopRun.RunPathFor(executable) ?? executable;
+
         try
         {
             // Deliberately not Process.Start: that makes the daemon a member of this process's

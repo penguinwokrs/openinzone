@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
-using OpenInzone.Control;
+using OpenInzone.Ipc;
 
-namespace OpenInzone.Tests.Control;
+namespace OpenInzone.Tests.Ipc;
 
 public class ScoopInstallTests
 {
@@ -40,6 +40,42 @@ public class ScoopInstallTests
     {
         Assert.Null(ScoopInstall.TryLocate(@"C:\Users\me\AppData\Local\Programs\OpenInzone\",
             _ => true));
+    }
+
+    [Fact]
+    public void Run_directory_is_per_app_and_version_under_local_app_data()
+    {
+        var install = new ScoopInstall(@"C:\Users\me\scoop", "openinzone");
+
+        Assert.Equal(@"C:\Users\me\AppData\Local\openinzone-scoop\openinzone\1.1.4",
+            install.RunDirectory(@"C:\Users\me\AppData\Local", "1.1.4"));
+        Assert.Equal(@"C:\Users\me\scoop\apps\openinzone\current", install.CurrentDirectory);
+    }
+
+    [Theory]
+    [InlineData(@"C:\s\apps\openinzone\1.1.3")]    // Scoop still points here
+    [InlineData(@"C:\S\APPS\OPENINZONE\1.1.3\")]   // same place, spelled differently
+    [InlineData(null)]                             // mid-update: current unlinked
+    [InlineData(@"C:\s\apps\openinzone\1.1.4")]    // new version, tray not there yet
+    public void Does_not_move_on_until_the_new_version_is_there(string? current)
+    {
+        Assert.False(ScoopInstall.HasMovedOn(@"C:\s\apps\openinzone\1.1.3", current, _ => false));
+    }
+
+    [Fact]
+    public void Moves_on_once_current_points_at_another_version_with_a_tray()
+    {
+        Assert.True(ScoopInstall.HasMovedOn(@"C:\s\apps\openinzone\1.1.3", @"C:\s\apps\openinzone\1.1.4\",
+            p => p == @"C:\s\apps\openinzone\1.1.4\inzonetray.exe"));
+    }
+
+    [Fact]
+    public void Script_also_stops_processes_running_through_the_junctions()
+    {
+        string script = new ScoopInstall(@"C:\Users\me\scoop", "openinzone").BuildUpdateScript(1);
+
+        Assert.Contains("'openinzone-scoop\\openinzone'", script);
+        Assert.Contains("$runs", script);
     }
 
     [Fact]
