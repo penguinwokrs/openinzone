@@ -124,6 +124,24 @@ public class IpcProtocolTests
         Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
     }
 
+    [Fact]
+    public void The_current_protocol_version_includes_daemon_side_setting_cycles()
+    {
+        Assert.Equal(3, IpcProtocol.Version);
+    }
+
+    [Fact]
+    public void A_setting_cycle_carries_the_setting_it_is_about()
+    {
+        var command = new ClientMessage(IpcCommands.CycleSetting, Setting: "ambient-mode");
+
+        string json = JsonSerializer.Serialize(command, IpcJson.Default.ClientMessage);
+
+        Assert.Contains("\"command\":\"cycle-setting\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"setting\":\"ambient-mode\"", json, StringComparison.Ordinal);
+        Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
+    }
+
     /// <summary>
     /// A command that is not about a setting says nothing about one, rather than naming an empty
     /// string a daemon would then have to tell apart from a real id.

@@ -106,6 +106,45 @@ public class SettingCatalogueTests
         Assert.Equal(new byte[] { 0x02 }, setting.Write([0x01], 2));
     }
 
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 2)]
+    [InlineData(2, 0)]
+    public void A_choice_advances_and_wraps(int current, int expected)
+    {
+        var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
+
+        byte[] cycled = mode.Cycle([(byte)current, 0x14, 0xFF, 0x01]);
+
+        Assert.Equal(expected, mode.Read(cycled));
+    }
+
+    [Fact]
+    public void Cycling_ambient_mode_preserves_the_rest_of_its_packet()
+    {
+        var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
+
+        Assert.Equal(
+            new byte[] { 0x01, 0x14, 0xFF, 0x01 },
+            mode.Cycle([0x00, 0x14, 0xFF, 0x01]));
+    }
+
+    [Fact]
+    public void A_non_choice_setting_cannot_be_cycled()
+    {
+        var level = SettingCatalogue.ById(SettingCatalogue.AmbientLevel)!;
+
+        Assert.Throws<InvalidOperationException>(() => level.Cycle([0x02, 0x14, 0xFF, 0x00]));
+    }
+
+    [Fact]
+    public void An_unknown_choice_value_returns_to_the_first_known_value()
+    {
+        var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
+
+        Assert.Equal(0, mode.Read(mode.Cycle([0xFF, 0x14, 0xFF, 0x00])));
+    }
+
     /// <summary>
     /// A reply shorter than the setting reads from is a device saying something this build does not
     /// understand. It answers with the bottom of the range rather than throwing, because settings

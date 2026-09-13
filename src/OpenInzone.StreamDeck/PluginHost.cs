@@ -31,6 +31,8 @@ internal sealed class PluginHost : IDisposable
 
     private readonly ConcurrentDictionary<string, Instance> _instances = new();
     private volatile DeviceSnapshot _state = DeviceSnapshot.Disconnected;
+    private volatile IReadOnlyList<SettingValue>? _settings;
+    private bool _awaitingHello;
 
     /// <summary>
     /// What the connected model has, or null while the tray has not said. Null offers everything,
@@ -57,6 +59,17 @@ internal sealed class PluginHost : IDisposable
         _tray.SnapshotReceived += (_, snapshot) =>
         {
             _state = snapshot;
+            if (!snapshot.Connected) _settings = null;
+            if (_awaitingHello)
+            {
+                _awaitingHello = false;
+                if (snapshot.Connected) _tray.Send(IpcCommands.GetSettings);
+            }
+            RedrawAll();
+        };
+        _tray.SettingsReceived += (_, settings) =>
+        {
+            _settings = _state.Connected ? settings : null;
             RedrawAll();
         };
         _tray.CapabilitiesReceived += (_, capabilities) =>
@@ -68,12 +81,20 @@ internal sealed class PluginHost : IDisposable
         {
             // A dropped link is drawn as no reading at all rather than as the last one, which
             // would otherwise sit there looking current.
-            if (!connected) _state = DeviceSnapshot.Disconnected;
-
-            // The tray's hello carries whatever it last knew, which may be from before the
-            // earbuds were taken out of the case. Asking on arrival is what makes the deck
-            // right immediately rather than at the next thing that happens to change.
-            else _tray.Send(IpcCommands.Refresh);
+            if (!connected)
+            {
+                _awaitingHello = false;
+                _state = DeviceSnapshot.Disconnected;
+                _settings = null;
+            }
+            else
+            {
+                // The tray's hello carries whatever it last knew, which may be from before the
+                // earbuds were taken out of the case. Asking on arrival is what makes the deck
+                // right immediately rather than at the next thing that happens to change.
+                _awaitingHello = true;
+                _tray.Send(IpcCommands.Refresh);
+            }
 
             RedrawAll();
         };
@@ -147,7 +168,10 @@ internal sealed class PluginHost : IDisposable
         var decision = Decide(instance.ActionId, instance.IsEncoder, pressed, ticks, step, _capabilities);
         if (decision is null) return;
 
-        _tray.Send(decision.Value.Command, decision.Value.Value);
+        _tray.Send(
+            decision.Value.Command,
+            decision.Value.Value,
+            ActionIds.SettingId(instance.ActionId));
 
         // The moment outlives the round trip to the tray, so the snapshot that comes back redraws
         // the key with the value the headset actually settled on rather than the one this expected.
@@ -196,6 +220,7 @@ internal sealed class PluginHost : IDisposable
         {
             ActionIds.MicMute => pressed ? (IpcCommands.ToggleMicMute, 0) : null,
             ActionIds.Battery => pressed ? (IpcCommands.Refresh, 0) : null,
+            ActionIds.Anc => pressed && !isEncoder ? (IpcCommands.CycleSetting, 0) : null,
 
             // A dial press is the obvious shortcut for each: centre the balance, mute the
             // microphone. Neither has a counterpart on a plain key, which steps instead - and
@@ -235,6 +260,7 @@ internal sealed class PluginHost : IDisposable
         if (!_instances.TryGetValue(context, out var instance)) return;
         var state = _state;
         var capabilities = _capabilities;
+        var settings = _settings;
 
         if (instance.IsEncoder)
         {
@@ -242,7 +268,7 @@ internal sealed class PluginHost : IDisposable
             return;
         }
 
-        if (Picture(instance.ActionId, _flash.IsShowing(context), state, capabilities) is string face)
+        if (Picture(instance.ActionId, _flash.IsShowing(context), state, capabilities, settings) is string face)
             _ = _deck.SetImageAsync(context, face);
         else if (settleToPicture)
             _ = _deck.ClearImageAsync(context);
@@ -256,8 +282,12 @@ internal sealed class PluginHost : IDisposable
     /// because it is a picture rather than a readout the rest of the time.
     /// </remarks>
     internal static string? Picture(
-        string actionId, bool showing, DeviceSnapshot state, DeviceCapabilities? capabilities) =>
-        ActionIds.Direction(actionId) == 0 ? KeyFace.For(actionId, state, capabilities)
+        string actionId,
+        bool showing,
+        DeviceSnapshot state,
+        DeviceCapabilities? capabilities,
+        IReadOnlyList<SettingValue>? settings = null) =>
+        ActionIds.Direction(actionId) == 0 ? KeyFace.For(actionId, state, capabilities, settings)
         : showing                          ? KeyFace.Stepped(actionId, state, capabilities)
                                            : null;
 
@@ -315,6 +345,7 @@ internal sealed class PluginHost : IDisposable
         ActionIds.MicMute => "Microphone",
         ActionIds.MicLevel => "Mic level",
         ActionIds.Battery => "Battery",
+        ActionIds.Anc => "ANC",
         ActionIds.VolumeUp => "Volume +",
         ActionIds.VolumeDown => "Volume -",
         ActionIds.MicLevelUp => "Mic level +",

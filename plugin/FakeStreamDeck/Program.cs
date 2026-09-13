@@ -29,6 +29,7 @@ internal static class Program
     private const string VolumeDown = "com.penguinwokrs.openinzone.volumedown";
     private const string MicMute = "com.penguinwokrs.openinzone.micmute";
     private const string Battery = "com.penguinwokrs.openinzone.battery";
+    private const string Anc = "com.penguinwokrs.openinzone.anc";
 
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
     private static int _failures;
@@ -247,7 +248,7 @@ internal static class Program
         await deck.StartAsync(plugin).ConfigureAwait(false);
 
         foreach (string action in new[] { Volume, "com.penguinwokrs.openinzone.balance", MicMute,
-                                          "com.penguinwokrs.openinzone.miclevel", Battery })
+                                          "com.penguinwokrs.openinzone.miclevel", Battery, Anc })
         {
             string name = action.Split('.')[^1];
             await deck.SendAsync(WillAppear(action, $"key-{name}", encoder: false)).ConfigureAwait(false);

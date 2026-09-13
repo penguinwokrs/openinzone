@@ -36,6 +36,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
 
     private readonly Thread _worker;
     private readonly object _stateLock = new();
+    private readonly SettingState _settings = new();
     private readonly Timer _heartbeat;
 
     private InzoneDevice? _device;
@@ -166,6 +167,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         // while nothing is does better with no answer than with the previous headset's: being told
         // nothing offers everything, which is where every interface starts.
         Capabilities = null;
+        _settings.Clear();
 
         if (_device is null) return;
         try { _device.Dispose(); } catch { /* already gone */ }
@@ -203,14 +205,17 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         // it publishes say what it has, where probing setting by setting can only say what did not
         // answer in time. Every client is told, because a control for a setting the model does not
         // carry is one nobody should be offered.
-        Announce(IpcSnapshot.Read(device));
+        ReadAndAnnounceSettings(device);
 
         return device;
     }
 
     /// <summary>Keeps the cache honest when the wearer or INZONE Hub changes something.</summary>
     private void OnSettingChanged(object? sender, SettingChangedEventArgs e)
-        => Mutate(state => state.Apply(e.EventId, e.Param));
+    {
+        Mutate(state => state.Apply(e.EventId, e.Param));
+        _settings.ApplyAndPublish(e.EventId, e.Param, Announce);
+    }
 
     /// <summary>Connects if needed and re-reads everything. Used on startup and when the flyout opens.</summary>
     /// <remarks>
@@ -281,7 +286,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     {
         bool alreadyConnected = _device is not null;
         var device = Device();
-        if (alreadyConnected) Announce(IpcSnapshot.Read(device));
+        if (alreadyConnected) ReadAndAnnounceSettings(device);
     });
 
     /// <summary>
@@ -297,7 +302,15 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     {
         var device = Device();
         IpcSnapshot.Write(device, id, value);
-        Announce(IpcSnapshot.Read(device));
+        ReadAndAnnounceSettings(device);
+    });
+
+    /// <summary>Advances one choice and reads all settings back from the headset.</summary>
+    public void CycleSetting(string id) => Post(_ =>
+    {
+        var device = Device();
+        IpcSnapshot.Cycle(device, id);
+        ReadAndAnnounceSettings(device);
     });
 
     /// <summary>
@@ -323,16 +336,27 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         catch { /* a misbehaving subscriber must not kill the worker */ }
     }
 
+    /// <summary>Reads and publishes settings without letting an in-flight notification go stale.</summary>
+    private void ReadAndAnnounceSettings(InzoneDevice device)
+    {
+        long generation = _settings.BeginRead();
+        Announce(IpcSnapshot.Read(device), generation);
+    }
+
     /// <summary>Tells every client what the headset has and what it now says.</summary>
-    private void Announce(IpcSnapshot.DeviceReading reading)
+    private void Announce(IpcSnapshot.DeviceReading reading, long readGeneration)
     {
         Capabilities = reading.Capabilities;
-
         try { CapabilitiesRead?.Invoke(this, reading.Capabilities); }
         catch { /* a misbehaving subscriber must not kill the worker */ }
 
-        try { SettingsRead?.Invoke(this, reading.Settings); }
-        catch { /* likewise */ }
+        _settings.ReplaceAndPublish(reading.Settings, readGeneration, Announce);
+    }
+
+    private void Announce(IReadOnlyList<SettingValue> settings)
+    {
+        try { SettingsRead?.Invoke(this, settings); }
+        catch { /* a misbehaving subscriber must not kill the reader or worker */ }
     }
 
     // ---- IDeviceActions ------------------------------------------------------

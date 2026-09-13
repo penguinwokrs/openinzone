@@ -315,13 +315,13 @@ and ticking the checkbox again clears the flag along with writing the value.
 
 ## Stream Deck
 
-There is a plugin for Elgato Stream Deck. Five of its eleven actions turn a key into a live
-readout: battery for each earbud, the balance as a number, whether the microphone is muted — all of
-it on the key, updated the moment anything changes, including when the change came from the tray's
-own panel or from the earbuds themselves. The other six are dedicated up/down keys — pictures
-rather than readouts, which answer a press with the reading for a moment and then go back to being
-pictures. On a Stream Deck +, every action sits on a dial too, which is the right control for a
-value that slides.
+There is a plugin for Elgato Stream Deck. Six of its twelve actions turn a key into a live readout:
+battery for each earbud, the balance as a number, whether the microphone is muted, and the current
+ambient-control mode — all of it on the key, updated the moment anything changes, including when
+the change came from the tray's own panel or from the headset itself. The other six are dedicated
+up/down keys — pictures rather than readouts, which answer a press with the reading for a moment and
+then go back to being pictures. On a Stream Deck +, every action except ANC sits on a dial too,
+which is the right control for a value that slides.
 
 ![Five OpenInzone keys on a Stream Deck: the microphone showing LIVE, the battery showing 88% and 87% for the two earbuds, the microphone level at 100%, the headphone volume at 18 of 30, and the game/chat balance centred](docs/images/streamdeck.png)
 
@@ -348,7 +348,11 @@ own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md)
 | Microphone level | Steps | Turn to adjust, press to mute | `75 %` |
 | Mic level up | Raises it by the step | Turn to adjust, press to raise | `75 %` after a press |
 | Mic level down | Lowers it by the step | Turn to adjust, press to lower | `75 %` after a press |
+| ANC | Cycles Off -> ANC -> Pass-through | Not available | `OFF`, `ANC`, or `PASS` |
 | Battery | Press to re-read | Press to re-read | `L 97` and `R 94` |
+
+ANC is a button-only action. Its cycle order is fixed, and the mode on the key is the value the
+headset reports rather than a state kept by the plugin.
 
 Each stepping action has a **Step** setting. Left blank, volume moves by 1 of the headset's 30
 notches, the balance by one notch of the −5.0…+5.0 scale INZONE Hub uses, and the microphone level
@@ -375,8 +379,8 @@ Two ways, both of which end with Stream Deck showing the actions in its list:
   [`com.penguinwokrs.openinzone.streamDeckPlugin`](https://github.com/penguinwokrs/openinzone/releases/latest).
   Download it and double-click it.
 
-Stream Deck asks once whether to install it, and the eleven actions appear under **OpenInzone**.
-Drag one onto a key, or onto a dial on a Stream Deck +.
+Stream Deck asks once whether to install it, and the twelve actions appear under **OpenInzone**.
+Drag one onto a key, or — for every action except ANC — onto a dial on a Stream Deck +.
 
 If Stream Deck says the plugin is invalid, the file did not download completely — it is around
 6.9 MB. Download it again rather than unpacking it by hand.

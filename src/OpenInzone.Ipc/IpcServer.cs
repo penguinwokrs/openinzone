@@ -26,6 +26,7 @@ public sealed class IpcServer : IDisposable
     private readonly string _pipeName;
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<Client, byte> _clients = new();
+    private readonly object _clientsGate = new();
     private Task? _acceptLoop;
 
     /// <summary>Raised on a pipe thread for every command a client sends.</summary>
@@ -56,12 +57,15 @@ public sealed class IpcServer : IDisposable
     /// <summary>Pushes a snapshot to every connected client. Never throws.</summary>
     public void Publish(DeviceSnapshot snapshot)
     {
-        if (_clients.IsEmpty) return;
         byte[] line = JsonSerializer.SerializeToUtf8Bytes(
             new ServerMessage(ServerMessage.StateUpdate, IpcProtocol.Version, snapshot),
             IpcJson.Default.ServerMessage);
 
-        foreach (var client in _clients.Keys) client.Post(line);
+        lock (_clientsGate)
+        {
+            if (_clients.IsEmpty) return;
+            foreach (var client in _clients.Keys) client.Post(line);
+        }
     }
 
     /// <summary>
@@ -90,9 +94,12 @@ public sealed class IpcServer : IDisposable
 
     private void Broadcast(ServerMessage message)
     {
-        if (_clients.IsEmpty) return;
         byte[] line = JsonSerializer.SerializeToUtf8Bytes(message, IpcJson.Default.ServerMessage);
-        foreach (var client in _clients.Keys) client.Post(line);
+        lock (_clientsGate)
+        {
+            if (_clients.IsEmpty) return;
+            foreach (var client in _clients.Keys) client.Post(line);
+        }
     }
 
     private async Task AcceptLoopAsync()
@@ -133,7 +140,11 @@ public sealed class IpcServer : IDisposable
             }
 
             var client = new Client(pipe, this, _stopping.Token);
-            _clients[client] = 0;
+            lock (_clientsGate)
+            {
+                client.QueueHello();
+                _clients[client] = 0;
+            }
             _ = client.RunAsync(_stopping.Token);
         }
     }
@@ -176,9 +187,6 @@ public sealed class IpcServer : IDisposable
         {
             try
             {
-                Send(new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState(),
-                    Capabilities: _server._currentCapabilities()));
-
                 while (!cancellation.IsCancellationRequested)
                 {
                     string? line = await _channel.ReadLineAsync(cancellation).ConfigureAwait(false);
@@ -196,6 +204,10 @@ public sealed class IpcServer : IDisposable
                 Dispose();
             }
         }
+
+        public void QueueHello() => Send(
+            new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState(),
+                Capabilities: _server._currentCapabilities()));
 
         private void Handle(string line)
         {

@@ -41,6 +41,7 @@ public class ActionFeatureTests
         Assert.Equal(FeatureIds.MicMute, ActionIds.Feature(ActionIds.MicMute));
         Assert.Equal(FeatureIds.MicLevel, ActionIds.Feature(ActionIds.MicLevel));
         Assert.Equal(FeatureIds.Battery, ActionIds.Feature(ActionIds.Battery));
+        Assert.Equal(FeatureIds.AmbientMode, ActionIds.Feature(ActionIds.Anc));
     }
 
     /// <summary>

@@ -29,11 +29,18 @@ internal static class KeyFace
     /// there either way.
     /// </param>
     public static string For(
-        string actionId, DeviceSnapshot state, DeviceCapabilities? capabilities = null)
+        string actionId,
+        DeviceSnapshot state,
+        DeviceCapabilities? capabilities = null,
+        IReadOnlyList<SettingValue>? settings = null)
     {
-        if (!capabilities.Allows(ActionIds.Feature(actionId))) state = DeviceSnapshot.Disconnected;
+        if (!capabilities.Allows(ActionIds.Feature(actionId)))
+        {
+            state = DeviceSnapshot.Disconnected;
+            settings = null;
+        }
 
-        return Face(actionId, state);
+        return Face(actionId, state, settings);
     }
 
     /// <summary>
@@ -100,7 +107,10 @@ internal static class KeyFace
     /// anywhere else in this file already produces, rather than falling through to the wildcard
     /// arm that a mismatch used to reach.
     /// </summary>
-    private static string Face(string actionId, DeviceSnapshot state) => ActionIds.Subject(actionId) switch
+    private static string Face(
+        string actionId,
+        DeviceSnapshot state,
+        IReadOnlyList<SettingValue>? settings) => ActionIds.Subject(actionId) switch
     {
         ActionIds.Volume => Labelled("VOL", state.Connected ? $"{state.Volume}" : null,
             state.Connected ? $"/ {state.VolumeMax}" : null),
@@ -108,11 +118,27 @@ internal static class KeyFace
         ActionIds.MicMute => MicMute(state),
         ActionIds.MicLevel => Labelled("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
         ActionIds.Battery => Battery(state),
+        ActionIds.Anc => Labelled("NOISE", AmbientMode(state, settings), null),
         _ => Labelled("", null, null),
     };
 
     private static string? Level(DeviceSnapshot state) =>
         state is { Connected: true, MicLevelAvailable: true } ? $"{state.MicLevel}" : null;
+
+    private static string? AmbientMode(
+        DeviceSnapshot state,
+        IReadOnlyList<SettingValue>? settings)
+    {
+        if (!state.Connected) return null;
+
+        return settings.Value(FeatureIds.AmbientMode) switch
+        {
+            0 => "OFF",
+            1 => "ANC",
+            2 => "PASS",
+            _ => null,
+        };
+    }
 
     private static string Balance(DeviceSnapshot state)
     {

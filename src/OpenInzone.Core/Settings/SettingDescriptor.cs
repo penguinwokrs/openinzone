@@ -62,6 +62,21 @@ public sealed record SettingDescriptor(
     /// <summary>The parameter to send, built from what the headset last reported.</summary>
     public byte[] Write(byte[] param, int value) => WriteValue(param, Clamp(value));
 
+    /// <summary>Advances a choice once, wrapping to its first value.</summary>
+    /// <remarks>
+    /// An unknown byte also returns to the first known value. That is safer than inventing an order
+    /// beyond the range the headset described, and the next settings readback remains authoritative.
+    /// </remarks>
+    public byte[] Cycle(byte[] param)
+    {
+        if (Kind is not SettingKind.Choice)
+            throw new InvalidOperationException($"Setting '{Id}' is not a choice.");
+
+        int current = Read(param);
+        int next = current >= Minimum && current < Maximum ? current + 1 : Minimum;
+        return Write(param, next);
+    }
+
     /// <summary>Reads a byte the reply may be too short to carry.</summary>
     internal static int At(byte[] param, int index) => index < param.Length ? param[index] : 0;
 

@@ -64,7 +64,7 @@ public class DaemonHandoverTests
     public void A_bare_name_reads_the_same_as_a_full_path()
     {
         Assert.Equal(
-            DaemonHandover.VersionsIn([Pipe(2)], "owner"),
+            DaemonHandover.VersionsIn([Pipe(IpcProtocol.Version)], "owner"),
             DaemonHandover.VersionsIn([IpcProtocol.PipeName("owner")], "owner"));
     }
 

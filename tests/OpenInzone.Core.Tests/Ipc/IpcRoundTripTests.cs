@@ -55,6 +55,39 @@ public class IpcRoundTripTests
     }
 
     [Fact]
+    public async Task A_client_receives_hello_before_a_concurrent_broadcast_without_losing_either()
+    {
+        string pipeName = UniquePipeName();
+        using var readingHello = new ManualResetEventSlim();
+        using var releaseHello = new ManualResetEventSlim();
+        using var server = new IpcServer(() =>
+        {
+            readingHello.Set();
+            releaseHello.Wait(Patience);
+            return DeviceSnapshot.Disconnected;
+        }, pipeName);
+        server.Start();
+
+        var snapshots = new System.Collections.Concurrent.ConcurrentQueue<DeviceSnapshot>();
+        var both = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName);
+        client.SnapshotReceived += (_, snapshot) =>
+        {
+            snapshots.Enqueue(snapshot);
+            if (snapshots.Count == 2) both.TrySetResult(true);
+        };
+        client.Start();
+
+        Assert.True(readingHello.Wait(Patience));
+        Task publish = Task.Run(() => server.Publish(Sample));
+        releaseHello.Set();
+
+        await publish.WaitAsync(Patience);
+        await Within(both);
+        Assert.Equal([DeviceSnapshot.Disconnected, Sample], snapshots);
+    }
+
+    [Fact]
     public async Task A_command_reaches_the_server()
     {
         string pipeName = UniquePipeName();

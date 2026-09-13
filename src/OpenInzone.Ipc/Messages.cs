@@ -40,11 +40,14 @@ public static class IpcCommands
     /// </remarks>
     public const string SetSetting = "set-setting";
 
+    /// <summary>Advances the choice named in <see cref="ClientMessage.Setting"/>.</summary>
+    public const string CycleSetting = "cycle-setting";
+
     public static bool IsKnown(string command) => command is
         Refresh or AdjustVolume or SetVolume or AdjustBalance or SetBalance
         or ToggleMicMute or AdjustMicLevel or SetMicLevel
         or SetMicMuted or SetVolumeMuted or ToggleVolumeMute or Describe
-        or GetSettings or SetSetting;
+        or GetSettings or SetSetting or CycleSetting;
 }
 
 /// <summary>

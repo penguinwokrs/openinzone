@@ -19,6 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="OpenInzone.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\OpenInzone.Core\OpenInzone.Core.csproj" />
     <ProjectReference Include="..\OpenInzone.Ipc\OpenInzone.Ipc.csproj" />
   </ItemGroup>

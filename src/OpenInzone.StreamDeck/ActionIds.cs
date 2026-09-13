@@ -21,6 +21,7 @@ internal static class ActionIds
     public const string MicMute = Prefix + ".micmute";
     public const string MicLevel = Prefix + ".miclevel";
     public const string Battery = Prefix + ".battery";
+    public const string Anc = Prefix + ".anc";
 
     // The same three settings again, with the direction settled by the action rather than by the
     // sign of a step. A key that can only go one way says so on its face, and cannot be configured
@@ -34,7 +35,7 @@ internal static class ActionIds
 
     public static readonly string[] All =
     [
-        Volume, Balance, MicMute, MicLevel, Battery,
+        Volume, Balance, MicMute, MicLevel, Battery, Anc,
         VolumeUp, VolumeDown, MicLevelUp, MicLevelDown, BalanceGame, BalanceChat,
     ];
 
@@ -91,8 +92,19 @@ internal static class ActionIds
         MicMute => FeatureIds.MicMute,
         MicLevel => FeatureIds.MicLevel,
         Battery => FeatureIds.Battery,
+        Anc => FeatureIds.AmbientMode,
         _ => null,
     };
+
+    /// <summary>The generic setting argument an action sends, when it sends one.</summary>
+    public static string? SettingId(string actionId) => actionId switch
+    {
+        Anc => FeatureIds.AmbientMode,
+        _ => null,
+    };
+
+    /// <summary>Whether Stream Deck may place this action on an encoder.</summary>
+    public static bool SupportsEncoder(string actionId) => actionId is not Anc;
 
     /// <summary>
     /// How far one press moves each setting when the Property Inspector says nothing. Volume runs

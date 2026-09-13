@@ -85,6 +85,17 @@ internal sealed class IpcHost : IDisposable
                 else
                     _server.PublishError($"unknown setting '{message.Setting}'");
                 break;
+            case IpcCommands.CycleSetting:
+                if (message.Setting is { } cycleId
+                    && SettingCatalogue.ById(cycleId) is { Kind: SettingKind.Choice })
+                {
+                    _controller.CycleSetting(cycleId);
+                }
+                else
+                {
+                    _server.PublishError($"setting '{message.Setting}' cannot be cycled");
+                }
+                break;
         }
     }
 

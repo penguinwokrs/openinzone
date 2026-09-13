@@ -161,6 +161,16 @@ public static class IpcSnapshot
         device.Session.Set(setting.EventId, setting.Write(current, value));
     }
 
+    /// <summary>Reads and advances one choice while preserving the rest of its packet.</summary>
+    public static void Cycle(InzoneDevice device, string id)
+    {
+        var setting = SettingCatalogue.ById(id)
+            ?? throw new InvalidOperationException($"No such setting: {id}.");
+
+        byte[] current = device.Session.Get(setting.EventId);
+        device.Session.Set(setting.EventId, setting.Cycle(current));
+    }
+
     /// <summary>
     /// The bytes a setting's packet holds, or null when this model does not have it. Taken from
     /// the map where the map carries it, and asked for otherwise.

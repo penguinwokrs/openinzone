@@ -15,9 +15,13 @@ public class KeyFaceTests
         new BatterySnapshot(97, 94, 62, true));
 
     /// <summary>Undoes the data URI so the markup itself can be examined.</summary>
-    private static string Svg(string actionId, DeviceSnapshot state)
+    private static string Svg(
+        string actionId,
+        DeviceSnapshot state,
+        DeviceCapabilities? capabilities = null,
+        IReadOnlyList<SettingValue>? settings = null)
     {
-        string uri = KeyFace.For(actionId, state);
+        string uri = KeyFace.For(actionId, state, capabilities, settings);
         Assert.StartsWith("data:image/svg+xml;base64,", uri, StringComparison.Ordinal);
         return Encoding.UTF8.GetString(Convert.FromBase64String(uri["data:image/svg+xml;base64,".Length..]));
     }
@@ -32,6 +36,7 @@ public class KeyFaceTests
     [InlineData(ActionIds.MicMute)]
     [InlineData(ActionIds.MicLevel)]
     [InlineData(ActionIds.Battery)]
+    [InlineData(ActionIds.Anc)]
     public void Every_key_face_is_well_formed_xml(string actionId)
     {
         XDocument.Parse(Svg(actionId, Live));
@@ -136,6 +141,42 @@ public class KeyFaceTests
         string svg = Svg(ActionIds.MicLevel, Live with { MicLevelAvailable = false });
 
         Assert.Contains(">--<", svg, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0, "OFF")]
+    [InlineData(1, "ANC")]
+    [InlineData(2, "PASS")]
+    public void The_anc_key_shows_the_reported_mode(int mode, string label)
+    {
+        IReadOnlyList<SettingValue> settings = [new(FeatureIds.AmbientMode, mode)];
+
+        string svg = Svg(ActionIds.Anc, Live, settings: settings);
+
+        Assert.Contains(">NOISE<", svg, StringComparison.Ordinal);
+        Assert.Contains($">{label}<", svg, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_anc_key_shows_no_mode_until_a_known_live_reading_arrives()
+    {
+        Assert.Contains(">--<", Svg(ActionIds.Anc, Live), StringComparison.Ordinal);
+        Assert.Contains(">--<", Svg(ActionIds.Anc, DeviceSnapshot.Disconnected,
+            settings: [new(FeatureIds.AmbientMode, 1)]), StringComparison.Ordinal);
+        Assert.Contains(">--<", Svg(ActionIds.Anc, Live,
+            settings: [new(FeatureIds.AmbientMode, 99)]), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_model_without_ambient_control_draws_no_anc_reading()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.Volume]);
+
+        string svg = Svg(ActionIds.Anc, Live, capabilities,
+            [new(FeatureIds.AmbientMode, 1)]);
+
+        Assert.Contains(">--<", svg, StringComparison.Ordinal);
+        Assert.DoesNotContain(">ANC<", svg, StringComparison.Ordinal);
     }
 
     /// <summary>

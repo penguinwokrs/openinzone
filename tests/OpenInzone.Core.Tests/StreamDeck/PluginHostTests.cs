@@ -41,6 +41,49 @@ public class StreamDeckArgumentsTests
             commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries)));
 }
 
+public class ConnectionTests
+{
+    [Fact]
+    public async Task A_refresh_that_opens_the_device_is_not_followed_by_a_second_settings_read()
+    {
+        string pipeName = $"openinzone-test-{Guid.NewGuid():N}";
+        var commands = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var settingsArrived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sentinelArrived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var server = new IpcServer(() => DeviceSnapshot.Disconnected, pipeName);
+        server.CommandReceived += (sender, message) =>
+        {
+            commands.Enqueue(message.Command);
+            if (message.Command == IpcCommands.Refresh)
+            {
+                ((IpcServer)sender!).Publish(new DeviceSnapshot(
+                    true, "INZONE H9 II", 15, 30, false, 50, false, 75, true,
+                    new BatterySnapshot(90, null, null, false)));
+                ((IpcServer)sender!).Publish([new SettingValue(FeatureIds.AmbientMode, 1)]);
+            }
+            else if (message.Command == IpcCommands.Describe)
+            {
+                sentinelArrived.TrySetResult(true);
+            }
+        };
+        server.Start();
+
+        using var client = new IpcClient(pipeName);
+        client.SettingsReceived += (_, _) => settingsArrived.TrySetResult(true);
+        using var deck = new StreamDeckConnection(0, "test-plugin", "registerPlugin");
+        using var host = new PluginHost(deck, client);
+        host.Start();
+        client.Start();
+
+        await settingsArrived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(client.Send(IpcCommands.Describe));
+        await sentinelArrived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal([IpcCommands.Refresh, IpcCommands.Describe], commands);
+    }
+}
+
 public class FeedbackTests
 {
     private static readonly DeviceSnapshot Live = new(
@@ -67,7 +110,7 @@ public class FeedbackTests
     [Fact]
     public void A_disconnected_headset_shows_nothing_on_every_dial()
     {
-        foreach (string actionId in ActionIds.All)
+        foreach (string actionId in ActionIds.All.Where(ActionIds.SupportsEncoder))
         {
             var feedback = PluginHost.Feedback(actionId, DeviceSnapshot.Disconnected);
             Assert.Equal("--", feedback.Value);
@@ -91,7 +134,8 @@ public class FeedbackTests
     [Fact]
     public void Every_action_has_a_name_of_its_own_on_a_dial()
     {
-        var titles = ActionIds.All.Select(id => PluginHost.Feedback(id, Live).Title).ToList();
+        var titles = ActionIds.All.Where(ActionIds.SupportsEncoder)
+            .Select(id => PluginHost.Feedback(id, Live).Title).ToList();
 
         Assert.Equal(titles.Count, titles.Distinct().Count());
         Assert.All(titles, title => Assert.False(string.IsNullOrWhiteSpace(title)));
@@ -192,6 +236,18 @@ public class ActionIdTests
         Assert.Equal(ActionIds.DefaultStep(ActionIds.Balance), ActionIds.DefaultStep(ActionIds.BalanceGame));
         Assert.Equal(ActionIds.DefaultStep(ActionIds.MicLevel), ActionIds.DefaultStep(ActionIds.MicLevelDown));
     }
+
+    [Fact]
+    public void Anc_is_a_keypad_only_setting_cycle()
+    {
+        Assert.Equal(FeatureIds.AmbientMode, ActionIds.Feature(ActionIds.Anc));
+        Assert.Equal(FeatureIds.AmbientMode, ActionIds.SettingId(ActionIds.Anc));
+        Assert.Equal(0, ActionIds.DefaultStep(ActionIds.Anc));
+        Assert.False(ActionIds.SupportsEncoder(ActionIds.Anc));
+
+        Assert.Null(ActionIds.SettingId(ActionIds.Volume));
+        Assert.True(ActionIds.SupportsEncoder(ActionIds.Volume));
+    }
 }
 
 /// <summary>
@@ -254,5 +310,15 @@ public class PictureTests
 
         Assert.Equal(KeyFace.Stepped(ActionIds.VolumeUp, DeviceSnapshot.Disconnected),
             PluginHost.Picture(ActionIds.VolumeUp, true, DeviceSnapshot.Disconnected, null));
+    }
+
+    [Fact]
+    public void Anc_is_always_a_live_face_and_never_a_manifest_only_picture()
+    {
+        IReadOnlyList<SettingValue> settings = [new(FeatureIds.AmbientMode, 1)];
+
+        Assert.Equal(
+            KeyFace.For(ActionIds.Anc, Live, settings: settings),
+            PluginHost.Picture(ActionIds.Anc, false, Live, null, settings));
     }
 }

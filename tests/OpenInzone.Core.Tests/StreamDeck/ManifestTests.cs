@@ -143,7 +143,7 @@ public class ManifestTests
     }
 
     [Fact]
-    public void Every_action_can_be_placed_on_a_key_and_on_a_dial()
+    public void Every_action_can_be_placed_on_a_key()
     {
         foreach (var action in Actions)
         {
@@ -151,8 +151,21 @@ public class ManifestTests
                 .Select(c => c.GetString()).ToList();
 
             Assert.Contains("Keypad", controllers);
-            Assert.Contains("Encoder", controllers);
-            Assert.True(action.TryGetProperty("Encoder", out _), $"{Text(action, "UUID")} has no dial layout");
+        }
+    }
+
+    [Fact]
+    public void Encoder_support_matches_each_actions_metadata()
+    {
+        foreach (var action in Actions)
+        {
+            string id = Text(action, "UUID");
+            var controllers = action.GetProperty("Controllers").EnumerateArray()
+                .Select(controller => controller.GetString()).ToList();
+            bool hasEncoder = controllers.Contains("Encoder");
+
+            Assert.Equal(ActionIds.SupportsEncoder(id), hasEncoder);
+            Assert.Equal(hasEncoder, action.TryGetProperty("Encoder", out _));
         }
     }
 

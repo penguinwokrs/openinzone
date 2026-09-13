@@ -233,4 +233,29 @@ public class DecideTests
         Assert.Equal((IpcCommands.AdjustVolume, 1),
             PluginHost.Decide(ActionIds.VolumeUp, Key, Press, ticks: 0, step: 1, capabilities));
     }
+
+    [Fact]
+    public void An_anc_key_press_requests_one_daemon_side_cycle()
+    {
+        Assert.Equal((IpcCommands.CycleSetting, 0),
+            PluginHost.Decide(ActionIds.Anc, Key, Press, ticks: 0, step: 0));
+
+        Assert.Null(PluginHost.Decide(ActionIds.Anc, Key, Turn, ticks: 1, step: 0));
+    }
+
+    [Fact]
+    public void Anc_dial_input_is_ignored_defensively()
+    {
+        Assert.Null(PluginHost.Decide(ActionIds.Anc, Dial, Press, ticks: 0, step: 0));
+        Assert.Null(PluginHost.Decide(ActionIds.Anc, Dial, Turn, ticks: 1, step: 0));
+    }
+
+    [Fact]
+    public void An_anc_key_for_a_model_without_ambient_control_does_nothing()
+    {
+        var capabilities = new DeviceCapabilities([FeatureIds.Volume]);
+
+        Assert.Null(PluginHost.Decide(
+            ActionIds.Anc, Key, Press, ticks: 0, step: 0, capabilities));
+    }
 }

@@ -44,7 +44,7 @@ which lives inside Stream Deck's plugins folder, find it at all.
 
 | | |
 |---|---|
-| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v2` |
+| Pipe | `OpenInzone.Daemon.<user>.v<version>`, e.g. `OpenInzone.Daemon.owner.v3` |
 | Framing | one JSON object per line, `\n`, UTF-8 |
 | Access | `PipeOptions.CurrentUserOnly` — the same user, on the same machine |
 | Line limit | 64 KiB; a longer line drops the connection |
@@ -63,26 +63,26 @@ request, and one that misses a push converges on the next.
 On connect:
 
 ```json
-{"type":"hello","version":2,"state":{ ... },"capabilities":{"features":[ ... ]}}
+{"type":"hello","version":3,"state":{ ... },"capabilities":{"features":[ ... ]}}
 ```
 
 The capabilities say what the connected model has, and are sent again whenever a device connects,
 because the answer belongs to the headset that is plugged in rather than to the daemon:
 
 ```json
-{"type":"capabilities","version":2,"capabilities":{"features":["balance","volume","sidetone"]}}
+{"type":"capabilities","version":3,"capabilities":{"features":["balance","volume","sidetone"]}}
 ```
 
 After every change, from any source — a deck key, the tray's panel, the earbuds themselves:
 
 ```json
-{"type":"state","version":2,"state":{ ... }}
+{"type":"state","version":3,"state":{ ... }}
 ```
 
 When a command cannot be understood:
 
 ```json
-{"type":"error","version":2,"message":"unknown command 'format-c'"}
+{"type":"error","version":3,"message":"unknown command 'format-c'"}
 ```
 
 From the client:
@@ -112,6 +112,7 @@ other way round.
 | `describe` | — | Read the device again and answer with a `detail` |
 | `get-settings` | — | Read the settings below and answer with a `settings` |
 | `set-setting` | the setting's own value | Write the setting named in `setting` |
+| `cycle-setting` | — | Advance the choice named in `setting`, wrapping at its end |
 
 Anything else is answered with an `error` and not acted on.
 
@@ -121,20 +122,30 @@ Anything else is answered with an `error` and not acted on.
 {"command":"set-setting","setting":"ambient-level","value":14}
 ```
 
+`cycle-setting` carries the choice to advance in the same field:
+
+```json
+{"command":"cycle-setting","setting":"ambient-mode"}
+```
+
+The daemon reads the current packet before advancing it, so queued presses are applied in order
+and bytes belonging to related settings are preserved. Unknown settings and settings that are not
+choices are answered with an error.
+
 One command for every setting, where there used to be one command each. What a setting is — which
 packet it lives in, which byte of it, and what range it has — is described once in the core, so
 adding one no longer touches this channel at all. A value outside the setting's range is clamped
 rather than refused.
 
-`get-settings` and `set-setting` are both answered with a `settings` read back from the headset, so
-a window shows what the headset now says rather than what it was asked for.
+`get-settings`, `set-setting` and `cycle-setting` are answered with a complete `settings` readback
+from the headset, so a client shows what the headset now says rather than what it was asked for.
 
 ## Detail
 
 `describe` is answered with the device's own replies, unparsed:
 
 ```json
-{"type":"detail","version":2,"detail":{
+{"type":"detail","version":3,"detail":{
   "model":"BAAiEQAA","battery":"AGEAXgA+","balance":"KA==",
   "volume":"ABA1","mic":"Af//","sidetone":"Ax4=",
   "micLevel":75}}
@@ -158,7 +169,7 @@ the one that asked. A client with a `describe` outstanding takes the next one th
 `get-settings`, and every write, is answered with the whole set:
 
 ```json
-{"type":"settings","version":2,"settings":[
+{"type":"settings","version":3,"settings":[
   {"id":"ambient-mode","value":2},{"id":"ambient-level","value":14},{"id":"voice-focus","value":1},
   {"id":"sidetone","value":3},{"id":"auto-power-off","value":1},
   {"id":"bluetooth-auto-switch","value":1},{"id":"voice-guidance","value":0},
@@ -174,6 +185,10 @@ It is a list rather than a record with a field per setting, and that is the same
 commands collapsed into one: adding a setting should not change the wire. The values are plain
 integers — 0 or 1 for a toggle, and the headset's own number for anything else.
 
+The complete list is also pushed when the headset reports a catalogued setting change. A client
+therefore stays current when the wearer or INZONE Hub changes a setting without hiding unrelated
+controls as a partial list would.
+
 Where the answer comes from is [the headset's own capability map](PROTOCOL.md#the-headset-publishes-its-own-capability-map-0x060x08),
 read once per connection. Three exchanges say what the model has and what nearly every setting now
 reads, and `0x8E` is asked for on its own because no part carries it — four where asking setting by
@@ -188,7 +203,7 @@ been a bad moment on the wireless link.
 ## Capabilities
 
 ```json
-{"type":"capabilities","version":2,"capabilities":{"features":[
+{"type":"capabilities","version":3,"capabilities":{"features":[
   "ambient-mode","ambient-level","voice-focus","sidetone","auto-power-off",
   "bluetooth-auto-switch","voice-guidance","voice-guidance-language",
   "balance","volume","mic-mute","battery","mic-level"]}}
@@ -239,6 +254,8 @@ reading rather than as a number.
 
 `IpcProtocol.Version` is raised when the wire format changes in a way an older client cannot read.
 It went to 2 when the settings became a list and the nine named setting commands became one.
+It went to 3 when daemon-side `cycle-setting` was added: an older daemon would otherwise accept a
+new plugin connection but silently ignore every ANC press.
 
 Adding to the channel is not that kind of change, and does not raise it. The two ends are updated
 apart — the app updates itself, while the Stream Deck plugin is installed by hand — so an older
