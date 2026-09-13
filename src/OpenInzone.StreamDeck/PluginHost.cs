@@ -85,7 +85,8 @@ internal sealed class PluginHost : IDisposable
                 // The tray's hello carries whatever it last knew, which may be from before the
                 // earbuds were taken out of the case. Asking on arrival is what makes the deck
                 // right immediately rather than at the next thing that happens to change. The
-                // hello brings the settings too, and the refresh reads them again with the rest.
+                // settings need no such request: the hello carries them, and a headset connecting
+                // pushes them.
                 _tray.Send(IpcCommands.Refresh);
             }
 
