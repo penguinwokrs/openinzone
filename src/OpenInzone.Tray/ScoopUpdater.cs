@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using OpenInzone.Control;
 
 namespace OpenInzone.Tray;
@@ -18,12 +17,6 @@ public static class ScoopUpdater
     public static ScoopInstall? Current { get; } = ScoopInstall.TryLocate(AppContext.BaseDirectory, File.Exists);
 
     /// <summary>Starts the update. The caller exits straight after; the script waits for that.</summary>
-    public static void Run(ScoopInstall install)
-    {
-        // Encoded, so no path in the script has to survive command-line quoting as well.
-        string encoded = Convert.ToBase64String(
-            Encoding.Unicode.GetBytes(install.BuildUpdateScript(Environment.ProcessId)));
-        Process.Start(new ProcessStartInfo("powershell.exe",
-            $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {encoded}") { UseShellExecute = true });
-    }
+    public static void Run(ScoopInstall install) =>
+        Process.Start(install.CreateUpdateStartInfo(Environment.ProcessId));
 }

@@ -54,6 +54,36 @@ public class ScoopInstallTests
     }
 
     [Fact]
+    public void Script_still_restarts_the_tray_and_explains_after_scoop_throws()
+    {
+        string script = new ScoopInstall(@"C:\Users\me\scoop", "openinzone").BuildUpdateScript(1);
+
+        // A terminating error must land in catch, not skip past Start-Process and Read-Host.
+        Assert.Contains("} catch {", script);
+        Assert.True(script.IndexOf("} catch {", StringComparison.Ordinal) <
+                    script.IndexOf("Start-Process", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Start_info_runs_the_encoded_script_without_the_callers_module_path()
+    {
+        // Inherited from a PowerShell 7 terminal, this makes Windows PowerShell load 7's modules,
+        // and Get-FileHash and Read-Host stop existing - observed as a silent failed update.
+        Environment.SetEnvironmentVariable("PSModulePath", @"C:\Program Files\PowerShell\7\Modules");
+        var install = new ScoopInstall(@"C:\Users\me\scoop", "openinzone");
+
+        var start = install.CreateUpdateStartInfo(4242);
+
+        Assert.Equal("powershell.exe", start.FileName);
+        Assert.False(start.UseShellExecute);
+        Assert.False(start.Environment.ContainsKey("PSModulePath"));
+        string encoded = start.ArgumentList[^1];
+        Assert.Equal("-EncodedCommand", start.ArgumentList[^2]);
+        Assert.Equal(install.BuildUpdateScript(4242),
+            System.Text.Encoding.Unicode.GetString(Convert.FromBase64String(encoded)));
+    }
+
+    [Fact]
     public void Script_doubles_every_quote_powershell_treats_as_single()
     {
         // PowerShell ends a single-quoted string on U+2018-U+201B as well as on the ASCII quote.

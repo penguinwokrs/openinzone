@@ -22,6 +22,8 @@ both work on a Scoop install, each updating the copy that is actually running.
 | Why a visible window | Scoop's output is the only progress and the only error message there is | Running it hidden would turn every failure into a tray that silently did not come back |
 | Why `scoop update` first | `scoop update <name>` syncs buckets only when the last sync is three hours old | Without it, a release published an hour after the last sync is invisible |
 | Which PowerShell | `powershell.exe` (Windows PowerShell 5.1) | Always present; Scoop supports it. pwsh 7 is not guaranteed |
+| PSModulePath | Removed from the child's environment | A tray started from a PowerShell 7 terminal passes 7's module directories on; Windows PowerShell then loads 7's modules, `Get-FileHash` and `Read-Host` are missing, and the update fails with its window already closed. Found in the end-to-end check |
+| A terminating error in Scoop | Caught; the tray is still restarted and the window still waits | Otherwise the error skips everything after `try` and the user is left with no tray and no message |
 | How the scoop script is found | `<root>\apps\scoop\current\bin\scoop.ps1` | Derived from the same path, so a custom `SCOOP` root works and nothing depends on PATH as it was at login |
 | Stopping the daemon coming back | The script holds the `OpenInzone.Setup` mutex for the whole update | `DaemonLauncher` already refuses to start a daemon while that mutex exists. Setup uses it for the same reason |
 | Which processes it stops | Only `inzonetray`, `inzoned` and `inzone` whose path is under `<root>\apps\<name>\` | Setup kills by image name, which would also stop a separate setup install. Scoop's own check is by path, so matching it by path is exactly enough |

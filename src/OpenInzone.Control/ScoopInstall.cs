@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using System.Diagnostics;
 using System.Text;
 
 namespace OpenInzone.Control;
@@ -46,23 +47,46 @@ public sealed record ScoopInstall(string Root, string AppName)
 
         return $$"""
             $mutex = New-Object System.Threading.Mutex($true, 'OpenInzone.Setup')
+            $before = (Get-Content {{manifest}} -Raw | ConvertFrom-Json).version
             try {
                 Wait-Process -Id {{trayProcessId}} -Timeout 30 -ErrorAction SilentlyContinue
-                $before = (Get-Content {{manifest}} -Raw | ConvertFrom-Json).version
                 Get-Process -Name inzonetray, inzoned, inzone -ErrorAction SilentlyContinue |
                     Where-Object { $_.Path -and $_.Path.StartsWith({{app}} + '\', [StringComparison]::OrdinalIgnoreCase) } |
                     Stop-Process -Force -ErrorAction SilentlyContinue
                 Start-Sleep -Milliseconds 700
                 & {{scoop}} update
                 & {{scoop}} update {{Quote(AppName)}}
-                $after = (Get-Content {{manifest}} -Raw | ConvertFrom-Json).version
+            } catch {
+                Write-Host $_ -ForegroundColor Red
             } finally {
                 $mutex.ReleaseMutex()
                 $mutex.Dispose()
             }
+            $after = (Get-Content {{manifest}} -Raw | ConvertFrom-Json).version
             Start-Process {{tray}}
             if ($before -eq $after) { Read-Host 'OpenInzone was not updated. Press Enter to close' }
             """;
+    }
+
+    /// <summary>
+    /// Runs <see cref="BuildUpdateScript"/> in its own console window. Encoded, so no path in the
+    /// script has to survive command-line quoting as well. PSModulePath is dropped because a tray
+    /// started from a PowerShell 7 terminal carries 7's module directories, and Windows PowerShell
+    /// then loads those instead of its own: Get-FileHash and Read-Host went missing and the update
+    /// failed with its window already closed. Without the variable, it rebuilds its default.
+    /// </summary>
+    public ProcessStartInfo CreateUpdateStartInfo(int trayProcessId)
+    {
+        // Not through the shell, which cannot be given an environment; a console program started
+        // this way from a process with no console still gets a window of its own.
+        var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false };
+        start.ArgumentList.Add("-NoProfile");
+        start.ArgumentList.Add("-ExecutionPolicy");
+        start.ArgumentList.Add("Bypass");
+        start.ArgumentList.Add("-EncodedCommand");
+        start.ArgumentList.Add(Convert.ToBase64String(Encoding.Unicode.GetBytes(BuildUpdateScript(trayProcessId))));
+        start.Environment.Remove("PSModulePath");
+        return start;
     }
 
     // PowerShell closes a single-quoted string on any of these, and doubling is how each is escaped.
