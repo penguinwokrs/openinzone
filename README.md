@@ -158,10 +158,12 @@ scoop install penguinwokrs/openinzone
 ```
 
 This installs the same programs as the zip, adds **OpenInzone** to the Start menu under
-**Scoop Apps**, and puts `inzone` on PATH. The update button in 設定 updates it through Scoop, in a
-PowerShell window that closes by itself when it is done. Running `scoop update openinzone` yourself
-works too, but only with the tray closed: Scoop will not update an app while any of its programs
-is running. The Stream Deck plugin is not included; see [Installing it](#installing-it).
+**Scoop Apps**, and puts `inzone` on PATH. Update it either way. The update button in 設定 runs
+Scoop in a PowerShell window that closes by itself when it is done. `scoop update openinzone` works
+with the tray running: the tray notices within 15 seconds and restarts as the new version. The one
+thing that holds an update up is `inzone watch` left running in a terminal; see
+[Troubleshooting](#troubleshooting). The Stream Deck plugin is not included; see
+[Installing it](#installing-it).
 
 ### Installing with winget
 
@@ -440,6 +442,12 @@ by path: `& "$env:LOCALAPPDATA\Programs\OpenInzone\inzone.exe" status` for the i
 **A balloon says a hotkey could not be registered.**
 Something else registered that combination first; graphics drivers and chat applications are the
 usual culprits. Pick another combination in 設定. The remaining hotkeys still work.
+
+**`scoop update openinzone` says "The following instances of "openinzone" are still running."**
+A program is running from Scoop's own folder for OpenInzone. That is almost always `inzone watch`
+in another terminal, which says so when it starts. Stop it with Ctrl+C and run the update again.
+Up to 1.1.3 the tray and the daemon cause this too: use the update button in 設定 instead, or quit
+the tray from its menu first.
 
 **`inzone mic` shows the mute state but no level.**
 Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
