@@ -8,6 +8,16 @@ using OpenInzone.Protocol;
 
 namespace OpenInzone.Control;
 
+/// <summary>What a failure on the worker says about the connection.</summary>
+internal enum FailureOutcome
+{
+    /// <summary>The headset is gone, or was never there: drop it and say so.</summary>
+    LinkLost,
+
+    /// <summary>One command did not work. Worth checking the link before giving it up.</summary>
+    CommandFailed,
+}
+
 /// <summary>
 /// Owns the connection and applies actions on a worker thread, so a held-down key or a dragged
 /// slider never stalls the interface. The current values are cached and kept in step with the
@@ -107,6 +117,24 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         Enqueue(_ => ReadEverything(), announce: false);
     }
 
+    /// <summary>
+    /// Decides whether a failure on the worker means the headset has gone.
+    /// </summary>
+    /// <remarks>
+    /// A command can fail on a link that is perfectly well: a model that does not answer a write it
+    /// does not support, a capture endpoint Windows is not exposing. Dropping the headset for that is
+    /// what made a Stream Deck key on an INZONE H9 II disconnect everything for several seconds (#19).
+    /// But a timeout is also how a docked pair of earbuds shows up - the dongle stays and simply stops
+    /// answering - so a failed command is only a candidate: the caller probes before keeping the link.
+    /// </remarks>
+    internal static FailureOutcome Classify(Exception error, bool connected, bool fromCommand)
+    {
+        if (!connected || !fromCommand) return FailureOutcome.LinkLost;
+        return error is IOException or ObjectDisposedException
+            ? FailureOutcome.LinkLost
+            : FailureOutcome.CommandFailed;
+    }
+
     private void WorkLoop()
     {
         foreach (var (action, announce) in _work.GetConsumingEnumerable())
@@ -117,15 +145,43 @@ public sealed class DeviceController : IDeviceActions, IDisposable
             }
             catch (Exception ex)
             {
-                Drop();
                 if (announce)
                 {
                     try { Failed?.Invoke(this, ex.Message); }
                     catch { /* a misbehaving subscriber must not kill the worker */ }
                 }
 
+                if (Classify(ex, connected: _device is not null, fromCommand: announce) == FailureOutcome.CommandFailed
+                    && ConfirmLink())
+                {
+                    continue;
+                }
+
+                Drop();
                 Publish(DeviceState.Disconnected);
             }
+        }
+    }
+
+    /// <summary>
+    /// Reads everything again after a command failed, and says whether the headset answered.
+    /// </summary>
+    /// <remarks>
+    /// The same reading the heartbeat takes, settings included, so the clients are put back in front
+    /// of what the headset now says rather than what the failed command asked for. A headset that has
+    /// really gone fails this too, and is then dropped exactly as it was before this existed.
+    /// </remarks>
+    private bool ConfirmLink()
+    {
+        try
+        {
+            ReadEverything();
+            if (_device is { } device) ReadAndAnnounceSettings(device);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

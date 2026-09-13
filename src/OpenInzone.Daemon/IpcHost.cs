@@ -77,8 +77,8 @@ internal sealed class IpcHost : IDisposable
             // what it reports rather than what it was asked for.
             case IpcCommands.GetSettings: _controller.ReadSettings(); break;
             // Checked here rather than at the device: an id nothing describes would otherwise
-            // throw on the worker, and the worker treats a throw as a link that has gone - it
-            // would drop the headset over a client's typo.
+            // throw on the worker, which would report it and read the whole headset again for
+            // nothing. Refusing it here costs no exchange at all.
             case IpcCommands.SetSetting:
                 if (message.Setting is { } id && SettingCatalogue.ById(id) is not null)
                     _controller.SetSetting(id, message.Value);
