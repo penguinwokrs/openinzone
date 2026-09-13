@@ -114,19 +114,41 @@ public class SettingCatalogueTests
     {
         var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
 
-        byte[] cycled = mode.Cycle([(byte)current, 0x14, 0xFF, 0x01]);
+        byte[] cycled = mode.Cycle([(byte)current, 0x14, 0xFF, 0x01], 1);
 
         Assert.Equal(expected, mode.Read(cycled));
     }
 
-    [Fact]
-    public void Cycling_ambient_mode_preserves_the_rest_of_its_packet()
+    /// <summary>
+    /// A dial turns either way and by more than one notch, and each direction wraps round the ends
+    /// the way a key press does at the top. No steps at all is a press, which is one step forward.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0, 1)]
+    [InlineData(0, 1, 1)]
+    [InlineData(2, 1, 0)]
+    [InlineData(0, -1, 2)]
+    [InlineData(1, -4, 0)]
+    [InlineData(0, 3, 0)]
+    public void A_choice_moves_by_signed_steps_and_wraps_either_way(int current, int steps, int expected)
     {
         var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
 
-        Assert.Equal(
-            new byte[] { 0x01, 0x14, 0xFF, 0x01 },
-            mode.Cycle([0x00, 0x14, 0xFF, 0x01]));
+        byte[] cycled = mode.Cycle([(byte)current, 0x14, 0xFF, 0x01], steps);
+
+        Assert.Equal(expected, mode.Read(cycled));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void Cycling_ambient_mode_preserves_the_rest_of_its_packet(int steps)
+    {
+        var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
+
+        byte[] cycled = mode.Cycle([0x01, 0x14, 0xFF, 0x01], steps);
+
+        Assert.Equal(new byte[] { 0x14, 0xFF, 0x01 }, cycled[1..]);
     }
 
     [Fact]
@@ -134,15 +156,17 @@ public class SettingCatalogueTests
     {
         var level = SettingCatalogue.ById(SettingCatalogue.AmbientLevel)!;
 
-        Assert.Throws<InvalidOperationException>(() => level.Cycle([0x02, 0x14, 0xFF, 0x00]));
+        Assert.Throws<InvalidOperationException>(() => level.Cycle([0x02, 0x14, 0xFF, 0x00], 1));
     }
 
-    [Fact]
-    public void An_unknown_choice_value_returns_to_the_first_known_value()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void An_unknown_choice_value_returns_to_the_first_known_value(int steps)
     {
         var mode = SettingCatalogue.ById(SettingCatalogue.AmbientMode)!;
 
-        Assert.Equal(0, mode.Read(mode.Cycle([0xFF, 0x14, 0xFF, 0x00])));
+        Assert.Equal(0, mode.Read(mode.Cycle([0xFF, 0x14, 0xFF, 0x00], steps)));
     }
 
     /// <summary>

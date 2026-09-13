@@ -23,6 +23,7 @@ public sealed class IpcServer : IDisposable
 
     private readonly Func<DeviceSnapshot> _currentState;
     private readonly Func<DeviceCapabilities?> _currentCapabilities;
+    private readonly Func<IReadOnlyList<SettingValue>?> _currentSettings;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<Client, byte> _clients = new();
@@ -40,13 +41,21 @@ public sealed class IpcServer : IDisposable
     /// say. A client told nothing offers everything, which is how this project behaved before it
     /// asked the headset at all.
     /// </param>
+    /// <param name="currentSettings">
+    /// What the headset last said about its settings, or null while nothing is connected. Sent with
+    /// the hello so that a client knows them without asking: a request made while the channel is
+    /// still coming up can be lost, and a client waiting for its answer would wait until something
+    /// happened to change.
+    /// </param>
     public IpcServer(
         Func<DeviceSnapshot> currentState,
         string? pipeName = null,
-        Func<DeviceCapabilities?>? currentCapabilities = null)
+        Func<DeviceCapabilities?>? currentCapabilities = null,
+        Func<IReadOnlyList<SettingValue>?>? currentSettings = null)
     {
         _currentState = currentState;
         _currentCapabilities = currentCapabilities ?? (() => null);
+        _currentSettings = currentSettings ?? (() => null);
         _pipeName = pipeName ?? IpcProtocol.PipeName();
     }
 
@@ -207,7 +216,9 @@ public sealed class IpcServer : IDisposable
 
         public void QueueHello() => Send(
             new ServerMessage(ServerMessage.Hello, IpcProtocol.Version, _server._currentState(),
-                Capabilities: _server._currentCapabilities()));
+                Settings: _server._currentSettings(),
+                Capabilities: _server._currentCapabilities(),
+                Commands: IpcCommands.All));
 
         private void Handle(string line)
         {

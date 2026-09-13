@@ -73,6 +73,12 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     /// <summary>What the connected model has, or null while nothing has said.</summary>
     public DeviceCapabilities? Capabilities { get; private set; }
 
+    /// <summary>
+    /// What the connected headset last said about its settings, or null while nothing is connected
+    /// or nothing has been read yet. The daemon sends it with every hello.
+    /// </summary>
+    public IReadOnlyList<SettingValue>? Settings => _settings.Current;
+
     public DeviceState State
     {
         get { lock (_stateLock) return _state; }
@@ -361,11 +367,14 @@ public sealed class DeviceController : IDeviceActions, IDisposable
         ReadAndAnnounceSettings(device);
     });
 
-    /// <summary>Advances one choice and reads all settings back from the headset.</summary>
-    public void CycleSetting(string id) => Post(_ =>
+    /// <summary>
+    /// Moves one choice by <paramref name="steps"/>, zero meaning one step forward, and reads all
+    /// settings back from the headset.
+    /// </summary>
+    public void CycleSetting(string id, int steps) => Post(_ =>
     {
         var device = Device();
-        IpcSnapshot.Cycle(device, id);
+        IpcSnapshot.Cycle(device, id, steps);
         ReadAndAnnounceSettings(device);
     });
 

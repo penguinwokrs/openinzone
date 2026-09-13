@@ -104,6 +104,75 @@ public class SettingStateTests
     }
 
     [Fact]
+    public void Nothing_is_current_before_the_first_read()
+    {
+        Assert.Null(new SettingState().Current);
+    }
+
+    [Fact]
+    public void The_current_settings_are_the_last_read()
+    {
+        var state = new SettingState();
+        state.Replace(Initial);
+
+        Assert.Equal(Initial, state.Current);
+    }
+
+    [Fact]
+    public void The_current_settings_follow_a_notification()
+    {
+        var state = new SettingState();
+        state.Replace(Initial);
+
+        var next = state.Apply(EventId.AmbientSetting, [0x01, 0x07, 0xFF, 0x01]);
+
+        Assert.Equal(next, state.Current);
+        Assert.Equal(1, state.Current.Value("ambient-mode"));
+    }
+
+    [Fact]
+    public void Nothing_is_current_after_clearing()
+    {
+        var state = new SettingState();
+        state.Replace(Initial);
+        state.Clear();
+
+        Assert.Null(state.Current);
+    }
+
+    /// <summary>
+    /// A publication runs inside the state's lock and ends at the server's client list, while the
+    /// server reads the current settings for a hello with that list held. Reading them has to get
+    /// by without the state's lock, or the two would wait on each other for good.
+    /// </summary>
+    [Fact]
+    public async Task Reading_the_current_settings_does_not_wait_for_a_publication_in_progress()
+    {
+        var state = new SettingState();
+        state.Replace(Initial);
+        using var publishing = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+
+        Task publication = Task.Run(() => state.ReplaceAndPublish(Initial, state.BeginRead(), _ =>
+        {
+            publishing.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+        }));
+        Assert.True(publishing.Wait(TimeSpan.FromSeconds(10)));
+
+        try
+        {
+            var current = await Task.Run(() => state.Current).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(Initial, current);
+        }
+        finally
+        {
+            release.Set();
+            await publication.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+    }
+
+    [Fact]
     public void A_short_or_uncatalogued_notification_changes_nothing()
     {
         var state = new SettingState();

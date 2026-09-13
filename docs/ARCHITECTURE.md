@@ -79,8 +79,8 @@ newer daemon, and a newer plugin talking to an older one, are both ordinary.
 Changes to the channel are made with that in mind:
 
 - **Adding does not break.** A new command, message type or field does not raise the protocol
-  version. An older daemon answers an unknown command with an `error`, and the client that sent it
-  says on its controls that the app needs updating. The rule is in
+  version. The daemon's hello lists the commands it accepts, and a client draws a control whose
+  command is not in that list as unavailable rather than sending it. The rule is in
   [IPC.md](IPC.md#versioning).
 - **Changing or removing does.** Raising the version means every client of the old version stops
   connecting until it is updated too. That is sometimes necessary, and never a way to avoid

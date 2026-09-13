@@ -12,10 +12,21 @@ internal sealed class SettingState
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, Change> _changes = [];
-    private IReadOnlyList<SettingValue>? _current;
+    private volatile IReadOnlyList<SettingValue>? _current;
     private long _generation;
 
     private sealed record Change(SettingValue Value, long Generation);
+
+    /// <summary>The settings as last read and since updated, or null until the first read and after <see cref="Clear"/>.</summary>
+    /// <remarks>
+    /// Read without taking the lock, on purpose. A publication runs inside the lock and ends at the
+    /// server's list of clients, while the server takes that list first and then asks for these
+    /// settings to put in a hello; locking here as well would let the two wait on each other for
+    /// good. Every write replaces the whole list inside the lock and assigns it before publishing,
+    /// so a reader sees either the list a publication is about to send, or the one before it and
+    /// then the publication itself.
+    /// </remarks>
+    public IReadOnlyList<SettingValue>? Current => _current;
 
     public long BeginRead()
     {

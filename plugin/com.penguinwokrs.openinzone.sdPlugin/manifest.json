@@ -2,7 +2,7 @@
   "UUID": "com.penguinwokrs.openinzone",
   "Name": "OpenInzone",
   "Author": "penguinwokrs",
-  "Description": "Control a Sony INZONE headset from the deck: volume, game/chat balance, microphone mute and level, battery, and ambient noise control. Requires OpenInzone, which owns the connection to the headset.",
+  "Description": "Control a Sony INZONE headset from the deck: volume, game/chat balance, microphone mute and level, battery, and ambient sound control. Requires OpenInzone, which owns the connection to the headset.",
   "Category": "OpenInzone",
   "CategoryIcon": "images/category",
   "Version": "0.1.0.0",
@@ -137,12 +137,20 @@
     },
     {
       "UUID": "com.penguinwokrs.openinzone.anc",
-      "Name": "ANC",
+      "Name": "Ambient sound control",
       "Icon": "images/actions/anc",
-      "Tooltip": "Cycles ambient noise control through Off, ANC and Pass-through, and shows the current mode.",
+      "Tooltip": "Steps through off, noise cancelling and ambient sound, and shows the mode the headset is in.",
       "Controllers": [
-        "Keypad"
+        "Keypad",
+        "Encoder"
       ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Push": "Next mode",
+          "Rotate": "Mode"
+        }
+      },
       "States": [
         {
           "Image": "images/keys/anc",

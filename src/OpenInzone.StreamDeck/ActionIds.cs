@@ -103,8 +103,21 @@ internal static class ActionIds
         _ => null,
     };
 
-    /// <summary>Whether Stream Deck may place this action on an encoder.</summary>
-    public static bool SupportsEncoder(string actionId) => actionId is not Anc;
+    /// <summary>
+    /// The command an action is built on when that command is newer than the channel's first
+    /// release, or null when any daemon speaking the version can carry the action out.
+    /// </summary>
+    /// <remarks>
+    /// The protocol version is not raised for a new command, so a plugin can find itself talking
+    /// to a daemon that does not have one. The daemon's hello says which commands it accepts, and
+    /// an action named here is drawn as unavailable and sends nothing when its command is not
+    /// among them — rather than looking as if it works and being refused on every press.
+    /// </remarks>
+    public static string? RequiredCommand(string actionId) => actionId switch
+    {
+        Anc => IpcCommands.CycleSetting,
+        _ => null,
+    };
 
     /// <summary>
     /// How far one press moves each setting when the Property Inspector says nothing. Volume runs

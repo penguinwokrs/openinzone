@@ -124,10 +124,15 @@ public class IpcProtocolTests
         Assert.Equal(command, JsonSerializer.Deserialize(json, IpcJson.Default.ClientMessage));
     }
 
+    /// <summary>
+    /// A new command is something a client can ask whether the daemon offers, through the list the
+    /// hello carries, so it is not the kind of change that strands an older client on a different
+    /// pipe. The version stays where the released builds already are.
+    /// </summary>
     [Fact]
-    public void The_current_protocol_version_includes_daemon_side_setting_cycles()
+    public void Adding_a_command_does_not_raise_the_protocol_version()
     {
-        Assert.Equal(3, IpcProtocol.Version);
+        Assert.Equal(2, IpcProtocol.Version);
     }
 
     [Fact]
@@ -170,6 +175,64 @@ public class IpcProtocolTests
 
         Assert.NotEmpty(all);
         Assert.All(all, command => Assert.True(IpcCommands.IsKnown(command), command));
+    }
+
+    /// <summary>
+    /// The list the hello sends is what a client checks before it uses a newer command, so a
+    /// command left out of it is one no client would ever dare send.
+    /// </summary>
+    [Fact]
+    public void Every_named_command_is_in_the_list_the_hello_sends()
+    {
+        string[] named = [.. typeof(IpcCommands)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)];
+
+        Assert.All(named, command => Assert.Contains(command, IpcCommands.All));
+    }
+
+    [Fact]
+    public void The_list_of_commands_names_each_one_once()
+    {
+        Assert.Equal(IpcCommands.All.Count, IpcCommands.All.Distinct().Count());
+    }
+
+    /// <summary>A hello without a list is from a daemon older than the list, and so older than any command it would have named.</summary>
+    [Fact]
+    public void A_daemon_that_sent_no_list_offers_no_newer_command()
+    {
+        Assert.False(IpcCommands.Offered(null, IpcCommands.CycleSetting));
+    }
+
+    [Fact]
+    public void A_command_in_the_daemons_list_is_offered()
+    {
+        Assert.True(IpcCommands.Offered(["cycle-setting"], IpcCommands.CycleSetting));
+    }
+
+    [Fact]
+    public void A_hello_carries_its_list_of_commands_across_the_wire()
+    {
+        var hello = new ServerMessage(ServerMessage.Hello, IpcProtocol.Version,
+            Commands: [IpcCommands.Refresh, IpcCommands.CycleSetting]);
+
+        string json = JsonSerializer.Serialize(hello, IpcJson.Default.ServerMessage);
+        var back = JsonSerializer.Deserialize(json, IpcJson.Default.ServerMessage);
+
+        Assert.Contains("\"commands\":[\"refresh\",\"cycle-setting\"]", json, StringComparison.Ordinal);
+        Assert.Equal([IpcCommands.Refresh, IpcCommands.CycleSetting], back!.Commands);
+    }
+
+    /// <summary>What an older daemon sends, which has to read as no list rather than an empty one.</summary>
+    [Fact]
+    public void A_hello_without_a_list_of_commands_reads_as_none()
+    {
+        const string json = "{\"type\":\"hello\",\"version\":2}";
+
+        var back = JsonSerializer.Deserialize(json, IpcJson.Default.ServerMessage);
+
+        Assert.Null(back!.Commands);
     }
 
     [Theory]

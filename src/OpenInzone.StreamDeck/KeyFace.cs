@@ -118,14 +118,19 @@ internal static class KeyFace
         ActionIds.MicMute => MicMute(state),
         ActionIds.MicLevel => Labelled("MIC", Level(state), state.MicLevelAvailable ? "%" : null),
         ActionIds.Battery => Battery(state),
-        ActionIds.Anc => Labelled("NOISE", AmbientMode(state, settings), null),
+        ActionIds.Anc => Labelled("AMBIENT", AmbientMode(state, settings), null),
         _ => Labelled("", null, null),
     };
 
     private static string? Level(DeviceSnapshot state) =>
         state is { Connected: true, MicLevelAvailable: true } ? $"{state.MicLevel}" : null;
 
-    private static string? AmbientMode(
+    /// <summary>
+    /// The ambient sound mode in the fewest letters that still say it: off, noise cancelling,
+    /// ambient sound — the tray's own names for them. Null for a mode this build has no name for,
+    /// or while nothing is connected, which draws as no reading.
+    /// </summary>
+    internal static string? AmbientMode(
         DeviceSnapshot state,
         IReadOnlyList<SettingValue>? settings)
     {
@@ -134,8 +139,8 @@ internal static class KeyFace
         return settings.Value(FeatureIds.AmbientMode) switch
         {
             0 => "OFF",
-            1 => "ANC",
-            2 => "PASS",
+            1 => "NC",
+            2 => "AMB",
             _ => null,
         };
     }

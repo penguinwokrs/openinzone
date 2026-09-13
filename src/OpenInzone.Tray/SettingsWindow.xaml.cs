@@ -91,9 +91,6 @@ public partial class SettingsWindow : Window
     /// </summary>
     private bool _showingSettings = true;
 
-    /// <summary>Whether the headset has answered about its settings even once.</summary>
-    private bool _settingsArrived;
-
     /// <summary>
     /// A slider raises a change per pixel of travel. Sending each one would flood the headset, so
     /// writes are coalesced and the last value always goes out - the same arrangement the panel
@@ -173,10 +170,11 @@ public partial class SettingsWindow : Window
         AttachDeviceHandlers();
         _showingSettings = false;
 
-        // Asked for here and asked for again whenever the headset reports anything, until it
-        // answers. A request made while the channel is still coming up is simply lost - the daemon
-        // may be starting, or restarting - and without this the tab would then say it was asking
-        // for the rest of its life.
+        // Asked for once, because a person opening the window is a reason to read the headset
+        // again. A request made while the channel is still coming up can be lost - the daemon may
+        // be starting, or restarting - but that no longer needs asking again until it answers: the
+        // daemon's hello carries the settings it has, and every time a headset connects it pushes
+        // them to every client, so the tab hears them either way.
         _headset.StateChanged += OnHeadsetStateChanged;
         _headset.RequestSettings();
     }
@@ -689,23 +687,17 @@ public partial class SettingsWindow : Window
     // arrives here. Nothing is composed locally: a mode change comes back with the level the
     // headset kept, and a failed write comes back as the value that is still in force.
 
-    private void OnSettingsReceived(object? sender, IReadOnlyList<SettingValue> settings)
-    {
-        _settingsArrived = true;
+    private void OnSettingsReceived(object? sender, IReadOnlyList<SettingValue> settings) =>
         Dispatcher.BeginInvoke(() => ShowSettings(settings));
-    }
 
     /// <summary>
-    /// Raised on a background thread, on connect and on every change the headset reports. Nothing
-    /// here needs the state itself: it is the news that the channel is up, and therefore that a
-    /// request that went nowhere is worth making again.
+    /// Raised on a background thread, on connect and on every change the headset reports. Only a
+    /// headset going away matters here: its settings go with it, and the tab says so rather than
+    /// showing the last model's values as if they were still in force.
     /// </summary>
     private void OnHeadsetStateChanged(object? sender, DeviceSnapshot state)
     {
-        if (_settingsArrived) return;
-
-        if (state.Connected) _headset.RequestSettings();
-        else Dispatcher.BeginInvoke(() => ShowSettings([]));
+        if (!state.Connected) Dispatcher.BeginInvoke(() => ShowSettings([]));
     }
 
     /// <summary>
