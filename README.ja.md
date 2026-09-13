@@ -654,6 +654,8 @@ $ inzone battery --json          # 両耳ともケースに入っている場合
 
 ここから先は、ソースからビルドして開発するための説明です。配布物を使うだけなら必要ありません。
 
+変更を見るときの設計指針は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) に、変更の送り方は [CONTRIBUTING.md](CONTRIBUTING.md) にあります（どちらも英語）。
+
 ### 必要なもの
 
 - .NET 10 SDK
@@ -885,6 +887,7 @@ installer/lang/           Inno Setup が同梱していない .isl。簡体字�
 assets/                   アプリケーションアイコンと、それを生成するスクリプト
 docs/PROTOCOL.md          解析したワイヤフォーマット
 docs/IPC.md               daemon とクライアントの間のチャネル
+docs/ARCHITECTURE.md      その 2 つの上にある設計指針
 config/                   ホットキー設定の例
 ```
 

@@ -679,6 +679,9 @@ $ inzone battery --json          # with both earbuds in the case
 Everything below is about building OpenInzone from source and working on it. None of it is needed
 to use the released build.
 
+The principles a change is reviewed against are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+and how to send one is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ### What you need
 
 - .NET 10 SDK
@@ -927,6 +930,7 @@ tools/ShowSettings        opens the real settings window against a running daemo
 assets/                   the application icon and the script that draws it
 docs/PROTOCOL.md          the reverse-engineered wire format
 docs/IPC.md               the channel between the daemon and its clients
+docs/ARCHITECTURE.md      the design principles above both
 config/                   an example hotkey configuration
 ```
 
