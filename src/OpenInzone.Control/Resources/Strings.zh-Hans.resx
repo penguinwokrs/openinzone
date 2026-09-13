@@ -28,6 +28,9 @@
   <data name="Hotkey_BalanceCentre" xml:space="preserve">
     <value>平衡居中</value>
   </data>
+  <data name="Hotkey_AmbientNext" xml:space="preserve">
+    <value>切换环境声控制</value>
+  </data>
   <data name="Hotkey_MicMute" xml:space="preserve">
     <value>切换麦克风静音</value>
   </data>

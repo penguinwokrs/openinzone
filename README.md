@@ -206,7 +206,7 @@ the volume and the battery.
 
 ## Hotkeys and settings
 
-The tray holds eight global hotkeys. They work from any application, including from inside a
+The tray holds nine global hotkeys. They work from any application, including from inside a
 full-screen game:
 
 | Command | Default |
@@ -216,11 +216,12 @@ full-screen game:
 | バランスを中央に (balance to the middle) | `Ctrl+Alt+Home` |
 | マイクミュート切り替え (toggle microphone mute) | `Ctrl+Alt+Shift+M` |
 | マイクレベルを上げる / 下げる (microphone level up / down) | `Ctrl+Alt+PageUp` / `Ctrl+Alt+PageDown` |
+| 外音コントロールを切り替え (switch ambient sound control: off, noise cancelling, ambient sound) | `Ctrl+Alt+Shift+A` |
 
 **設定** in the right-click menu opens a window with five tabs — 全般, デバイス, ホットキー,
 アップデート and プラグイン. There is no save button: everything applies as you change it.
 
-**ホットキー** lists all eight commands with the key each one holds. Select a row and press a
+**ホットキー** lists all nine commands with the key each one holds. Select a row and press a
 combination to assign it; `Esc` clears a row to unassigned. A combination another application
 already holds is marked as in use the moment you press it, so you find out there rather than by
 pressing it later and getting nothing. 既定に戻す (restore defaults) puts every row back. Each
@@ -291,7 +292,8 @@ The assignments live in `%APPDATA%\openinzone\hotkeys.json`, keyed by command id
     "balance-centre": "Ctrl+Alt+Home",
     "mic-mute": "Ctrl+Alt+Shift+M",
     "mic-up": "Ctrl+Alt+PageUp",
-    "mic-down": "Ctrl+Alt+PageDown"
+    "mic-down": "Ctrl+Alt+PageDown",
+    "ambient-next": "Ctrl+Alt+Shift+A"
   },
   "checkForUpdatesAtStartup": false
 }
