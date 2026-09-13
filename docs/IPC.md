@@ -285,7 +285,13 @@ the version for an addition turns one missing feature into a client that cannot 
 |---|---|---|
 | A command | An older daemon leaves it out of the hello's `commands`, and answers it with an `error` naming it as unknown | Check `commands` before sending it, and draw the control that would send it as unavailable when it is not there |
 | A message type | An older client skips a type it does not know | Nothing |
-| A field in a message | An older reader skips a field it does not know | Nothing, as long as the message still means what it did without the field |
+| A field in a message from the daemon | An older client skips a field it does not know | Nothing, as long as the message still means what it did without the field |
+| A field in a command | An older daemon ignores it, and reads a missing `value` as 0 | Never use a new field to change what an existing command does. Add a command instead, and check `commands` for it |
+| A setting in `SettingCatalogue` | An older daemon does not list it in `capabilities` or `settings`, and answers `set-setting` for it with an `error` sent to every client | Offer the setting only when `capabilities` lists it |
+
+A new behaviour a client relies on, rather than a new command — the daemon pushing `settings` when
+the headset reports a change, say — ships together with a command the client can look for, and this
+document says which. Settings pushed on a notification arrived with `cycle-setting`.
 
 What does raise it is changing what an existing command, message or field means, or removing one.
 
