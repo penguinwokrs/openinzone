@@ -181,6 +181,10 @@ public static class IpcSnapshot
     {
         if (map.Present(eventId) is bool present) return present ? map.Slot(eventId) : null;
 
+        // Asked once and not again: a model that has no such setting costs a whole timeout on every
+        // reading, which on an INZONE H9 was five seconds of everything else waiting behind it.
+        if (device.Silent.Contains(eventId)) return null;
+
         try
         {
             return device.Session.Get(eventId);
@@ -190,6 +194,10 @@ public static class IpcSnapshot
             // Only a timeout is swallowed, and only for an id the map did not answer for. Anything
             // else means the connection itself is in trouble, and the controller drops the device
             // and says so - a far better answer than a window quietly showing nothing at all.
+            //
+            // Remembered only when the map was read: with the link down every ask times out, and
+            // that says nothing about what the model has.
+            if (!map.IsEmpty) device.Silent.Add(eventId);
             return null;
         }
     }

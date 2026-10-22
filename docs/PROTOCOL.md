@@ -41,6 +41,35 @@ Find the collection by capability rather than by path: vendor `0x054C`, usage pa
 64-byte reports. The product id differs per model — INZONE Hub's own driver `.inf` lists
 `0x0DFD`, `0x0E47`, `0x0E53`, `0x0EBF`, `0x0EC2`, `0x0F80`, `0x0F81`, `0x0FA8`, `0x0FC0` and `0x0FC1`.
 
+### The H9 / H7 dongle: a serial port instead of HID
+
+The INZONE H9 / H7 dongle enumerates as `VID_054C` / `PID_0E53` ("INZONE H9 / INZONE H7"), and it has
+no `0xFF04` collection at all. Its HID interface (`MI_03`) has four collections, none of them a
+64-byte in/out pair: `0x000C` (consumer controls), `0xFF00` (64 in, 64 feature), `0xFF03` (feature
+reports `0xA0` and `0xA1`) and `0xFF01` (8 in, 2 out). The control channel is the dongle's USB serial
+port instead (`MI_06`, the stock `usbser` driver):
+
+| Setting | Value |
+|---|---|
+| Baud rate | 460800 |
+| Data bits, parity, stop bits | 8, none, 1 |
+| Flow control | none; RTS and DTR raised |
+
+These are the line settings INZONE Hub's `SerialPortWrapper` applies, and nothing is sent when the
+port opens. The packets are exactly the ones in [Packet format](#packet-format), but with no report
+framing: written as they are, and read back as a stream that is cut into packets by the length in
+each header. A `ConnectStatus2Ghz` Get to the transmitter is answered with
+`04 FF 0A 00 96 C3 12 01 10 <tid> 00 <link> <checksum>`.
+
+Unlike the HID collection, a serial port cannot be opened shared, so the port is unavailable while
+INZONE Hub has it. Windows registers it as a `GUID_DEVINTERFACE_COMPORT` interface whose path carries
+the USB ids, which is how this project finds it and opens it without needing the `COM` number.
+
+Observed on an INZONE H9 over this channel: model info (id `0`), battery, headphone volume, game/chat
+balance, the microphone mute flag, sidetone, the ambient setting, auto power off and the capability
+map all answer. `BootStatus`, voice guidance, its language and Bluetooth automatic switching did not
+answer. Nothing has been written to the headset over this channel yet.
+
 ### Report framing
 
 Each 64-byte report carries a two-byte header:

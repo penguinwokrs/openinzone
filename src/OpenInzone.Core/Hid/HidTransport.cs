@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using OpenInzone.Native;
+using OpenInzone.Protocol;
 
 namespace OpenInzone.Hid;
 
@@ -11,7 +12,7 @@ namespace OpenInzone.Hid;
 /// Every report carries a two-byte header: [0] report id, [1] number of payload bytes in this report.
 /// Payloads longer than one report are split, matching the vendor application's transport.
 /// </summary>
-public sealed class HidTransport : IDisposable
+public sealed class HidTransport : IHciTransport
 {
     private readonly IntPtr _handle;
     private readonly IntPtr _readEvent;

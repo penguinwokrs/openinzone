@@ -13,14 +13,14 @@ public sealed class PacketReceivedEventArgs(HciPacket packet) : EventArgs
 }
 
 /// <summary>
-/// Runs the request/response conversation over <see cref="HidTransport"/>.
-/// A background reader reassembles packets from the report stream, hands replies to whoever is waiting,
+/// Runs the request/response conversation over an <see cref="IHciTransport"/>.
+/// A background reader reassembles packets from the byte stream, hands replies to whoever is waiting,
 /// and raises <see cref="PacketReceived"/> for anything unsolicited — for example when the wearer
 /// changes a setting from the earbuds themselves.
 /// </summary>
 public sealed class HciSession : IDisposable
 {
-    private readonly HidTransport _transport;
+    private readonly IHciTransport _transport;
     private readonly Thread _reader;
     private readonly IntPtr _cancelEvent;
     private readonly SemaphoreSlim _requestGate = new(1, 1);
@@ -40,7 +40,7 @@ public sealed class HciSession : IDisposable
 
     public event EventHandler<PacketReceivedEventArgs>? PacketReceived;
 
-    public HciSession(HidTransport transport)
+    public HciSession(IHciTransport transport)
     {
         _transport = transport;
         _cancelEvent = NativeMethods.CreateEventW(IntPtr.Zero, true, false, null);

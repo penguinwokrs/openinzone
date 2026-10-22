@@ -45,6 +45,11 @@ One left click on the tray icon opens this:
 Built and verified against **INZONE Buds** (`VID_054C` / `PID_0EC2`). The protocol is shared
 across the INZONE range, so other models are likely to work, but only INZONE Buds has been tested.
 
+**INZONE H9 / H7** (`PID_0E53`) has no HID control channel; its dongle carries the same packets over
+a USB serial port, which is supported (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
+Reading an INZONE H9's state works; writing settings to it is untested. A serial port cannot be
+shared, so INZONE Hub has to be closed first.
+
 ## Contents
 
 Everything up to the developer guide is for using it; building it and the tools that check it are

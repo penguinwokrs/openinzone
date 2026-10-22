@@ -5,6 +5,7 @@ using OpenInzone.Audio;
 using OpenInzone.Hid;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
+using OpenInzone.Serial;
 using OpenInzone.Settings;
 
 namespace OpenInzone;
@@ -22,6 +23,8 @@ public sealed class SettingChangedEventArgs(EventId eventId, byte[] param) : Eve
 /// The dongle exposes several HID collections; the control channel is the vendor collection on usage page
 /// 0xFF04. It is opened with sharing enabled, so this works while INZONE Hub is running — both see the
 /// same notifications and neither locks the other out.
+/// The INZONE H9 / H7 dongle has no such collection: it carries the same packets over its USB serial
+/// port instead (<see cref="SerialTransport"/>), which only one program can hold open at a time.
 /// </remarks>
 public sealed class InzoneDevice : IDisposable
 {
@@ -34,10 +37,19 @@ public sealed class InzoneDevice : IDisposable
     private const int ReportLength = 64;
     private const byte ReportId = 0x02;
 
-    private readonly HidTransport _transport;
+    /// <summary>Product ids of the dongles whose control channel is a serial port (INZONE H9 / H7).</summary>
+    private static readonly ushort[] SerialProductIds = [0x0E53];
+
+    private readonly IHciTransport _transport;
     private readonly HciSession _session;
 
     public HidDeviceInfo DeviceInfo { get; }
+
+    /// <summary>
+    /// What this connection's headset did not answer when asked, so a settings reading does not wait
+    /// out the same timeouts every time. It starts empty on every connection.
+    /// </summary>
+    public SilentEvents Silent { get; } = new(TimeSpan.FromMinutes(10));
 
     /// <summary>Raised when the headset reports a change we did not ask for — someone using the earbud controls.</summary>
     public event EventHandler<SettingChangedEventArgs>? SettingChanged;
@@ -45,17 +57,23 @@ public sealed class InzoneDevice : IDisposable
     private InzoneDevice(HidDeviceInfo info)
     {
         DeviceInfo = info;
-        _transport = new HidTransport(info.DevicePath, ReportLength, ReportLength, ReportId, ReportId);
+        _transport = info.IsSerial
+            ? new SerialTransport(info.DevicePath)
+            : new HidTransport(info.DevicePath, ReportLength, ReportLength, ReportId, ReportId);
         _session = new HciSession(_transport);
         _session.PacketReceived += OnPacketReceived;
     }
 
     /// <summary>Lists every INZONE control interface currently attached.</summary>
-    public static IReadOnlyList<HidDeviceInfo> Enumerate() => HidEnumerator.Enumerate(d =>
-        d.VendorId == SonyVendorId &&
-        d.UsagePage == ControlUsagePage &&
-        d.InputReportByteLength == ReportLength &&
-        d.OutputReportByteLength == ReportLength);
+    public static IReadOnlyList<HidDeviceInfo> Enumerate() =>
+    [
+        .. HidEnumerator.Enumerate(d =>
+            d.VendorId == SonyVendorId &&
+            d.UsagePage == ControlUsagePage &&
+            d.InputReportByteLength == ReportLength &&
+            d.OutputReportByteLength == ReportLength),
+        .. SerialEnumerator.Enumerate(SonyVendorId, SerialProductIds, "INZONE H9 / H7 serial control"),
+    ];
 
     /// <summary>Opens the first INZONE dongle found, or the one at <paramref name="devicePath"/>.</summary>
     public static InzoneDevice Open(string? devicePath = null)
