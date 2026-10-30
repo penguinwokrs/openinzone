@@ -47,12 +47,13 @@ across the INZONE range, so other models are likely to work, but only INZONE Bud
 
 **INZONE H9 / H7** (`PID_0E53`) has no HID control channel; its dongle carries the same packets over
 a USB serial port, which is supported (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
-Reading an INZONE H9's state works. Of its settings only the headphone volume, the game/chat
-balance and the ambient mode (noise cancelling / ambient sound) have been written and read back;
-sidetone, ambient level, voice focus and the rest have not, and auto power off is not offered
-because the H9's reading of it is not understood yet. A serial port cannot be shared, in either
-direction: INZONE Hub has to be closed before OpenInzone can reach an H9, and the OpenInzone tray
-(and a Stream Deck, which starts it) has to be quit before INZONE Hub can.
+Reading an INZONE H9's state works, and so does writing everything its settings window offers: the
+headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
+ambient level, voice focus, sidetone and automatic power off (5 minutes to 3 hours, or never), each
+tried and put back. Mic mute from the computer is not offered on it, and nothing has been checked on
+an INZONE H7, which shares the dongle. A serial port cannot be shared, in either direction: INZONE
+Hub has to be closed before OpenInzone can reach an H9, and the OpenInzone tray (and a Stream Deck,
+which starts it) has to be quit before INZONE Hub can.
 
 ## Contents
 

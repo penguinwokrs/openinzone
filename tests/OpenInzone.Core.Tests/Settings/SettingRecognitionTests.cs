@@ -84,6 +84,18 @@ public class SettingRecognitionTests
     private static ModelInfo Model(byte id) => new(id, 0, 0, 0, 0, "", "", "");
 
     [Theory]
+    [InlineData(ModelInfo.InzoneH9, false)]
+    [InlineData(ModelInfo.InzoneH7, true)]
+    [InlineData(ModelInfo.InzoneBuds, true)]
+    [InlineData(ModelInfo.InzoneH9II, true)]
+    public void The_bluetooth_switch_is_not_asked_of_an_h9_which_never_answers_it(byte modelId, bool offered)
+    {
+        var setting = SettingCatalogue.ById(SettingCatalogue.BluetoothAutoSwitch)!;
+
+        Assert.Equal(offered, setting.OfferedOn(Model(modelId)));
+    }
+
+    [Theory]
     [InlineData(ModelInfo.InzoneH9, false, true)]
     [InlineData(ModelInfo.InzoneH7, true, false)]
     [InlineData(ModelInfo.InzoneBuds, true, false)]

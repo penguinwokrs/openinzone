@@ -48,12 +48,6 @@ public sealed class InzoneDevice : IDisposable
 
     public HidDeviceInfo DeviceInfo { get; }
 
-    /// <summary>
-    /// What this connection's headset did not answer when asked, so a settings reading does not wait
-    /// out the same timeouts every time. It starts empty on every connection.
-    /// </summary>
-    public SilentEvents Silent { get; } = new(TimeSpan.FromMinutes(10));
-
     /// <summary>Raised when the headset reports a change we did not ask for — someone using the earbud controls.</summary>
     public event EventHandler<SettingChangedEventArgs>? SettingChanged;
 

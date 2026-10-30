@@ -65,7 +65,11 @@ public static class SettingCatalogue
             appliesTo: model => model.ModelId != ModelInfo.InzoneH9),
         Minutes(AutoPowerOffTime, EventId.AutoPowerOff, AutoPowerOffMinutes,
             appliesTo: model => model.ModelId == ModelInfo.InzoneH9),
-        Toggle(BluetoothAutoSwitch, EventId.IncomingPermission, index: 0, packetBytes: 1),
+        // 0x8E is in none of the map's parts, so it is asked for on its own. INZONE Hub shows it for
+        // INZONE Buds only, and an H9 never answers: not asking is what keeps a timeout out of every
+        // reading. Left to be asked for on every other model, as before.
+        Toggle(BluetoothAutoSwitch, EventId.IncomingPermission, index: 0, packetBytes: 1,
+            appliesTo: model => model.ModelId != ModelInfo.InzoneH9),
         Toggle(VoiceGuidance, EventId.Guidance, index: 0, packetBytes: 1),
         Choice(VoiceGuidanceLanguage, EventId.VoicePromptLanguage, maximum: 2, index: 0, packetBytes: 1),
     ];

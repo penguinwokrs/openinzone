@@ -69,14 +69,15 @@ the USB ids, which is how this project finds it and opens it without needing the
 
 Observed on an INZONE H9 over this channel: model info (id `0`), battery, headphone volume, game/chat
 balance, the microphone mute flag, sidetone, the ambient setting, auto power off and the capability
-map all answer. `BootStatus`, voice guidance, its language and Bluetooth automatic switching did not
-answer.
+map all answer. `BootStatus` does not, and neither does `0x8E` (Bluetooth automatic switching), which
+INZONE Hub offers on INZONE Buds only. Voice guidance and its language do not answer either, and the
+capability map says why: its part 3 is seven bytes on an H9 where Buds' is ten (see
+[the capability map](#the-headset-publishes-its-own-capability-map-0x060x08)).
 
-Written over this channel and read back on an INZONE H9: the headphone volume, the game/chat balance
-and the ambient mode (`0x41` byte 0, noise cancelling and ambient sound both ways; the replies come
-back as `Notify`). Not written: sidetone, the ambient level, voice focus, and auto power off. Auto
-power off (`0x81`) reads `05` on an H9, which is neither `00` nor `0x0F`, so what its bytes mean is
-unknown; it is not offered and a write to it is refused.
+Written over this channel and read back on an INZONE H9: the headphone volume, the game/chat balance,
+the ambient mode (`0x41` byte 0, noise cancelling and ambient sound both ways; the replies come back
+as `Notify`), the ambient level, voice focus, sidetone and auto power off (see
+[below](#auto-power-off-0x81)), each put back afterwards.
 
 ### Report framing
 
@@ -284,6 +285,14 @@ others. Taking whatever remains would make part 1 the one part that can never fa
 model carrying a single field this build does not know would parse without complaint and put the
 volume, the balance and the sidetone at the wrong offsets.
 
+A part may also stop early. An INZONE H9's part 3 is seven bytes (`03 01 01 01 02 05 00`): the
+startup mode, the Bluetooth block, auto power off and the LED. Against the layout above, the startup
+mode and auto power off equal what `0x43` and `0x81` answer alone (`03` and `05`), and the voice
+prompt language, voice guidance and connection destination are missing from the end, each of which
+times out when asked for on its own. So a part that stops exactly where a slot stops is read as far
+as it goes, and the slots after it are the model having none of them, as if each were all `0xFF`. A
+part that stops anywhere else does not add up, and is refused as before.
+
 A slot means the model has no such setting when **every** byte in it is `0xFF`. `00 FF FF` for the
 microphone is not that: the mute flag answered, and the other two bytes are the firmware's own
 "not reported" sentinel, which is a different thing.
@@ -342,9 +351,16 @@ were asked in.
 
 ### Auto power off, `0x81`
 
-One byte. `00` off, `0x0F` on. INZONE Buds offers only those two in INZONE Hub, and 15 reads like
-the minutes a headset with a choice of delays would carry - but nothing here confirms that, and
-this model never sends another value.
+One byte, and it is a number of minutes: `00` is never. INZONE Hub offers an INZONE H9 `05`, `0F`,
+`1E`, `3C` and `B4` (5, 15, 30, 60 and 180 minutes), read from its own table for the choice. INZONE
+Buds is offered a plain switch, whose "on" `0x0F` is the same fifteen minutes. On an INZONE H9, which
+held `05`, 15, 30, 60 and 180 minutes and then never were each written and read back, and `05` was put
+back afterwards. A value that is not one of them
+(`07`, say) is refused before it is sent, and a reading that is none of them hides the setting.
+
+Which of the two a model is offered is decided by its model id: only the H9 (id `0`) gets the choice
+of minutes. The H7 shares the dongle, but nobody has checked its values, so there the byte is read
+as a switch only when it is `00` or `0F` and is otherwise left out.
 
 ### Voice guidance, `0x84`
 

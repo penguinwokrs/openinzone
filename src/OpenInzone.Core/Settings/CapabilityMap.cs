@@ -31,7 +31,9 @@ namespace OpenInzone.Settings;
 /// <para>
 /// A part whose length does not add up is refused rather than guessed at: reading it anyway would
 /// report settings at the wrong offsets, which is worse than not reading it. Its ids go back to
-/// being unknown, which is what sends a caller to probing.
+/// being unknown, which is what sends a caller to probing. The one length that does add up without
+/// being the whole layout is a part that stops exactly where a slot stops: a model that carries
+/// fewer settings, as an INZONE H9's part 3 does, which says so by ending early.
 /// </para>
 /// </remarks>
 public sealed class CapabilityMap
@@ -140,12 +142,32 @@ public sealed class CapabilityMap
 
     private void Take(byte[]? part, Slice[] layout, int offset = 0)
     {
-        if (part is null || part.Length != offset + layout.Sum(slice => slice.Width)) return;
+        if (part is null) return;
 
-        foreach (var slice in layout)
+        // How many whole slots the part holds. A part that ends exactly where a slot ends is a model
+        // that carries only the first of them: an INZONE H9's part 3 is seven bytes where Buds' is
+        // ten, and what it holds matches the first four slots (the startup mode, the Bluetooth
+        // block, auto power off and the LED; the startup mode and auto power off equal what those
+        // ids answer alone). The slots past its end are settings it does not have, and are read as
+        // if each were all 0xFF. A part that ends anywhere else does not add up, and is refused.
+        int taken = 0, end = offset;
+        while (taken < layout.Length && end + layout[taken].Width <= part.Length)
+            end += layout[taken++].Width;
+
+        if (taken == 0 || end != part.Length) return;
+
+        for (int i = 0; i < layout.Length; i++)
         {
-            _slots[slice.EventId] = part[offset..(offset + slice.Width)];
-            offset += slice.Width;
+            var slice = layout[i];
+            if (i < taken)
+            {
+                _slots[slice.EventId] = part[offset..(offset + slice.Width)];
+                offset += slice.Width;
+            }
+            else
+            {
+                _slots[slice.EventId] = Enumerable.Repeat(Unknown.Byte, slice.Width).ToArray();
+            }
         }
     }
 }
