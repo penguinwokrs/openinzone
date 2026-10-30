@@ -2,7 +2,6 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Collections.Concurrent;
-using OpenInzone.Hid;
 using OpenInzone.Native;
 
 namespace OpenInzone.Protocol;

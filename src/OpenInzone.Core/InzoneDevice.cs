@@ -24,7 +24,10 @@ public sealed class SettingChangedEventArgs(EventId eventId, byte[] param) : Eve
 /// 0xFF04. It is opened with sharing enabled, so this works while INZONE Hub is running — both see the
 /// same notifications and neither locks the other out.
 /// The INZONE H9 / H7 dongle has no such collection: it carries the same packets over its USB serial
-/// port instead (<see cref="SerialTransport"/>), which only one program can hold open at a time.
+/// port instead (<see cref="SerialTransport"/>), which only one program can hold open at a time. So
+/// on an H9 that sharing does not hold: while INZONE Hub has the port OpenInzone cannot open it, and
+/// while the OpenInzone daemon has it (the tray starts one, and retries every few seconds) INZONE Hub
+/// cannot reach the headset.
 /// </remarks>
 public sealed class InzoneDevice : IDisposable
 {
@@ -72,8 +75,24 @@ public sealed class InzoneDevice : IDisposable
             d.UsagePage == ControlUsagePage &&
             d.InputReportByteLength == ReportLength &&
             d.OutputReportByteLength == ReportLength),
-        .. SerialEnumerator.Enumerate(SonyVendorId, SerialProductIds, "INZONE H9 / H7 serial control"),
+        .. SerialDongles(),
     ];
+
+    /// <summary>
+    /// The serial dongles, or none if looking for them fails: that must not take the HID dongles
+    /// down with it, and an INZONE Buds user has no use for this half.
+    /// </summary>
+    private static IReadOnlyList<HidDeviceInfo> SerialDongles()
+    {
+        try
+        {
+            return SerialEnumerator.Enumerate(SonyVendorId, SerialProductIds, "INZONE H9 / H7 serial control");
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+    }
 
     /// <summary>Opens the first INZONE dongle found, or the one at <paramref name="devicePath"/>.</summary>
     public static InzoneDevice Open(string? devicePath = null)

@@ -80,5 +80,6 @@ public static class SettingCatalogue
         string id, EventId eventId, int index, int packetBytes, byte onValue = 1) =>
         new(id, eventId, SettingKind.Toggle, 0, 1, packetBytes,
             param => SettingDescriptor.At(param, index) == onValue ? 1 : 0,
-            (param, value) => SettingDescriptor.Replacing(param, index, value == 1 ? onValue : (byte)0));
+            (param, value) => SettingDescriptor.Replacing(param, index, value == 1 ? onValue : (byte)0),
+            param => SettingDescriptor.At(param, index) is var read && (read == 0 || read == onValue));
 }

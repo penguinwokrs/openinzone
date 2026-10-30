@@ -39,9 +39,13 @@ public sealed class SerialTransport : IHciTransport
         if (_handle == NativeMethods.INVALID_HANDLE_VALUE)
         {
             int error = Marshal.GetLastWin32Error();
-            throw new InvalidOperationException(
-                $"Could not open the INZONE serial port (error {error}). " +
-                "Check that the dongle is plugged in and that INZONE Hub is not running.");
+
+            // Access denied or a sharing violation is how Windows says another program has the port.
+            string reason = error is NativeMethods.ERROR_ACCESS_DENIED or NativeMethods.ERROR_SHARING_VIOLATION
+                ? "Another program has it: the OpenInzone tray or daemon (a Stream Deck starts it), or INZONE Hub. " +
+                  "Only one of them can hold an INZONE H9 / H7 at a time, so quit the other first."
+                : "Check that the dongle is plugged in.";
+            throw new InvalidOperationException($"Could not open the INZONE serial port (error {error}). {reason}");
         }
 
         try

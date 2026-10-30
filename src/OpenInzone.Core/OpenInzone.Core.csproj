@@ -9,4 +9,8 @@
     <Copyright>Copyright (C) 2026 penguinwokrs</Copyright>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenInzone.Core.Tests" />
+  </ItemGroup>
 </Project>

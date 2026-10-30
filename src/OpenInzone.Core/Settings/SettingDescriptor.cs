@@ -41,8 +41,17 @@ public sealed record SettingDescriptor(
     int Maximum,
     int PacketBytes,
     Func<byte[], int> ReadValue,
-    Func<byte[], int, byte[]> WriteValue)
+    Func<byte[], int, byte[]> WriteValue,
+    Func<byte[], bool>? Recognises = null)
 {
+    /// <summary>
+    /// Whether this reading is one the setting can be drawn and written from. A toggle that reads a
+    /// byte which is neither off nor its on value is a setting this build does not understand on
+    /// that model - an INZONE H9 answers <c>05</c> for auto power off - and showing it as "off" would
+    /// invite a click that writes bytes nobody has checked. Such a setting is left out.
+    /// </summary>
+    public bool Recognised(byte[] param) => Recognises?.Invoke(param) ?? true;
+
     /// <summary>
     /// True when this setting is the whole packet, so a write can be composed outright.
     /// </summary>

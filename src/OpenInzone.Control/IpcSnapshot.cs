@@ -111,6 +111,11 @@ public static class IpcSnapshot
         foreach (var setting in SettingCatalogue.All)
         {
             if (answers[setting.EventId] is not { } param) continue;
+
+            // Not offered when the reading is not one the setting understands: a click on it would
+            // write bytes that have not been checked on this model.
+            if (!setting.Recognised(param)) continue;
+
             settings.Add(new SettingValue(setting.Id, setting.Read(param)));
             features.Add(setting.Id);
         }

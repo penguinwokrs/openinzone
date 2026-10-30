@@ -61,14 +61,22 @@ framing: written as they are, and read back as a stream that is cut into packets
 each header. A `ConnectStatus2Ghz` Get to the transmitter is answered with
 `04 FF 0A 00 96 C3 12 01 10 <tid> 00 <link> <checksum>`.
 
-Unlike the HID collection, a serial port cannot be opened shared, so the port is unavailable while
-INZONE Hub has it. Windows registers it as a `GUID_DEVINTERFACE_COMPORT` interface whose path carries
+Unlike the HID collection, a serial port cannot be opened shared. The port is unavailable to this
+project while INZONE Hub has it, and the other way round: while the OpenInzone daemon has it (the
+tray starts one at logon and, while nothing is connected, tries again every few seconds; a Stream
+Deck starts it too), INZONE Hub cannot reach the headset. Windows registers it as a `GUID_DEVINTERFACE_COMPORT` interface whose path carries
 the USB ids, which is how this project finds it and opens it without needing the `COM` number.
 
 Observed on an INZONE H9 over this channel: model info (id `0`), battery, headphone volume, game/chat
 balance, the microphone mute flag, sidetone, the ambient setting, auto power off and the capability
 map all answer. `BootStatus`, voice guidance, its language and Bluetooth automatic switching did not
-answer. Nothing has been written to the headset over this channel yet.
+answer.
+
+Written over this channel and read back on an INZONE H9: the headphone volume, the game/chat balance
+and the ambient mode (`0x41` byte 0, noise cancelling and ambient sound both ways; the replies come
+back as `Notify`). Not written: sidetone, the ambient level, voice focus, and auto power off. Auto
+power off (`0x81`) reads `05` on an H9, which is neither `00` nor `0x0F`, so what its bytes mean is
+unknown; it is not offered and a write to it is refused.
 
 ### Report framing
 

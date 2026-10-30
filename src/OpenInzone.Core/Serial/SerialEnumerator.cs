@@ -42,7 +42,7 @@ internal static partial class SerialEnumerator
                 string? path = HidEnumerator.GetDevicePath(set, ref did);
                 if (path is null || !TryParseUsbId(path, out ushort vid, out ushort pid)) continue;
                 if (vid == vendorId && productIds.Contains(pid))
-                    results.Add(new HidDeviceInfo(path, vid, pid, 0, 0, 0, 0, productName));
+                    results.Add(new HidDeviceInfo(path, vid, pid, 0, 0, 0, 0, productName, IsSerial: true));
             }
         }
         finally

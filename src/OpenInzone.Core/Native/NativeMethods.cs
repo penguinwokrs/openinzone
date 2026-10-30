@@ -99,6 +99,8 @@ internal static class NativeMethods
     public const int ERROR_INSUFFICIENT_BUFFER = 122;
     public const int ERROR_NO_MORE_ITEMS = 259;
     public const int ERROR_OPERATION_ABORTED = 995;
+    public const int ERROR_ACCESS_DENIED = 5;
+    public const int ERROR_SHARING_VIOLATION = 32;
 
     public const uint PURGE_RXCLEAR = 0x0008;
     public const uint PURGE_TXCLEAR = 0x0004;
