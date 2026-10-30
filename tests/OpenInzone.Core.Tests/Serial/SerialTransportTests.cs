@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
-using System.Collections.Concurrent;
 using OpenInzone.Hid;
 using OpenInzone.Protocol;
 using OpenInzone.Serial;
@@ -10,48 +9,47 @@ namespace OpenInzone.Tests.Serial;
 
 /// <summary>
 /// The H9 / H7 dongle hands packets over as a raw byte stream, so a reply can arrive in any number of
-/// pieces and with stray bytes in front. These pin that <see cref="HciSession"/> copes, without hardware.
+/// pieces and with stray bytes in front. These pin that the stream is cut into packets correctly,
+/// without hardware and without anything that only runs on Windows.
 /// </summary>
 public class SerialTransportTests
 {
-    /// <summary>Answers every command with a canned reply, delivered a few bytes at a time.</summary>
-    private sealed class FakeTransport : IHciTransport
+    private static byte[] Reply(EventId eventId, ushort transactionId, params byte[] param) => new HciPacket
     {
-        private readonly BlockingCollection<byte[]> _incoming = [];
+        PacketType = HciPacketType.Event,
+        Source = DeviceAddress.Receiver,
+        Destination = DeviceAddress.Pc,
+        EventId = eventId,
+        EventType = EventType.Ret,
+        TransactionId = transactionId,
+        Param = param,
+    }.ToArray();
 
-        public void Write(ReadOnlySpan<byte> payload)
-        {
-            var request = HciPacket.Parse(payload)!;
-            var reply = new HciPacket
-            {
-                PacketType = HciPacketType.Event,
-                Source = DeviceAddress.Receiver,
-                Destination = DeviceAddress.Pc,
-                EventId = request.EventId,
-                EventType = EventType.Ret,
-                TransactionId = request.TransactionId,
-                Param = [0x00, 0x2A],
-            }.ToArray();
+    [Fact]
+    public void A_reply_split_across_reads_comes_out_whole_after_stray_bytes()
+    {
+        var reassembler = new HciReassembler();
+        byte[] reply = Reply(EventId.HeadphoneVolume, 7, 0x00, 0x2A);
 
-            _incoming.Add([0x00]);                // noise ahead of the packet
-            _incoming.Add(reply[..5]);            // the packet itself, split mid-header
-            _incoming.Add(reply[5..]);
-        }
+        Assert.Empty(reassembler.Add([0x00]));          // noise ahead of the packet
+        Assert.Empty(reassembler.Add(reply[..5]));      // the packet itself, split mid-header
+        var packets = reassembler.Add(reply[5..]);
 
-        public byte[]? Read(int timeoutMilliseconds, IntPtr cancelEvent) =>
-            _incoming.TryTake(out var bytes, timeoutMilliseconds) ? bytes : null;
-
-        public void Dispose() => _incoming.Dispose();
+        var packet = Assert.Single(packets);
+        Assert.Equal(EventId.HeadphoneVolume, packet.EventId);
+        Assert.Equal(7, packet.TransactionId);
+        Assert.Equal([0x00, 0x2A], packet.Param);
     }
 
     [Fact]
-    public void A_reply_split_across_reads_still_answers_the_request()
+    public void Two_packets_in_one_read_both_come_out_in_order()
     {
-        using var session = new HciSession(new FakeTransport());
+        var reassembler = new HciReassembler();
+        byte[] both = [.. Reply(EventId.BatteryInfo, 1, 0x14), .. Reply(EventId.GameChatMixBalance, 2, 0x32)];
 
-        byte[] param = session.Get(EventId.HeadphoneVolume, 2000);
+        var packets = reassembler.Add(both);
 
-        Assert.Equal([0x00, 0x2A], param);
+        Assert.Equal([EventId.BatteryInfo, EventId.GameChatMixBalance], packets.Select(p => p.EventId));
     }
 
     [Fact]

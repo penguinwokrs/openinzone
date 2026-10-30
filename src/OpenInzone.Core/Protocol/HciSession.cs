@@ -25,7 +25,7 @@ public sealed class HciSession : IDisposable
     private readonly IntPtr _cancelEvent;
     private readonly SemaphoreSlim _requestGate = new(1, 1);
     private readonly ConcurrentDictionary<(EventId, ushort), TaskCompletionSource<HciPacket>> _pending = new();
-    private readonly List<byte> _rxBuffer = [];
+    private readonly HciReassembler _reassembler = new();
     private ushort _nextTransactionId = 1;
     private volatile bool _disposed;
 
@@ -125,29 +125,7 @@ public sealed class HciSession : IDisposable
 
             if (payload is null || payload.Length == 0) continue;
 
-            _rxBuffer.AddRange(payload);
-            DrainBuffer();
-        }
-    }
-
-    private void DrainBuffer()
-    {
-        while (_rxBuffer.Count > 0)
-        {
-            var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_rxBuffer);
-            int? total = HciPacket.PeekLength(span);
-
-            if (total is null) return;             // need more bytes before the length is known
-            if (total < 0)                          // not a packet start: drop a byte and resynchronise
-            {
-                _rxBuffer.RemoveAt(0);
-                continue;
-            }
-            if (_rxBuffer.Count < total.Value) return;
-
-            var packet = HciPacket.Parse(span[..total.Value]);
-            _rxBuffer.RemoveRange(0, total.Value);
-            if (packet is not null) Dispatch(packet);
+            foreach (var packet in _reassembler.Add(payload)) Dispatch(packet);
         }
     }
 
