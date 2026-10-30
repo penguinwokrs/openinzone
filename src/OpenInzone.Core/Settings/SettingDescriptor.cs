@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Model;
 using OpenInzone.Protocol;
 
 namespace OpenInzone.Settings;
@@ -42,8 +43,15 @@ public sealed record SettingDescriptor(
     int PacketBytes,
     Func<byte[], int> ReadValue,
     Func<byte[], int, byte[]> WriteValue,
-    Func<byte[], bool>? Recognises = null)
+    Func<byte[], bool>? Recognises = null,
+    Func<ModelInfo, bool>? AppliesTo = null)
 {
+    /// <summary>
+    /// Whether this setting is for the connected model at all. Some settings are one thing on one
+    /// model and another on the next, and a model nobody has checked is left with the cautious one.
+    /// </summary>
+    public bool OfferedOn(ModelInfo model) => AppliesTo?.Invoke(model) ?? true;
+
     /// <summary>
     /// Whether this reading is one the setting can be drawn and written from. A toggle that reads a
     /// byte which is neither off nor its on value is a setting this build does not understand on

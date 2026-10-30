@@ -108,8 +108,11 @@ public static class IpcSnapshot
         var settings = new List<SettingValue>();
         var features = new List<string>();
 
+        var model = device.Model;
+
         foreach (var setting in SettingCatalogue.All)
         {
+            if (!setting.OfferedOn(model)) continue;
             if (answers[setting.EventId] is not { } param) continue;
 
             // Not offered when the reading is not one the setting understands: a click on it would
@@ -165,7 +168,14 @@ public static class IpcSnapshot
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
         byte[] current = setting.OwnsPacket ? [] : device.Session.Get(setting.EventId);
-        device.Session.Set(setting.EventId, setting.Write(current, value));
+        byte[] next = setting.Write(current, value);
+
+        // Nothing goes out that the setting itself would not offer back: a number of minutes the
+        // headset has no such choice for is refused here rather than written and hoped about.
+        if (!setting.Recognised(next))
+            throw new NotSupportedException($"The setting '{id}' does not take the value {value}.");
+
+        device.Session.Set(setting.EventId, next);
     }
 
     /// <summary>Reads and moves one choice by <paramref name="steps"/> while preserving the rest of its packet.</summary>
@@ -175,7 +185,14 @@ public static class IpcSnapshot
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
         byte[] current = device.Session.Get(setting.EventId);
-        device.Session.Set(setting.EventId, setting.Cycle(current, steps));
+        byte[] next = setting.Cycle(current, steps);
+
+        // A choice whose values are not 0, 1, 2 (minutes, say) has no "next" by counting; refuse
+        // rather than write whatever the count lands on.
+        if (!setting.Recognised(next))
+            throw new NotSupportedException($"The setting '{id}' cannot be cycled.");
+
+        device.Session.Set(setting.EventId, next);
     }
 
     /// <summary>

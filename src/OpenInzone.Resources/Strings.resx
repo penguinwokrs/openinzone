@@ -152,6 +152,24 @@ the English value is deliberate; do not trim it, and do not add surrounding punc
   <data name="Settings_AutoPowerOff" xml:space="preserve">
     <value>Automatic power off</value>
   </data>
+  <data name="Settings_AutoPowerOffNever" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Settings_AutoPowerOff5Minutes" xml:space="preserve">
+    <value>5 minutes</value>
+  </data>
+  <data name="Settings_AutoPowerOff15Minutes" xml:space="preserve">
+    <value>15 minutes</value>
+  </data>
+  <data name="Settings_AutoPowerOff30Minutes" xml:space="preserve">
+    <value>30 minutes</value>
+  </data>
+  <data name="Settings_AutoPowerOff1Hour" xml:space="preserve">
+    <value>1 hour</value>
+  </data>
+  <data name="Settings_AutoPowerOff3Hours" xml:space="preserve">
+    <value>3 hours</value>
+  </data>
   <data name="Settings_BluetoothSwitch" xml:space="preserve">
     <value>Switch the connection automatically for Bluetooth calls</value>
   </data>

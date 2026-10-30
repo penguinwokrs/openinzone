@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Model;
 using OpenInzone.Settings;
 
 namespace OpenInzone.Tests.Settings;
@@ -40,5 +41,59 @@ public class SettingRecognitionTests
     {
         Assert.True(SettingCatalogue.ById(SettingCatalogue.Sidetone)!.Recognised([0x0A, 0xFF]));
         Assert.True(SettingCatalogue.ById(SettingCatalogue.AmbientMode)!.Recognised([0x01, 0x11, 0xFF, 0x00]));
+    }
+
+    // ---- the H9's auto power off: a number of minutes ----------------------------------------
+
+    [Theory]
+    [InlineData(0x00, true)]
+    [InlineData(0x05, true)]
+    [InlineData(0x0F, true)]
+    [InlineData(0x1E, true)]
+    [InlineData(0x3C, true)]
+    [InlineData(0xB4, true)]
+    [InlineData(0x07, false)]
+    [InlineData(0x01, false)]
+    [InlineData(0xFF, false)]
+    public void The_minutes_are_recognised_only_for_the_delays_hub_offers(byte read, bool recognised)
+    {
+        var setting = SettingCatalogue.ById(SettingCatalogue.AutoPowerOffTime)!;
+
+        Assert.Equal(recognised, setting.Recognised([read]));
+    }
+
+    [Fact]
+    public void The_minutes_are_the_byte_itself_both_ways()
+    {
+        var setting = SettingCatalogue.ById(SettingCatalogue.AutoPowerOffTime)!;
+
+        Assert.Equal(60, setting.Read([0x3C]));
+        Assert.Equal([0x1E], setting.Write([0x05], 30));
+        Assert.Equal([0x00], setting.Write([0x05], 0));
+    }
+
+    [Fact]
+    public void A_value_that_is_not_a_delay_is_not_recognised_once_written()
+    {
+        var setting = SettingCatalogue.ById(SettingCatalogue.AutoPowerOffTime)!;
+
+        // 7 minutes is not a choice. The write builds the byte, and the check on it is what refuses it.
+        Assert.False(setting.Recognised(setting.Write([0x05], 7)));
+    }
+
+    private static ModelInfo Model(byte id) => new(id, 0, 0, 0, 0, "", "", "");
+
+    [Theory]
+    [InlineData(ModelInfo.InzoneH9, false, true)]
+    [InlineData(ModelInfo.InzoneH7, true, false)]
+    [InlineData(ModelInfo.InzoneBuds, true, false)]
+    [InlineData(ModelInfo.InzoneH9II, true, false)]
+    public void Only_the_h9_gets_the_minutes_and_everyone_else_keeps_the_cautious_toggle(
+        byte modelId, bool toggle, bool minutes)
+    {
+        var model = Model(modelId);
+
+        Assert.Equal(toggle, SettingCatalogue.ById(SettingCatalogue.AutoPowerOff)!.OfferedOn(model));
+        Assert.Equal(minutes, SettingCatalogue.ById(SettingCatalogue.AutoPowerOffTime)!.OfferedOn(model));
     }
 }

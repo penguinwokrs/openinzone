@@ -202,6 +202,13 @@ reads. A setting this model does not have is simply **not in the list**; that is
 it is a different thing from a setting that answered off. INZONE Buds has no wearing detection and
 no LED, and another model may have no ambient sound at all.
 
+A setting is also left out when the headset's reading is not one this build understands: a toggle
+that reads anything but off or its on value, or `auto-power-off-time` (minutes: 0, 5, 15, 30, 60
+or 180) reading another number. A write or cycle that names a setting that was left out is
+refused, so it cannot be reached by name either. `auto-power-off` and `auto-power-off-time` are
+the same byte drawn two ways, a switch on INZONE Buds and a choice of minutes on an INZONE H9, and
+a model is offered one of them.
+
 It is a list rather than a record with a field per setting, and that is the same reason the
 commands collapsed into one: adding a setting should not change the wire. The values are plain
 integers — 0 or 1 for a toggle, and the headset's own number for anything else.

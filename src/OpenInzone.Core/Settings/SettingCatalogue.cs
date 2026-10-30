@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Model;
 using OpenInzone.Protocol;
 
 namespace OpenInzone.Settings;
@@ -23,6 +24,13 @@ public static class SettingCatalogue
     private const byte AutoPowerOffOn = 0x0F;
 
     /// <summary>
+    /// The delays INZONE Hub offers an INZONE H9 for automatic power off, in minutes, with 0 for
+    /// never. The headset's byte is the number of minutes itself: Hub's table is 05 0F 1E 3C B4,
+    /// which is also why INZONE Buds' "on" is 0x0F, fifteen minutes.
+    /// </summary>
+    private static readonly int[] AutoPowerOffMinutes = [0, 5, 15, 30, 60, 180];
+
+    /// <summary>
     /// The ambient mode that the level and voice focus belong to - off is 0, noise cancelling 1.
     /// The headset keeps both of those settings in every mode but only acts on them here, so it is
     /// also the only mode in which they are worth offering.
@@ -34,6 +42,7 @@ public static class SettingCatalogue
     public const string AmbientLevel = "ambient-level";
     public const string VoiceFocus = "voice-focus";
     public const string AutoPowerOff = "auto-power-off";
+    public const string AutoPowerOffTime = "auto-power-off-time";
     public const string VoiceGuidance = "voice-guidance";
     public const string VoiceGuidanceLanguage = "voice-guidance-language";
     public const string BluetoothAutoSwitch = "bluetooth-auto-switch";
@@ -48,7 +57,14 @@ public static class SettingCatalogue
 
         Range(Sidetone, EventId.SidetoneVolume, minimum: 0, maximum: 10, index: 0, packetBytes: 2),
 
-        Toggle(AutoPowerOff, EventId.AutoPowerOff, index: 0, packetBytes: 1, onValue: AutoPowerOffOn),
+        // The same byte, drawn two ways. INZONE Buds has an on/off switch for it (0x0F is on). An INZONE
+        // H9 holds a number of minutes in it, which INZONE Hub offers as a choice; on any other model
+        // the byte has not been checked, so it stays the cautious toggle that hides itself unless
+        // it reads 00 or 0F.
+        Toggle(AutoPowerOff, EventId.AutoPowerOff, index: 0, packetBytes: 1, onValue: AutoPowerOffOn,
+            appliesTo: model => model.ModelId != ModelInfo.InzoneH9),
+        Minutes(AutoPowerOffTime, EventId.AutoPowerOff, AutoPowerOffMinutes,
+            appliesTo: model => model.ModelId == ModelInfo.InzoneH9),
         Toggle(BluetoothAutoSwitch, EventId.IncomingPermission, index: 0, packetBytes: 1),
         Toggle(VoiceGuidance, EventId.Guidance, index: 0, packetBytes: 1),
         Choice(VoiceGuidanceLanguage, EventId.VoicePromptLanguage, maximum: 2, index: 0, packetBytes: 1),
@@ -77,9 +93,23 @@ public static class SettingCatalogue
             (param, value) => SettingDescriptor.Replacing(param, index, (byte)value));
 
     private static SettingDescriptor Toggle(
-        string id, EventId eventId, int index, int packetBytes, byte onValue = 1) =>
+        string id, EventId eventId, int index, int packetBytes, byte onValue = 1,
+        Func<ModelInfo, bool>? appliesTo = null) =>
         new(id, eventId, SettingKind.Toggle, 0, 1, packetBytes,
             param => SettingDescriptor.At(param, index) == onValue ? 1 : 0,
             (param, value) => SettingDescriptor.Replacing(param, index, value == 1 ? onValue : (byte)0),
-            param => SettingDescriptor.At(param, index) is var read && (read == 0 || read == onValue));
+            param => SettingDescriptor.At(param, index) is var read && (read == 0 || read == onValue),
+            appliesTo);
+
+    /// <summary>
+    /// A one-byte choice whose values are the headset's own numbers, not 0, 1, 2. A byte that is not
+    /// one of <paramref name="allowed"/> is not recognised, so it is neither shown nor written.
+    /// </summary>
+    private static SettingDescriptor Minutes(
+        string id, EventId eventId, int[] allowed, Func<ModelInfo, bool> appliesTo) =>
+        new(id, eventId, SettingKind.Choice, allowed.Min(), allowed.Max(), 1,
+            param => SettingDescriptor.At(param, 0),
+            (param, value) => SettingDescriptor.Replacing(param, 0, (byte)value),
+            param => allowed.Contains(SettingDescriptor.At(param, 0)),
+            appliesTo);
 }

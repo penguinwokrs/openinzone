@@ -107,6 +107,9 @@ public static class FeatureIds
     public const string AmbientLevel = "ambient-level";
     public const string VoiceFocus = "voice-focus";
     public const string AutoPowerOff = "auto-power-off";
+
+    /// <summary>Automatic power off as a number of minutes, which only the INZONE H9 is offered.</summary>
+    public const string AutoPowerOffTime = "auto-power-off-time";
     public const string VoiceGuidance = "voice-guidance";
     public const string VoiceGuidanceLanguage = "voice-guidance-language";
     public const string BluetoothAutoSwitch = "bluetooth-auto-switch";
@@ -115,7 +118,7 @@ public static class FeatureIds
     [
         Balance, Volume, MicMute, MicMuteReadOnly, MicLevel, Battery,
         Sidetone, AmbientMode, AmbientLevel, VoiceFocus,
-        AutoPowerOff, VoiceGuidance, VoiceGuidanceLanguage, BluetoothAutoSwitch,
+        AutoPowerOff, AutoPowerOffTime, VoiceGuidance, VoiceGuidanceLanguage, BluetoothAutoSwitch,
     ];
 }
 

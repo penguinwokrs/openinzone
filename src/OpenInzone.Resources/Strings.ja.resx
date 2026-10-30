@@ -148,6 +148,24 @@
   <data name="Settings_AutoPowerOff" xml:space="preserve">
     <value>自動電源オフ</value>
   </data>
+  <data name="Settings_AutoPowerOffNever" xml:space="preserve">
+    <value>しない</value>
+  </data>
+  <data name="Settings_AutoPowerOff5Minutes" xml:space="preserve">
+    <value>5分</value>
+  </data>
+  <data name="Settings_AutoPowerOff15Minutes" xml:space="preserve">
+    <value>15分</value>
+  </data>
+  <data name="Settings_AutoPowerOff30Minutes" xml:space="preserve">
+    <value>30分</value>
+  </data>
+  <data name="Settings_AutoPowerOff1Hour" xml:space="preserve">
+    <value>1時間</value>
+  </data>
+  <data name="Settings_AutoPowerOff3Hours" xml:space="preserve">
+    <value>3時間</value>
+  </data>
   <data name="Settings_BluetoothSwitch" xml:space="preserve">
     <value>Bluetooth の発信・着信時に自動で接続を切り替える</value>
   </data>
