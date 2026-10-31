@@ -31,9 +31,9 @@ namespace OpenInzone.Settings;
 /// <para>
 /// A part whose length does not add up is refused rather than guessed at: reading it anyway would
 /// report settings at the wrong offsets, which is worse than not reading it. Its ids go back to
-/// being unknown, which is what sends a caller to probing. The one length that does add up without
-/// being the whole layout is a part that stops exactly where a slot stops: a model that carries
-/// fewer settings, as an INZONE H9's part 3 does, which says so by ending early.
+/// being unknown, which is what sends a caller to probing. The one exception is a model whose short
+/// parts have been seen (<see cref="AcceptsShortParts"/>, the INZONE H9 alone for now): its part 3
+/// stops exactly where a slot stops, which is how it says it carries fewer settings.
 /// </para>
 /// </remarks>
 public sealed class CapabilityMap
@@ -105,14 +105,28 @@ public sealed class CapabilityMap
     /// Reads the three parts. Each is independent: one that did not answer, or did not add up,
     /// leaves its own ids unknown and costs the others nothing.
     /// </summary>
-    public static CapabilityMap Parse(byte[]? part1, byte[]? part2, byte[]? part3)
+    /// <param name="shortParts">
+    /// Whether a part 2 or 3 that stops exactly where a slot stops is read as far as it goes. Only for
+    /// a model whose short parts have been seen (<see cref="AcceptsShortParts"/>); every other model
+    /// has to send the whole part, or the part is refused.
+    /// </param>
+    public static CapabilityMap Parse(byte[]? part1, byte[]? part2, byte[]? part3, bool shortParts = false)
     {
         var map = new CapabilityMap();
         map.TakePart1(part1);
-        map.Take(part2, Part2);
-        map.Take(part3, Part3);
+        map.Take(part2, Part2, shortParts: shortParts);
+        map.Take(part3, Part3, shortParts: shortParts);
         return map;
     }
+
+    /// <summary>
+    /// The models whose short parts have been seen, and so can be read as far as they go: the
+    /// INZONE H9 (model id 0). The H7 shares its dongle, and the H9 II and the rest may well send
+    /// short parts too, but nobody has seen their bytes. A short part from a layout this build has
+    /// not seen would put slots at the wrong offsets, so another model is added here once someone
+    /// has looked at what it sends.
+    /// </summary>
+    public static bool AcceptsShortParts(ModelInfo model) => model.ModelId == ModelInfo.InzoneH9;
 
     /// <summary>True when not one of the three parts could be read, so there is nothing to go on.</summary>
     public bool IsEmpty => _slots.Count == 0;
@@ -140,21 +154,23 @@ public sealed class CapabilityMap
         Take(part, layout, Part1LeadingBytes);
     }
 
-    private void Take(byte[]? part, Slice[] layout, int offset = 0)
+    private void Take(byte[]? part, Slice[] layout, int offset = 0, bool shortParts = false)
     {
         if (part is null) return;
 
-        // How many whole slots the part holds. A part that ends exactly where a slot ends is a model
-        // that carries only the first of them: an INZONE H9's part 3 is seven bytes where Buds' is
-        // ten, and what it holds matches the first four slots (the startup mode, the Bluetooth
-        // block, auto power off and the LED; the startup mode and auto power off equal what those
-        // ids answer alone). The slots past its end are settings it does not have, and are read as
-        // if each were all 0xFF. A part that ends anywhere else does not add up, and is refused.
+        // How many whole slots the part holds. Where short parts are allowed, a part that ends
+        // exactly where a slot ends is a model that carries only the first of them: an INZONE H9's
+        // part 3 is seven bytes where Buds' is ten, and what it holds matches the first four slots
+        // (the startup mode, the Bluetooth block, auto power off and the LED; the startup mode and
+        // auto power off equal what those ids answer alone). The slots past its end are settings it
+        // does not have, and are read as if each were all 0xFF. Anywhere else a part that does not
+        // hold the whole layout does not add up, and is refused.
         int taken = 0, end = offset;
         while (taken < layout.Length && end + layout[taken].Width <= part.Length)
             end += layout[taken++].Width;
 
         if (taken == 0 || end != part.Length) return;
+        if (taken < layout.Length && !shortParts) return;
 
         for (int i = 0; i < layout.Length; i++)
         {

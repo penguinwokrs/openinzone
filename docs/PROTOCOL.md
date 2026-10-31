@@ -289,9 +289,14 @@ A part may also stop early. An INZONE H9's part 3 is seven bytes (`03 01 01 01 0
 startup mode, the Bluetooth block, auto power off and the LED. Against the layout above, the startup
 mode and auto power off equal what `0x43` and `0x81` answer alone (`03` and `05`), and the voice
 prompt language, voice guidance and connection destination are missing from the end, each of which
-times out when asked for on its own. So a part that stops exactly where a slot stops is read as far
-as it goes, and the slots after it are the model having none of them, as if each were all `0xFF`. A
-part that stops anywhere else does not add up, and is refused as before.
+times out when asked for on its own. So for the H9 (model id `0`) a part that stops exactly where a
+slot stops is read as far as it goes, and the slots after it are the model having none of them, as if
+each were all `0xFF`. A part that stops between two slots does not add up, and is refused there too.
+
+Every other model has to send the whole part, and a short one is refused as before. The H7 shares the
+dongle, and the H9 II and the rest may well send short parts of their own, but nobody has seen their
+bytes, and a layout this build has not seen would put slots at the wrong offsets. A model is added
+(`CapabilityMap.AcceptsShortParts`) once someone has looked at what it sends.
 
 A slot means the model has no such setting when **every** byte in it is `0xFF`. `00 FF FF` for the
 microphone is not that: the mute flag answered, and the other two bytes are the firmware's own

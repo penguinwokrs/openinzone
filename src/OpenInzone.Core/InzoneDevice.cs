@@ -328,10 +328,18 @@ public sealed class InzoneDevice : IDisposable
             catch (TimeoutException) { return null; }
         }
 
+        // Short parts are read only for a model whose short parts have been seen. A model that cannot
+        // be asked who it is gets the strict reading, which is the one that refuses what it does not
+        // know rather than guessing at it.
+        bool shortParts;
+        try { shortParts = CapabilityMap.AcceptsShortParts(Model); }
+        catch (TimeoutException) { shortParts = false; }
+
         return CapabilityMap.Parse(
             Part(EventId.AllFunctionSettingsPart1),
             Part(EventId.AllFunctionSettingsPart2),
-            Part(EventId.AllFunctionSettingsPart3));
+            Part(EventId.AllFunctionSettingsPart3),
+            shortParts);
     }
 
     // ---- Status --------------------------------------------------------------
