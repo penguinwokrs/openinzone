@@ -42,18 +42,33 @@ One left click on the tray icon opens this:
 
 ![The OpenInzone panel: sliders for headphone volume, microphone level and game/chat balance, with the battery level of both earbuds and the case below them](docs/images/flyout.png)
 
-Built and verified against **INZONE Buds** (`VID_054C` / `PID_0EC2`). The protocol is shared
-across the INZONE range, so other models are likely to work, but only INZONE Buds has been tested.
+## Supported models
 
-**INZONE H9 / H7** (`PID_0E53`) has no HID control channel; its dongle carries the same packets over
-a USB serial port, which is supported (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
-Reading an INZONE H9's state works, and so does writing everything its settings window offers: the
-headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
+| Model | Connection | Status | Notes |
+|---|---|---|---|
+| INZONE Buds | USB dongle, HID (`PID_0EC2`) | **Verified** | Built and tested on it; everything on this page works |
+| INZONE H9 | USB dongle, serial port (`PID_0E53`) | **Verified** | Checked by a contributor ([#37](https://github.com/penguinwokrs/openinzone/pull/37)); see below |
+| INZONE H9 II | USB dongle | **Supported** | A user reports the game/chat balance working from a Stream Deck ([#19](https://github.com/penguinwokrs/openinzone/issues/19)); nothing else has been checked |
+| INZONE H7 | USB dongle, serial port (`PID_0E53`) | **Untested** | Shares the H9's dongle, so it connects the same way, but nobody has checked its values |
+| INZONE H3, H5, H6 Air, E9 | — | **Untested** | Known by name only |
+
+- **Verified**: tried on the real device.
+- **Supported**: made to work, and reported working in part, but not checked in full.
+- **Untested**: nobody has tried it. The protocol is shared across the INZONE range, so it may well
+  work; an [issue](https://github.com/penguinwokrs/openinzone/issues) saying what does and does not
+  helps.
+
+Microphone mute from the computer is INZONE Buds only. On the headsets OpenInzone shows the mute
+state the headset reports, and a Stream Deck mute key turns the microphone level down to 0 instead.
+
+**INZONE H9.** Reading its state works, and so does writing everything its settings window offers:
+the headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
 ambient level, voice focus, sidetone and automatic power off (5 minutes to 3 hours, or never), each
-tried and put back. Mic mute from the computer is not offered on it, and nothing has been checked on
-an INZONE H7, which shares the dongle. A serial port cannot be shared, in either direction: INZONE
-Hub has to be closed before OpenInzone can reach an H9, and the OpenInzone tray (and a Stream Deck,
-which starts it) has to be quit before INZONE Hub can.
+tried and put back. Its dongle has no HID control channel and carries the same packets over a USB
+serial port instead (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
+A serial port cannot be shared, in either direction: INZONE Hub has to be closed before OpenInzone
+can reach an H9, and the OpenInzone tray (and a Stream Deck, which starts it) has to be quit before
+INZONE Hub can.
 
 ## Contents
 
