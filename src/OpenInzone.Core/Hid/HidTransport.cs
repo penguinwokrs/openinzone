@@ -17,6 +17,8 @@ public sealed class HidTransport : IHciTransport
     private readonly IntPtr _handle;
     private readonly IntPtr _readEvent;
     private readonly IntPtr _writeEvent;
+    // Overlapped I/O keeps writing into the buffer after the call returns, so it must not move.
+    private readonly byte[] _readBuffer;
     private readonly object _writeLock = new();
     private bool _disposed;
 
@@ -37,6 +39,7 @@ public sealed class HidTransport : IHciTransport
         OutputReportLength = outputReportLength;
         InputReportId = inputReportId;
         OutputReportId = outputReportId;
+        _readBuffer = GC.AllocateArray<byte>(inputReportLength, pinned: true);
 
         _handle = NativeMethods.CreateFileW(devicePath,
             NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
@@ -66,7 +69,7 @@ public sealed class HidTransport : IHciTransport
             do
             {
                 int chunk = Math.Min(payload.Length - offset, MaxPayloadPerReport);
-                var report = new byte[OutputReportLength];
+                var report = GC.AllocateArray<byte>(OutputReportLength, pinned: true);
                 report[0] = OutputReportId;
                 report[1] = (byte)chunk;
                 payload.Slice(offset, chunk).CopyTo(report.AsSpan(HeaderSize));
@@ -92,7 +95,10 @@ public sealed class HidTransport : IHciTransport
 
         if (NativeMethods.WaitForSingleObject(_writeEvent, 1000) != NativeMethods.WAIT_OBJECT_0)
         {
+            // The write is not over until the cancellation completes, and it writes into this frame's
+            // OVERLAPPED when it does, so wait for it before leaving.
             NativeMethods.CancelIoEx(_handle, IntPtr.Zero);
+            NativeMethods.GetOverlappedResult(_handle, ref overlapped, out _, true);
             throw new TimeoutException("Timed out writing to the INZONE control interface.");
         }
 
@@ -101,23 +107,24 @@ public sealed class HidTransport : IHciTransport
 
     /// <summary>
     /// Reads one report and returns its payload, or null when the wait elapsed or the read was cancelled.
-    /// Reports carrying a different report id are skipped.
+    /// Reports carrying a different report id are skipped. A report that lands while the read is being
+    /// cancelled is returned rather than dropped, since losing one loses a packet.
     /// </summary>
     public byte[]? Read(int timeoutMilliseconds, IntPtr cancelEvent)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        var buffer = _readBuffer;
         var deadline = Environment.TickCount64 + timeoutMilliseconds;
         while (true)
         {
             int remaining = (int)Math.Max(0, deadline - Environment.TickCount64);
             if (remaining == 0) return null;
 
-            var buffer = new byte[InputReportLength];
             var overlapped = new NativeOverlapped32 { EventHandle = _readEvent };
             NativeMethods.ResetEvent(_readEvent);
 
-            uint transferred;
+            bool stopping = false;
             if (!NativeMethods.ReadFile(_handle, buffer, (uint)InputReportLength, IntPtr.Zero, ref overlapped))
             {
                 int error = Marshal.GetLastWin32Error();
@@ -133,14 +140,18 @@ public sealed class HidTransport : IHciTransport
                 {
                     // Timed out, or the caller asked us to stop.
                     NativeMethods.CancelIoEx(_handle, IntPtr.Zero);
-                    NativeMethods.GetOverlappedResult(_handle, ref overlapped, out _, true);
-                    return null;
+                    stopping = true;
                 }
             }
 
-            if (!NativeMethods.GetOverlappedResult(_handle, ref overlapped, out transferred, false)) return null;
-            if (transferred < HeaderSize) continue;
-            if (buffer[0] != InputReportId) continue;
+            // Finished, or cancelled: either way the read is over once this returns, and it says how much came in.
+            bool read = NativeMethods.GetOverlappedResult(_handle, ref overlapped, out uint transferred, true);
+            bool usable = read && transferred >= HeaderSize && buffer[0] == InputReportId;
+            if (!usable)
+            {
+                if (stopping || !read) return null;
+                continue;
+            }
 
             int length = Math.Min(buffer[1], InputReportLength - HeaderSize);
             var payload = new byte[length];
