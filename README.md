@@ -42,18 +42,35 @@ One left click on the tray icon opens this:
 
 ![The OpenInzone panel: sliders for headphone volume, microphone level and game/chat balance, with the battery level of both earbuds and the case below them](docs/images/flyout.png)
 
-Built and verified against **INZONE Buds** (`VID_054C` / `PID_0EC2`). The protocol is shared
-across the INZONE range, so other models are likely to work, but only INZONE Buds has been tested.
+## Supported models
 
-**INZONE H9 / H7** (`PID_0E53`) has no HID control channel; its dongle carries the same packets over
-a USB serial port, which is supported (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
-Reading an INZONE H9's state works, and so does writing everything its settings window offers: the
-headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
+| Model | Connection | Status |
+|---|---|---|
+| INZONE Buds | USB dongle, HID (`PID_0EC2`) | **Verified** |
+| INZONE H9 | USB dongle, serial port (`PID_0E53`) | **Verified** |
+| INZONE H9 II | USB dongle | **Supported** |
+| INZONE H7 | USB dongle, serial port (`PID_0E53`) | **Untested** |
+| INZONE H3, H5, H6 Air, E9 | — | **Untested** |
+
+- **Verified**: tried on the real device.
+- **Supported**: made to work, and reported working in part, but not checked in full.
+- **Untested**: nobody has tried it. The protocol is shared across the INZONE range, so it may well
+  work; an [issue](https://github.com/penguinwokrs/openinzone/issues) saying what does and does not
+  helps.
+
+Microphone mute from the computer is INZONE Buds only. The headsets are muted on the headset itself,
+by flipping the microphone up (H9, H7, H5, H3) or with a switch (H9 II, H6 Air), so OpenInzone shows
+the mute state the headset reports, and a Stream Deck mute key turns the microphone level down to 0
+instead.
+
+**INZONE H9.** Reading its state works, and so does writing everything its settings window offers:
+the headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
 ambient level, voice focus, sidetone and automatic power off (5 minutes to 3 hours, or never), each
-tried and put back. Mic mute from the computer is not offered on it, and nothing has been checked on
-an INZONE H7, which shares the dongle. A serial port cannot be shared, in either direction: INZONE
-Hub has to be closed before OpenInzone can reach an H9, and the OpenInzone tray (and a Stream Deck,
-which starts it) has to be quit before INZONE Hub can.
+tried and put back. Its dongle has no HID control channel and carries the same packets over a USB
+serial port instead (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
+A serial port cannot be shared, in either direction: INZONE Hub has to be closed before OpenInzone
+can reach an H9, and the OpenInzone tray (and a Stream Deck, which starts it) has to be quit before
+INZONE Hub can.
 
 ## Contents
 
@@ -370,7 +387,7 @@ own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md)
 ### Actions
 
 | Action | On a key | On a dial | Shows |
-|---|---|---|---|
+|---|---|---|
 | Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
 | Volume up | Raises it by the step | Turn to adjust, press to raise | `16 / 30` after a press |
 | Volume down | Lowers it by the step | Turn to adjust, press to lower | `16 / 30` after a press |
