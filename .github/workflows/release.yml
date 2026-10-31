@@ -138,3 +138,28 @@ jobs:
             exit 0
           fi
           gh workflow run excavator.yml -R penguinwokrs/scoop-bucket
+
+      # The manifests above are attached to the release, but nothing sent them to winget-pkgs, so
+      # winget stayed on 1.0.0. Komac opens that pull request from the penguinwokrs/winget-pkgs fork.
+      # The token is a classic PAT with public_repo, because the pull request goes to someone else's
+      # repository; without it the release still stands, and the manifests can be submitted by hand.
+      - name: Check for the winget token
+        id: winget
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "$WINGET_TOKEN" ]; then
+            echo "WINGET_TOKEN is not set; this release is not sent to winget-pkgs."
+            echo "submit=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "submit=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send the release to winget-pkgs
+        if: steps.winget.outputs.submit == 'true'
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
+        with:
+          identifier: penguinwokrs.OpenInzone
+          installers-regex: '-setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
