@@ -22,7 +22,7 @@ Control a Sony INZONE headset from the notification area, a physical key, a Stre
 command line, without INZONE Hub.
 
 INZONE Hub can adjust the headphone volume and the game/chat balance, but only through its own
-window. This talks to the dongle directly over the same HID channel, so the same settings can be
+window. This talks to the dongle directly over the same channel, so the same settings can be
 reached from a panel in the notification area, bound to a key, scripted, or read from a status
 bar.
 
@@ -48,12 +48,11 @@ One left click on the tray icon opens this:
 |---|---|---|
 | INZONE Buds | USB dongle, HID (`PID_0EC2`) | **Verified** |
 | INZONE H9 | USB dongle, serial port (`PID_0E53`) | **Verified** |
-| INZONE H9 II | USB dongle | **Supported** |
+| INZONE H9 II | USB dongle | **Verified** |
 | INZONE H7 | USB dongle, serial port (`PID_0E53`) | **Untested** |
 | INZONE H3, H5, H6 Air, E9 | — | **Untested** |
 
 - **Verified**: tried on the real device.
-- **Supported**: made to work, and reported working in part, but not checked in full.
 - **Untested**: nobody has tried it. The protocol is shared across the INZONE range, so it may well
   work; an [issue](https://github.com/penguinwokrs/openinzone/issues) saying what does and does not
   helps.
@@ -63,14 +62,11 @@ by flipping the microphone up (H9, H7, H5, H3) or with a switch (H9 II, H6 Air),
 the mute state the headset reports, and a Stream Deck mute key turns the microphone level down to 0
 instead.
 
-**INZONE H9.** Reading its state works, and so does writing everything its settings window offers:
-the headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
-ambient level, voice focus, sidetone and automatic power off (5 minutes to 3 hours, or never), each
-tried and put back. Its dongle has no HID control channel and carries the same packets over a USB
-serial port instead (see [PROTOCOL.md](docs/PROTOCOL.md#the-h9--h7-dongle-a-serial-port-instead-of-hid)).
-A serial port cannot be shared, in either direction: INZONE Hub has to be closed before OpenInzone
-can reach an H9, and the OpenInzone tray (and a Stream Deck, which starts it) has to be quit before
-INZONE Hub can.
+**A dongle on a serial port cannot be shared.** The INZONE H9 / H7 dongle (`PID_0E53`) has no HID
+control channel and carries the same packets over a USB serial port instead, and only one program
+can hold a serial port at a time. While INZONE Hub has it, OpenInzone cannot connect; while the
+OpenInzone tray has it (a Stream Deck starts the tray's daemon too), INZONE Hub cannot. Quit one
+before using the other.
 
 ## Contents
 
@@ -119,7 +115,8 @@ does, and both ask it, which is what keeps two conversations from claiming each 
 
 INZONE Hub does not need to be closed either. The control interface is opened with sharing enabled,
 so both can be connected at once — handy while trying this out, since you can watch INZONE Hub's own
-sliders move.
+sliders move. A dongle on a serial port (INZONE H9 / H7) is the exception: only one of the two can
+hold it, as [Supported models](#supported-models) says.
 
 ## Install
 
@@ -476,6 +473,10 @@ in another terminal, which says so when it starts. Stop it with Ctrl+C and run t
 Up to 1.1.3 the tray and the daemon cause this too: use the update button in 設定 instead, or quit
 the tray from its menu first.
 
+**"Could not open the INZONE serial port ... Another program has it."**
+The dongle is on a serial port (INZONE H9 / H7), and INZONE Hub, the OpenInzone tray or `inzone
+watch` already holds it. Quit that one, and OpenInzone connects within a few seconds.
+
 **`inzone mic` shows the mute state but no level.**
 Windows is not currently exposing a capture endpoint for the headset. The mute flag lives on the
 headset and keeps working; the level is a Windows setting and needs that endpoint.
@@ -611,6 +612,9 @@ The headset's replies reach every program that has the interface open, so `watch
 traffic caused by INZONE Hub or by another copy of this tool — not only changes made at the
 earbuds. Repeated lines for one change are normal: the headset answers the request and then
 announces the new value.
+
+`watch` opens the dongle itself. On a dongle on a serial port (INZONE H9 / H7) that means it cannot
+run while INZONE Hub or the tray holds the port.
 
 This is what makes a status bar or stream overlay possible: pipe it somewhere and read it.
 
