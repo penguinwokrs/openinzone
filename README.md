@@ -44,13 +44,13 @@ One left click on the tray icon opens this:
 
 ## Supported models
 
-| Model | Connection | Status | Notes |
-|---|---|---|---|
-| INZONE Buds | USB dongle, HID (`PID_0EC2`) | **Verified** | Built and tested on it; everything on this page works |
-| INZONE H9 | USB dongle, serial port (`PID_0E53`) | **Verified** | Checked by a contributor ([#37](https://github.com/penguinwokrs/openinzone/pull/37)); see below |
-| INZONE H9 II | USB dongle | **Supported** | A user reports the game/chat balance working from a Stream Deck ([#19](https://github.com/penguinwokrs/openinzone/issues/19)); nothing else has been checked |
-| INZONE H7 | USB dongle, serial port (`PID_0E53`) | **Untested** | Shares the H9's dongle, so it connects the same way, but nobody has checked its values |
-| INZONE H3, H5, H6 Air, E9 | — | **Untested** | Known by name only |
+| Model | Connection | Status |
+|---|---|---|
+| INZONE Buds | USB dongle, HID (`PID_0EC2`) | **Verified** |
+| INZONE H9 | USB dongle, serial port (`PID_0E53`) | **Verified** |
+| INZONE H9 II | USB dongle | **Supported** |
+| INZONE H7 | USB dongle, serial port (`PID_0E53`) | **Untested** |
+| INZONE H3, H5, H6 Air, E9 | — | **Untested** |
 
 - **Verified**: tried on the real device.
 - **Supported**: made to work, and reported working in part, but not checked in full.
@@ -58,8 +58,10 @@ One left click on the tray icon opens this:
   work; an [issue](https://github.com/penguinwokrs/openinzone/issues) saying what does and does not
   helps.
 
-Microphone mute from the computer is INZONE Buds only. On the headsets OpenInzone shows the mute
-state the headset reports, and a Stream Deck mute key turns the microphone level down to 0 instead.
+Microphone mute from the computer is INZONE Buds only. The headsets are muted on the headset itself,
+by flipping the microphone up (H9, H7, H5, H3) or with a switch (H9 II, H6 Air), so OpenInzone shows
+the mute state the headset reports, and a Stream Deck mute key turns the microphone level down to 0
+instead.
 
 **INZONE H9.** Reading its state works, and so does writing everything its settings window offers:
 the headphone volume, the game/chat balance, the ambient mode (noise cancelling / ambient sound), the
@@ -385,7 +387,7 @@ own the headset, and what the others say to it, is in [docs/IPC.md](docs/IPC.md)
 ### Actions
 
 | Action | On a key | On a dial | Shows |
-|---|---|---|---|
+|---|---|---|
 | Volume | Steps by the amount you set | Turn to adjust | `16 / 30` |
 | Volume up | Raises it by the step | Turn to adjust, press to raise | `16 / 30` after a press |
 | Volume down | Lowers it by the step | Turn to adjust, press to lower | `16 / 30` after a press |
