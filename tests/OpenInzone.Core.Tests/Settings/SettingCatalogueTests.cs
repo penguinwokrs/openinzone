@@ -2,6 +2,7 @@
 // Copyright (C) 2026 penguinwokrs
 
 using OpenInzone.Ipc;
+using OpenInzone.Model;
 using OpenInzone.Protocol;
 using OpenInzone.Settings;
 
@@ -208,12 +209,20 @@ public class SettingCatalogueTests
             Assert.False(SettingCatalogue.ById(id)!.OwnsPacket, id);
     }
 
-    /// <summary>Owning the packet has to mean owning every byte of it, or a write would lose one.</summary>
+    /// <summary>
+    /// Owning the packet has to mean owning every byte of it, or a write would lose one. Two settings may
+    /// be two ways of drawing the same byte on different models (auto power off is a switch on one and
+    /// minutes on another), so the rule is held per model: on none may a packet have two owners.
+    /// </summary>
     [Fact]
     public void Nothing_claims_a_packet_it_shares()
     {
-        foreach (var setting in SettingCatalogue.All.Where(s => s.OwnsPacket))
-            Assert.Single(SettingCatalogue.ForEvent(setting.EventId));
+        foreach (byte modelId in Enumerable.Range(0, 8))
+        {
+            var model = new ModelInfo(modelId, 0, 0, 0, 0, "", "", "");
+            foreach (var setting in SettingCatalogue.All.Where(s => s.OwnsPacket && s.OfferedOn(model)))
+                Assert.Single(SettingCatalogue.ForEvent(setting.EventId).Where(s => s.OfferedOn(model)));
+        }
     }
 
     /// <summary>

@@ -192,9 +192,22 @@
           </Grid>
 
           <TextBlock Text="{x:Static res:Strings.Settings_Other}" FontSize="13" Margin="0,20,0,0"
-                     tray:Setting.Id="auto-power-off bluetooth-auto-switch voice-guidance voice-guidance-language" />
+                     tray:Setting.Id="auto-power-off auto-power-off-time bluetooth-auto-switch voice-guidance voice-guidance-language" />
           <CheckBox x:Name="AutoPowerOffBox" Content="{x:Static res:Strings.Settings_AutoPowerOff}" Margin="0,8,0,0"
                     tray:Setting.Id="auto-power-off" />
+          <!-- The same byte as the box above, on a model whose headset takes a number of minutes. -->
+          <StackPanel x:Name="AutoPowerOffTimeRow" Orientation="Horizontal" Margin="0,8,0,0"
+                      tray:Setting.Id="auto-power-off-time">
+            <TextBlock Text="{x:Static res:Strings.Settings_AutoPowerOff}" VerticalAlignment="Center" />
+            <ComboBox x:Name="AutoPowerOffTimeBox" Width="130" Margin="10,0,0,0" Height="26">
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOffNever}" Tag="0" />
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOff5Minutes}" Tag="5" />
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOff15Minutes}" Tag="15" />
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOff30Minutes}" Tag="30" />
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOff1Hour}" Tag="60" />
+              <ComboBoxItem Content="{x:Static res:Strings.Settings_AutoPowerOff3Hours}" Tag="180" />
+            </ComboBox>
+          </StackPanel>
           <CheckBox x:Name="BluetoothAutoSwitchBox" Margin="0,8,0,0"
                     tray:Setting.Id="bluetooth-auto-switch"
                     Content="{x:Static res:Strings.Settings_BluetoothSwitch}" />

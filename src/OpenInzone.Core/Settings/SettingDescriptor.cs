@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 penguinwokrs
 
+using OpenInzone.Model;
 using OpenInzone.Protocol;
 
 namespace OpenInzone.Settings;
@@ -41,8 +42,24 @@ public sealed record SettingDescriptor(
     int Maximum,
     int PacketBytes,
     Func<byte[], int> ReadValue,
-    Func<byte[], int, byte[]> WriteValue)
+    Func<byte[], int, byte[]> WriteValue,
+    Func<byte[], bool>? Recognises = null,
+    Func<ModelInfo, bool>? AppliesTo = null)
 {
+    /// <summary>
+    /// Whether this setting is for the connected model at all. Some settings are one thing on one
+    /// model and another on the next, and a model nobody has checked is left with the cautious one.
+    /// </summary>
+    public bool OfferedOn(ModelInfo model) => AppliesTo?.Invoke(model) ?? true;
+
+    /// <summary>
+    /// Whether this reading is one the setting can be drawn and written from. A toggle that reads a
+    /// byte which is neither off nor its on value is a setting this build does not understand on
+    /// that model - an INZONE H9 answers <c>05</c> for auto power off - and showing it as "off" would
+    /// invite a click that writes bytes nobody has checked. Such a setting is left out.
+    /// </summary>
+    public bool Recognised(byte[] param) => Recognises?.Invoke(param) ?? true;
+
     /// <summary>
     /// True when this setting is the whole packet, so a write can be composed outright.
     /// </summary>

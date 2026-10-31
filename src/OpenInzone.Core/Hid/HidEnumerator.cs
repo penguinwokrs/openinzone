@@ -44,7 +44,7 @@ public static class HidEnumerator
         return results;
     }
 
-    private static string? GetDevicePath(IntPtr set, ref SpDeviceInterfaceData did)
+    internal static string? GetDevicePath(IntPtr set, ref SpDeviceInterfaceData did)
     {
         NativeMethods.SetupDiGetDeviceInterfaceDetailW(set, ref did, IntPtr.Zero, 0, out uint required, IntPtr.Zero);
         if (required == 0) return null;

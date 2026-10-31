@@ -148,6 +148,24 @@
   <data name="Settings_AutoPowerOff" xml:space="preserve">
     <value>自动关机</value>
   </data>
+  <data name="Settings_AutoPowerOffNever" xml:space="preserve">
+    <value>从不</value>
+  </data>
+  <data name="Settings_AutoPowerOff5Minutes" xml:space="preserve">
+    <value>5 分钟</value>
+  </data>
+  <data name="Settings_AutoPowerOff15Minutes" xml:space="preserve">
+    <value>15 分钟</value>
+  </data>
+  <data name="Settings_AutoPowerOff30Minutes" xml:space="preserve">
+    <value>30 分钟</value>
+  </data>
+  <data name="Settings_AutoPowerOff1Hour" xml:space="preserve">
+    <value>1 小时</value>
+  </data>
+  <data name="Settings_AutoPowerOff3Hours" xml:space="preserve">
+    <value>3 小时</value>
+  </data>
   <data name="Settings_BluetoothSwitch" xml:space="preserve">
     <value>蓝牙拨出和来电时自动切换连接</value>
   </data>

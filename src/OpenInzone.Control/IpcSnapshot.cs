@@ -99,18 +99,28 @@ public static class IpcSnapshot
     public static DeviceReading Read(InzoneDevice device)
     {
         var map = device.ReadCapabilityMap();
+        var model = device.Model;
+
+        // Only what this model is offered: asking for a packet it has no setting in would cost a
+        // timeout on every reading for nothing.
+        var offered = SettingCatalogue.All.Where(setting => setting.OfferedOn(model)).ToList();
 
         // One entry per packet, not per setting: the ambient packet carries three of them, and
         // asking for it once cannot see them change in between.
-        var answers = SettingCatalogue.Events.ToDictionary(
+        var answers = offered.Select(setting => setting.EventId).Distinct().ToDictionary(
             eventId => eventId, eventId => Answer(device, map, eventId));
 
         var settings = new List<SettingValue>();
         var features = new List<string>();
 
-        foreach (var setting in SettingCatalogue.All)
+        foreach (var setting in offered)
         {
             if (answers[setting.EventId] is not { } param) continue;
+
+            // Not offered when the reading is not one the setting understands: a click on it would
+            // write bytes that have not been checked on this model.
+            if (!setting.Recognised(param)) continue;
+
             settings.Add(new SettingValue(setting.Id, setting.Read(param)));
             features.Add(setting.Id);
         }
@@ -160,7 +170,14 @@ public static class IpcSnapshot
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
         byte[] current = setting.OwnsPacket ? [] : device.Session.Get(setting.EventId);
-        device.Session.Set(setting.EventId, setting.Write(current, value));
+        byte[] next = setting.Write(current, value);
+
+        // Nothing goes out that the setting itself would not offer back: a number of minutes the
+        // headset has no such choice for is refused here rather than written and hoped about.
+        if (!setting.Recognised(next))
+            throw new NotSupportedException($"The setting '{id}' does not take the value {value}.");
+
+        device.Session.Set(setting.EventId, next);
     }
 
     /// <summary>Reads and moves one choice by <paramref name="steps"/> while preserving the rest of its packet.</summary>
@@ -170,7 +187,14 @@ public static class IpcSnapshot
             ?? throw new InvalidOperationException($"No such setting: {id}.");
 
         byte[] current = device.Session.Get(setting.EventId);
-        device.Session.Set(setting.EventId, setting.Cycle(current, steps));
+        byte[] next = setting.Cycle(current, steps);
+
+        // A choice whose values are not 0, 1, 2 (minutes, say) has no "next" by counting; refuse
+        // rather than write whatever the count lands on.
+        if (!setting.Recognised(next))
+            throw new NotSupportedException($"The setting '{id}' cannot be cycled.");
+
+        device.Session.Set(setting.EventId, next);
     }
 
     /// <summary>

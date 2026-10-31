@@ -2,7 +2,6 @@
 // Copyright (C) 2026 penguinwokrs
 
 using System.Collections.Concurrent;
-using OpenInzone.Hid;
 using OpenInzone.Native;
 
 namespace OpenInzone.Protocol;
@@ -13,19 +12,19 @@ public sealed class PacketReceivedEventArgs(HciPacket packet) : EventArgs
 }
 
 /// <summary>
-/// Runs the request/response conversation over <see cref="HidTransport"/>.
-/// A background reader reassembles packets from the report stream, hands replies to whoever is waiting,
+/// Runs the request/response conversation over an <see cref="IHciTransport"/>.
+/// A background reader reassembles packets from the byte stream, hands replies to whoever is waiting,
 /// and raises <see cref="PacketReceived"/> for anything unsolicited — for example when the wearer
 /// changes a setting from the earbuds themselves.
 /// </summary>
 public sealed class HciSession : IDisposable
 {
-    private readonly HidTransport _transport;
+    private readonly IHciTransport _transport;
     private readonly Thread _reader;
     private readonly IntPtr _cancelEvent;
     private readonly SemaphoreSlim _requestGate = new(1, 1);
     private readonly ConcurrentDictionary<(EventId, ushort), TaskCompletionSource<HciPacket>> _pending = new();
-    private readonly List<byte> _rxBuffer = [];
+    private readonly HciReassembler _reassembler = new();
     private ushort _nextTransactionId = 1;
     private volatile bool _disposed;
 
@@ -40,7 +39,7 @@ public sealed class HciSession : IDisposable
 
     public event EventHandler<PacketReceivedEventArgs>? PacketReceived;
 
-    public HciSession(HidTransport transport)
+    public HciSession(IHciTransport transport)
     {
         _transport = transport;
         _cancelEvent = NativeMethods.CreateEventW(IntPtr.Zero, true, false, null);
@@ -125,29 +124,7 @@ public sealed class HciSession : IDisposable
 
             if (payload is null || payload.Length == 0) continue;
 
-            _rxBuffer.AddRange(payload);
-            DrainBuffer();
-        }
-    }
-
-    private void DrainBuffer()
-    {
-        while (_rxBuffer.Count > 0)
-        {
-            var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_rxBuffer);
-            int? total = HciPacket.PeekLength(span);
-
-            if (total is null) return;             // need more bytes before the length is known
-            if (total < 0)                          // not a packet start: drop a byte and resynchronise
-            {
-                _rxBuffer.RemoveAt(0);
-                continue;
-            }
-            if (_rxBuffer.Count < total.Value) return;
-
-            var packet = HciPacket.Parse(span[..total.Value]);
-            _rxBuffer.RemoveRange(0, total.Value);
-            if (packet is not null) Dispatch(packet);
+            foreach (var packet in _reassembler.Add(payload)) Dispatch(packet);
         }
     }
 

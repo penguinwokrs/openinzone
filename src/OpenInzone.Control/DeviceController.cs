@@ -373,6 +373,7 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     public void SetSetting(string id, int value) => Post(_ =>
     {
         var device = Device();
+        RequireOffered(id);
         IpcSnapshot.Write(device, id, value);
         ReadAndAnnounceSettings(device);
     });
@@ -384,9 +385,20 @@ public sealed class DeviceController : IDeviceActions, IDisposable
     public void CycleSetting(string id, int steps) => Post(_ =>
     {
         var device = Device();
+        RequireOffered(id);
         IpcSnapshot.Cycle(device, id, steps);
         ReadAndAnnounceSettings(device);
     });
+
+    /// <summary>
+    /// Refuses a write to a setting this headset was not offering. Refused before anything is sent,
+    /// so it costs the connection nothing (see <see cref="FailureOutcome.Refused"/>).
+    /// </summary>
+    private void RequireOffered(string id)
+    {
+        if (!_settings.Offers(id))
+            throw new NotSupportedException($"This headset does not offer the setting '{id}'.");
+    }
 
     /// <summary>
     /// Corrects the one capability that is not the headset's to answer.

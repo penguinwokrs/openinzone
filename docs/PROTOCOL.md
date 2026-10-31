@@ -41,6 +41,44 @@ Find the collection by capability rather than by path: vendor `0x054C`, usage pa
 64-byte reports. The product id differs per model — INZONE Hub's own driver `.inf` lists
 `0x0DFD`, `0x0E47`, `0x0E53`, `0x0EBF`, `0x0EC2`, `0x0F80`, `0x0F81`, `0x0FA8`, `0x0FC0` and `0x0FC1`.
 
+### The H9 / H7 dongle: a serial port instead of HID
+
+The INZONE H9 / H7 dongle enumerates as `VID_054C` / `PID_0E53` ("INZONE H9 / INZONE H7"), and it has
+no `0xFF04` collection at all. Its HID interface (`MI_03`) has four collections, none of them a
+64-byte in/out pair: `0x000C` (consumer controls), `0xFF00` (64 in, 64 feature), `0xFF03` (feature
+reports `0xA0` and `0xA1`) and `0xFF01` (8 in, 2 out). The control channel is the dongle's USB serial
+port instead (`MI_06`, the stock `usbser` driver):
+
+| Setting | Value |
+|---|---|
+| Baud rate | 460800 |
+| Data bits, parity, stop bits | 8, none, 1 |
+| Flow control | none; RTS and DTR raised |
+
+These are the line settings INZONE Hub's `SerialPortWrapper` applies, and nothing is sent when the
+port opens. The packets are exactly the ones in [Packet format](#packet-format), but with no report
+framing: written as they are, and read back as a stream that is cut into packets by the length in
+each header. A `ConnectStatus2Ghz` Get to the transmitter is answered with
+`04 FF 0A 00 96 C3 12 01 10 <tid> 00 <link> <checksum>`.
+
+Unlike the HID collection, a serial port cannot be opened shared. The port is unavailable to this
+project while INZONE Hub has it, and the other way round: while the OpenInzone daemon has it (the
+tray starts one at logon and, while nothing is connected, tries again every few seconds; a Stream
+Deck starts it too), INZONE Hub cannot reach the headset. Windows registers it as a `GUID_DEVINTERFACE_COMPORT` interface whose path carries
+the USB ids, which is how this project finds it and opens it without needing the `COM` number.
+
+Observed on an INZONE H9 over this channel: model info (id `0`), battery, headphone volume, game/chat
+balance, the microphone mute flag, sidetone, the ambient setting, auto power off and the capability
+map all answer. `BootStatus` does not, and neither does `0x8E` (Bluetooth automatic switching), which
+INZONE Hub offers on INZONE Buds only. Voice guidance and its language do not answer either, and the
+capability map says why: its part 3 is seven bytes on an H9 where Buds' is ten (see
+[the capability map](#the-headset-publishes-its-own-capability-map-0x060x08)).
+
+Written over this channel and read back on an INZONE H9: the headphone volume, the game/chat balance,
+the ambient mode (`0x41` byte 0, noise cancelling and ambient sound both ways; the replies come back
+as `Notify`), the ambient level, voice focus, sidetone and auto power off (see
+[below](#auto-power-off-0x81)), each put back afterwards.
+
 ### Report framing
 
 Each 64-byte report carries a two-byte header:
@@ -247,6 +285,19 @@ others. Taking whatever remains would make part 1 the one part that can never fa
 model carrying a single field this build does not know would parse without complaint and put the
 volume, the balance and the sidetone at the wrong offsets.
 
+A part may also stop early. An INZONE H9's part 3 is seven bytes (`03 01 01 01 02 05 00`): the
+startup mode, the Bluetooth block, auto power off and the LED. Against the layout above, the startup
+mode and auto power off equal what `0x43` and `0x81` answer alone (`03` and `05`), and the voice
+prompt language, voice guidance and connection destination are missing from the end, each of which
+times out when asked for on its own. So for the H9 (model id `0`) a part that stops exactly where a
+slot stops is read as far as it goes, and the slots after it are the model having none of them, as if
+each were all `0xFF`. A part that stops between two slots does not add up, and is refused there too.
+
+Every other model has to send the whole part, and a short one is refused as before. The H7 shares the
+dongle, and the H9 II and the rest may well send short parts of their own, but nobody has seen their
+bytes, and a layout this build has not seen would put slots at the wrong offsets. A model is added
+(`CapabilityMap.AcceptsShortParts`) once someone has looked at what it sends.
+
 A slot means the model has no such setting when **every** byte in it is `0xFF`. `00 FF FF` for the
 microphone is not that: the mute flag answered, and the other two bytes are the firmware's own
 "not reported" sentinel, which is a different thing.
@@ -305,9 +356,16 @@ were asked in.
 
 ### Auto power off, `0x81`
 
-One byte. `00` off, `0x0F` on. INZONE Buds offers only those two in INZONE Hub, and 15 reads like
-the minutes a headset with a choice of delays would carry - but nothing here confirms that, and
-this model never sends another value.
+One byte, and it is a number of minutes: `00` is never. INZONE Hub offers an INZONE H9 `05`, `0F`,
+`1E`, `3C` and `B4` (5, 15, 30, 60 and 180 minutes), read from its own table for the choice. INZONE
+Buds is offered a plain switch, whose "on" `0x0F` is the same fifteen minutes. On an INZONE H9, which
+held `05`, 15, 30, 60 and 180 minutes and then never were each written and read back, and `05` was put
+back afterwards. A value that is not one of them
+(`07`, say) is refused before it is sent, and a reading that is none of them hides the setting.
+
+Which of the two a model is offered is decided by its model id: only the H9 (id `0`) gets the choice
+of minutes. The H7 shares the dongle, but nobody has checked its values, so there the byte is read
+as a switch only when it is `00` or `0F` and is otherwise left out.
 
 ### Voice guidance, `0x84`
 

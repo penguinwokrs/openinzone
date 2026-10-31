@@ -5,6 +5,7 @@ using OpenInzone.Audio;
 using OpenInzone.Hid;
 using OpenInzone.Model;
 using OpenInzone.Protocol;
+using OpenInzone.Serial;
 using OpenInzone.Settings;
 
 namespace OpenInzone;
@@ -22,6 +23,11 @@ public sealed class SettingChangedEventArgs(EventId eventId, byte[] param) : Eve
 /// The dongle exposes several HID collections; the control channel is the vendor collection on usage page
 /// 0xFF04. It is opened with sharing enabled, so this works while INZONE Hub is running — both see the
 /// same notifications and neither locks the other out.
+/// The INZONE H9 / H7 dongle has no such collection: it carries the same packets over its USB serial
+/// port instead (<see cref="SerialTransport"/>), which only one program can hold open at a time. So
+/// on an H9 that sharing does not hold: while INZONE Hub has the port OpenInzone cannot open it, and
+/// while the OpenInzone daemon has it (the tray starts one, and retries every few seconds) INZONE Hub
+/// cannot reach the headset.
 /// </remarks>
 public sealed class InzoneDevice : IDisposable
 {
@@ -34,7 +40,10 @@ public sealed class InzoneDevice : IDisposable
     private const int ReportLength = 64;
     private const byte ReportId = 0x02;
 
-    private readonly HidTransport _transport;
+    /// <summary>Product ids of the dongles whose control channel is a serial port (INZONE H9 / H7).</summary>
+    private static readonly ushort[] SerialProductIds = [0x0E53];
+
+    private readonly IHciTransport _transport;
     private readonly HciSession _session;
 
     public HidDeviceInfo DeviceInfo { get; }
@@ -45,17 +54,39 @@ public sealed class InzoneDevice : IDisposable
     private InzoneDevice(HidDeviceInfo info)
     {
         DeviceInfo = info;
-        _transport = new HidTransport(info.DevicePath, ReportLength, ReportLength, ReportId, ReportId);
+        _transport = info.IsSerial
+            ? new SerialTransport(info.DevicePath)
+            : new HidTransport(info.DevicePath, ReportLength, ReportLength, ReportId, ReportId);
         _session = new HciSession(_transport);
         _session.PacketReceived += OnPacketReceived;
     }
 
     /// <summary>Lists every INZONE control interface currently attached.</summary>
-    public static IReadOnlyList<HidDeviceInfo> Enumerate() => HidEnumerator.Enumerate(d =>
-        d.VendorId == SonyVendorId &&
-        d.UsagePage == ControlUsagePage &&
-        d.InputReportByteLength == ReportLength &&
-        d.OutputReportByteLength == ReportLength);
+    public static IReadOnlyList<HidDeviceInfo> Enumerate() =>
+    [
+        .. HidEnumerator.Enumerate(d =>
+            d.VendorId == SonyVendorId &&
+            d.UsagePage == ControlUsagePage &&
+            d.InputReportByteLength == ReportLength &&
+            d.OutputReportByteLength == ReportLength),
+        .. SerialDongles(),
+    ];
+
+    /// <summary>
+    /// The serial dongles, or none if looking for them fails: that must not take the HID dongles
+    /// down with it, and an INZONE Buds user has no use for this half.
+    /// </summary>
+    private static IReadOnlyList<HidDeviceInfo> SerialDongles()
+    {
+        try
+        {
+            return SerialEnumerator.Enumerate(SonyVendorId, SerialProductIds, "INZONE H9 / H7 serial control");
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+    }
 
     /// <summary>Opens the first INZONE dongle found, or the one at <paramref name="devicePath"/>.</summary>
     public static InzoneDevice Open(string? devicePath = null)
@@ -297,10 +328,18 @@ public sealed class InzoneDevice : IDisposable
             catch (TimeoutException) { return null; }
         }
 
+        // Short parts are read only for a model whose short parts have been seen. A model that cannot
+        // be asked who it is gets the strict reading, which is the one that refuses what it does not
+        // know rather than guessing at it.
+        bool shortParts;
+        try { shortParts = CapabilityMap.AcceptsShortParts(Model); }
+        catch (TimeoutException) { shortParts = false; }
+
         return CapabilityMap.Parse(
             Part(EventId.AllFunctionSettingsPart1),
             Part(EventId.AllFunctionSettingsPart2),
-            Part(EventId.AllFunctionSettingsPart3));
+            Part(EventId.AllFunctionSettingsPart3),
+            shortParts);
     }
 
     // ---- Status --------------------------------------------------------------

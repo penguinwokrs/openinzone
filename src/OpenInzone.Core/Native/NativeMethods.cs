@@ -56,6 +56,36 @@ internal struct SpDeviceInterfaceData
     public IntPtr Reserved;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+internal struct Dcb
+{
+    public uint DcbLength;
+    public uint BaudRate;
+    public uint Flags;   // the packed fBinary / fDtrControl / fRtsControl ... bit fields
+    public ushort Reserved;
+    public ushort XonLim;
+    public ushort XoffLim;
+    public byte ByteSize;
+    public byte Parity;
+    public byte StopBits;
+    public sbyte XonChar;
+    public sbyte XoffChar;
+    public sbyte ErrorChar;
+    public sbyte EofChar;
+    public sbyte EvtChar;
+    public ushort Reserved1;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct CommTimeouts
+{
+    public uint ReadIntervalTimeout;
+    public uint ReadTotalTimeoutMultiplier;
+    public uint ReadTotalTimeoutConstant;
+    public uint WriteTotalTimeoutMultiplier;
+    public uint WriteTotalTimeoutConstant;
+}
+
 internal static class NativeMethods
 {
     public const uint GENERIC_READ = 0x80000000;
@@ -68,6 +98,12 @@ internal static class NativeMethods
     public const int ERROR_IO_PENDING = 997;
     public const int ERROR_INSUFFICIENT_BUFFER = 122;
     public const int ERROR_NO_MORE_ITEMS = 259;
+    public const int ERROR_OPERATION_ABORTED = 995;
+    public const int ERROR_ACCESS_DENIED = 5;
+    public const int ERROR_SHARING_VIOLATION = 32;
+
+    public const uint PURGE_RXCLEAR = 0x0008;
+    public const uint PURGE_TXCLEAR = 0x0004;
 
     public const uint WAIT_OBJECT_0 = 0;
     public const uint WAIT_TIMEOUT = 258;
@@ -113,6 +149,18 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(IntPtr handle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool GetCommState(IntPtr handle, ref Dcb dcb);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetCommState(IntPtr handle, ref Dcb dcb);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetCommTimeouts(IntPtr handle, ref CommTimeouts timeouts);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool PurgeComm(IntPtr handle, uint flags);
 
     [DllImport("hid.dll")]
     public static extern void HidD_GetHidGuid(out Guid hidGuid);

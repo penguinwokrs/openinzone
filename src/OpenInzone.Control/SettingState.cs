@@ -28,6 +28,13 @@ internal sealed class SettingState
     /// </remarks>
     public IReadOnlyList<SettingValue>? Current => _current;
 
+    /// <summary>
+    /// False when the settings have been read and this one was left out of them. Writing what was never
+    /// offered is refused, so a client cannot reach by name a setting the window does not show. Before
+    /// the first reading nothing has been left out, and nothing is refused.
+    /// </summary>
+    public bool Offers(string id) => _current is not { } current || current.Any(value => value.Id == id);
+
     public long BeginRead()
     {
         lock (_gate) return _generation;
